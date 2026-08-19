@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 
 import cloudinary
+import dj_database_url
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -72,8 +73,8 @@ WSGI_APPLICATION = "suwidhaa_backend.wsgi.application"
 
 if os.getenv("DATABASE_URL"):
     DATABASES = {
-        "default": dj_database_url.parse(
-            os.getenv("DATABASE_URL"),
+        "default": dj_database_url.config(
+            default=os.getenv("DATABASE_URL"),
             conn_max_age=600,
             ssl_require=True,
         )
@@ -82,8 +83,8 @@ else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("DB_NAME"),
-            "USER": os.getenv("DB_USER"),
+            "NAME": os.getenv("DB_NAME", "suwidhaa_db"),
+            "USER": os.getenv("DB_USER", "postgres"),
             "PASSWORD": os.getenv("DB_PASSWORD"),
             "HOST": os.getenv("DB_HOST", "127.0.0.1"),
             "PORT": os.getenv("DB_PORT", "5432"),
