@@ -15,12 +15,15 @@ class TeacherCreateView(APIView):
 
         if serializer.is_valid():
             teacher = serializer.save()
+            
+            # Serialize the created teacher with full data
+            response_data = TeacherSerializer(teacher).data
 
             return Response(
                 {
                     "success": True,
                     "message": "Teacher created successfully",
-                    "data": TeacherSerializer(teacher).data,
+                    "data": response_data,
                 },
                 status=status.HTTP_201_CREATED,
             )
@@ -90,19 +93,22 @@ class TeacherDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        # Full update - all fields required except those with defaults
         serializer = TeacherSerializer(
             teacher,
             data=request.data,
+            partial=False,  # Full update
         )
 
         if serializer.is_valid():
-            teacher = serializer.save()
-
+            updated_teacher = serializer.save()
+            
             return Response(
                 {
                     "success": True,
                     "message": "Teacher updated successfully",
-                    "data": TeacherSerializer(teacher).data,
+                    "data": TeacherSerializer(updated_teacher).data,
+                    "updated_fields": list(request.data.keys()),  # Track which fields were updated
                 },
                 status=status.HTTP_200_OK,
             )
@@ -127,6 +133,7 @@ class TeacherDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        # Partial update - only provided fields will be updated
         serializer = TeacherSerializer(
             teacher,
             data=request.data,
@@ -134,13 +141,23 @@ class TeacherDetailView(APIView):
         )
 
         if serializer.is_valid():
-            teacher = serializer.save()
-
+            updated_teacher = serializer.save()
+            
+            # Get list of fields that were actually updated
+            updated_fields = []
+            for field, value in request.data.items():
+                if hasattr(teacher, field):
+                    old_value = getattr(teacher, field)
+                    new_value = getattr(updated_teacher, field)
+                    if old_value != new_value:
+                        updated_fields.append(field)
+            
             return Response(
                 {
                     "success": True,
                     "message": "Teacher updated successfully",
-                    "data": TeacherSerializer(teacher).data,
+                    "data": TeacherSerializer(updated_teacher).data,
+                    "updated_fields": updated_fields,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -165,12 +182,14 @@ class TeacherDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        # Store teacher name for response before deletion
+        teacher_name = str(teacher)
         teacher.delete()
 
         return Response(
             {
                 "success": True,
-                "message": "Teacher deleted successfully",
+                "message": f"Teacher '{teacher_name}' deleted successfully",
             },
             status=status.HTTP_200_OK,
         )
