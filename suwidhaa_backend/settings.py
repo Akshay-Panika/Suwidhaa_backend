@@ -145,6 +145,8 @@ CORS_ALLOW_METHODS = [
     "OPTIONS",
 ]
 
+CORS_ALLOW_ALL_ORIGINS = True
+
 CORS_ALLOW_HEADERS = [
     "accept",
     "accept-encoding",
