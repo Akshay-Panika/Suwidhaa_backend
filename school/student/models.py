@@ -1,7 +1,6 @@
 from django.db import models
 from cloudinary.models import CloudinaryField
 
-
 class Student(models.Model):
     student_profile = CloudinaryField(
         "student_profile",
@@ -38,6 +37,15 @@ class Student(models.Model):
 
     check_box = models.BooleanField(default=False)
     school_type = models.CharField(max_length=20, blank=True, null=True)
+    
+    # New field for student ID card
+    student_id_card = models.CharField(
+        max_length=50, 
+        blank=True, 
+        null=True, 
+        unique=True,
+        db_index=True
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

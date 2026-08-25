@@ -11,15 +11,48 @@ from school.student_pass.models import StudentPass  # Import StudentPass
 class StudentCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
+    def generate_student_id_card(self):
+        """Generate student ID card like student-01, student-02, etc."""
+        last_student = Student.objects.all().order_by('-id').first()
+        if last_student and last_student.student_id_card:
+            try:
+                last_number = int(last_student.student_id_card.split('-')[1])
+                new_number = last_number + 1
+            except:
+                new_number = 1
+        else:
+            new_number = 1
+        
+        return f"student-{str(new_number).zfill(2)}"
+
     def post(self, request):
+        # Generate student_id_card before creating student
+        student_id_card = self.generate_student_id_card()
+        
+        # Add student_id_card to request data
+        request.data._mutable = True
+        request.data['student_id_card'] = student_id_card
+        request.data._mutable = False
+        
         serializer = StudentSerializer(data=request.data)
 
         if serializer.is_valid():
             student = serializer.save()
             
-            # Auto-create student pass
+            # Create student pass with the same student_id_card
             try:
-                StudentPass.objects.create(student=student)
+                # Get or create student pass with the generated ID card
+                student_pass, created = StudentPass.objects.get_or_create(
+                    student=student,
+                    defaults={
+                        'student_id_card': student_id_card
+                    }
+                )
+                
+                # If student pass already exists, update the ID card
+                if not created:
+                    student_pass.student_id_card = student_id_card
+                    student_pass.save()
                 
                 return Response(
                     {

@@ -45,24 +45,23 @@ class StudentPass(models.Model):
             dob_str = date.today().strftime('%Y%m%d')
         return dob_str
     
-    def generate_student_id_card(self):
-        """Generate student ID card like student-01, student-02, etc."""
-        last_pass = StudentPass.objects.all().order_by('-id').first()
-        if last_pass:
-            # Extract number from last ID card
-            try:
-                last_number = int(last_pass.student_id_card.split('-')[1])
-                new_number = last_number + 1
-            except:
-                new_number = 1
-        else:
-            new_number = 1
-        
-        return f"student-{str(new_number).zfill(2)}"
-    
     def save(self, *args, **kwargs):
+        # Use student's student_id_card if available, otherwise generate one
         if not self.student_id_card:
-            self.student_id_card = self.generate_student_id_card()
+            if self.student and self.student.student_id_card:
+                self.student_id_card = self.student.student_id_card
+            else:
+                # Fallback: generate new ID card
+                last_pass = StudentPass.objects.all().order_by('-id').first()
+                if last_pass:
+                    try:
+                        last_number = int(last_pass.student_id_card.split('-')[1])
+                        new_number = last_number + 1
+                    except:
+                        new_number = 1
+                else:
+                    new_number = 1
+                self.student_id_card = f"student-{str(new_number).zfill(2)}"
         
         if not self.password:
             default_password = self.generate_default_password()
