@@ -46,23 +46,17 @@ class StudentPass(models.Model):
         return dob_str
     
     def save(self, *args, **kwargs):
-        # Use student's student_id_card if available, otherwise generate one
+        # If no student_id_card, try to get it from student
         if not self.student_id_card:
             if self.student and self.student.student_id_card:
                 self.student_id_card = self.student.student_id_card
             else:
-                # Fallback: generate new ID card
-                last_pass = StudentPass.objects.all().order_by('-id').first()
-                if last_pass:
-                    try:
-                        last_number = int(last_pass.student_id_card.split('-')[1])
-                        new_number = last_number + 1
-                    except:
-                        new_number = 1
-                else:
-                    new_number = 1
-                self.student_id_card = f"student-{str(new_number).zfill(2)}"
+                # Generate a unique ID
+                from .views import StudentCreateView
+                generator = StudentCreateView()
+                self.student_id_card = generator.generate_student_id_card()
         
+        # If no password, set default
         if not self.password:
             default_password = self.generate_default_password()
             self.set_password(default_password)

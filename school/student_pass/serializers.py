@@ -5,6 +5,7 @@ from .models import StudentPass
 class StudentPassSerializer(serializers.ModelSerializer):
     student_name = serializers.SerializerMethodField()
     student_class = serializers.SerializerMethodField()
+    student_id_card = serializers.CharField(read_only=True)  # Make it read-only
     
     class Meta:
         model = StudentPass
@@ -18,7 +19,7 @@ class StudentPassSerializer(serializers.ModelSerializer):
             'last_login',
             'created_at'
         ]
-        read_only_fields = ['created_at', 'updated_at', 'last_login']
+        read_only_fields = ['created_at', 'updated_at', 'last_login', 'student_id_card']
     
     def get_student_name(self, obj):
         return f"{obj.student.first_name} {obj.student.last_name}"
@@ -30,9 +31,8 @@ class StudentPassSerializer(serializers.ModelSerializer):
 class StudentPassUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentPass
-        fields = ['student_id_card', 'is_active']
+        fields = ['is_active']  # Remove student_id_card from updatable fields
         extra_kwargs = {
-            'student_id_card': {'required': False},
             'is_active': {'required': False}
         }
 
