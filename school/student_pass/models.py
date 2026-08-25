@@ -1,6 +1,5 @@
 from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
-from django.utils.crypto import get_random_string
 from school.student.models import Student
 
 
@@ -37,33 +36,29 @@ class StudentPass(models.Model):
         return check_password(raw_password, self.password)
     
     def generate_default_password(self):
-        """Generate a default password using dob, number, and unique character"""
+        """Generate default password using DOB"""
         student = self.student
         if student.dob:
             dob_str = student.dob.strftime('%Y%m%d')
         else:
             from datetime import date
             dob_str = date.today().strftime('%Y%m%d')
-        
-        unique_chars = get_random_string(length=2, allowed_chars='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
-        random_number = get_random_string(length=3, allowed_chars='0123456789')
-        
-        return f"{dob_str}{unique_chars}{random_number}"
+        return dob_str
     
     def generate_student_id_card(self):
-        """Generate a unique student ID card number"""
-        student = self.student
-        first_part = student.first_name[:3].upper() if student.first_name else 'STU'
-        last_part = student.last_name[:3].upper() if student.last_name else 'DNT'
+        """Generate student ID card like student-01, student-02, etc."""
+        last_pass = StudentPass.objects.all().order_by('-id').first()
+        if last_pass:
+            # Extract number from last ID card
+            try:
+                last_number = int(last_pass.student_id_card.split('-')[1])
+                new_number = last_number + 1
+            except:
+                new_number = 1
+        else:
+            new_number = 1
         
-        random_num = get_random_string(length=4, allowed_chars='0123456789')
-        student_id = f"{first_part}{last_part}-{random_num}"
-        
-        while StudentPass.objects.filter(student_id_card=student_id).exists():
-            random_num = get_random_string(length=4, allowed_chars='0123456789')
-            student_id = f"{first_part}{last_part}-{random_num}"
-        
-        return student_id
+        return f"student-{str(new_number).zfill(2)}"
     
     def save(self, *args, **kwargs):
         if not self.student_id_card:

@@ -19,19 +19,13 @@ class StudentCreateView(APIView):
             
             # Auto-create student pass
             try:
-                student_pass = StudentPass.objects.create(student=student)
+                StudentPass.objects.create(student=student)
                 
                 return Response(
                     {
                         "success": True,
-                        "message": "Student created successfully with pass",
+                        "message": "Student created successfully",
                         "data": StudentSerializer(student).data,
-                        "student_pass": {
-                            "id": student_pass.id,
-                            "student_id_card": student_pass.student_id_card,
-                            "default_password": student_pass.generate_default_password(),
-                            "is_active": student_pass.is_active
-                        }
                     },
                     status=status.HTTP_201_CREATED,
                 )
@@ -185,6 +179,13 @@ class StudentDetailView(APIView):
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        # Also delete student pass
+        try:
+            student_pass = StudentPass.objects.get(student=student)
+            student_pass.delete()
+        except StudentPass.DoesNotExist:
+            pass
 
         student.delete()
 

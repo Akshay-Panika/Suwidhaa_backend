@@ -4,7 +4,12 @@ from rest_framework import status
 from datetime import datetime
 
 from .models import StudentPass
-from .serializers import StudentPassSerializer, StudentPassLoginSerializer
+from .serializers import (
+    StudentPassSerializer,
+    StudentPassUpdateSerializer,
+    StudentPassLoginSerializer,
+    StudentPassForgotPasswordSerializer
+)
 
 
 class StudentPassListView(APIView):
@@ -66,7 +71,7 @@ class StudentPassDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        serializer = StudentPassSerializer(
+        serializer = StudentPassUpdateSerializer(
             student_pass,
             data=request.data,
             partial=True
@@ -143,15 +148,7 @@ class StudentPassLoginView(APIView):
                     {
                         "success": True,
                         "message": "Login successful",
-                        "data": {
-                            "student_pass": StudentPassSerializer(student_pass).data,
-                            "student": {
-                                "id": student_pass.student.id,
-                                "name": f"{student_pass.student.first_name} {student_pass.student.last_name}",
-                                "class": student_pass.student.student_class,
-                                "email": getattr(student_pass.student, 'email', None)
-                            }
-                        }
+                        "data": StudentPassSerializer(student_pass).data
                     },
                     status=status.HTTP_200_OK
                 )
@@ -168,6 +165,62 @@ class StudentPassLoginView(APIView):
                 {
                     "success": False,
                     "message": "Invalid student ID card or account inactive"
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class StudentPassForgotPasswordView(APIView):
+    """Forgot password - Reset password using student_id_card and DOB"""
+    
+    def post(self, request):
+        serializer = StudentPassForgotPasswordSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response(
+                {
+                    "success": False,
+                    "errors": serializer.errors
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        student_id_card = serializer.validated_data['student_id_card']
+        dob = serializer.validated_data['dob']
+        
+        try:
+            student_pass = StudentPass.objects.get(student_id_card=student_id_card, is_active=True)
+            
+            # Verify DOB
+            if student_pass.student.dob != dob:
+                return Response(
+                    {
+                        "success": False,
+                        "message": "Invalid DOB for this student ID card"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Reset password to DOB
+            new_password = student_pass.generate_default_password()
+            student_pass.set_password(new_password)
+            student_pass.save()
+            
+            return Response(
+                {
+                    "success": True,
+                    "message": "Password reset successfully",
+                    "new_password": new_password,
+                    "student_id_card": student_pass.student_id_card
+                },
+                status=status.HTTP_200_OK
+            )
+            
+        except StudentPass.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Student pass not found or inactive"
                 },
                 status=status.HTTP_404_NOT_FOUND
             )

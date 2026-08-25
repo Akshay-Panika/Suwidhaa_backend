@@ -27,9 +27,7 @@ class Student(models.Model):
     SSSMID = models.CharField(max_length=50, blank=True, null=True)
 
     student_class = models.CharField(max_length=50, blank=True, null=True)
-    student_id_card = models.CharField(max_length=50, blank=True, null=True,  unique=True)
     roll_number = models.CharField(max_length=50, blank=True, null=True)
-
 
     address = models.TextField(blank=True, null=True)
     caste_category = models.CharField(max_length=50, blank=True, null=True)
