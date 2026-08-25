@@ -5,6 +5,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from .models import Student
 from .serializers import StudentSerializer
+from school.student_pass.models import StudentPass  # Import StudentPass
 
 
 class StudentCreateView(APIView):
@@ -15,15 +16,35 @@ class StudentCreateView(APIView):
 
         if serializer.is_valid():
             student = serializer.save()
-
-            return Response(
-                {
-                    "success": True,
-                    "message": "Student created successfully",
-                    "data": StudentSerializer(student).data,
-                },
-                status=status.HTTP_201_CREATED,
-            )
+            
+            # Auto-create student pass
+            try:
+                student_pass = StudentPass.objects.create(student=student)
+                
+                return Response(
+                    {
+                        "success": True,
+                        "message": "Student created successfully with pass",
+                        "data": StudentSerializer(student).data,
+                        "student_pass": {
+                            "id": student_pass.id,
+                            "student_id_card": student_pass.student_id_card,
+                            "default_password": student_pass.generate_default_password(),
+                            "is_active": student_pass.is_active
+                        }
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
+            except Exception as e:
+                # If student pass creation fails, delete the student
+                student.delete()
+                return Response(
+                    {
+                        "success": False,
+                        "message": f"Failed to create student pass: {str(e)}"
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
         return Response(
             {
