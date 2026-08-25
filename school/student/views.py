@@ -11,64 +11,57 @@ from school.student_pass.models import StudentPass  # Import StudentPass
 class StudentCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
-    def generate_student_id_card(self):
-        """Generate unique student ID card like student-01, student-02, etc."""
-        # Get all existing student ID cards
-        existing_ids = Student.objects.filter(
-            student_id_card__isnull=False
-        ).values_list('student_id_card', flat=True)
-        
-        # Also check student_pass table for any existing IDs
-        existing_pass_ids = StudentPass.objects.filter(
-            student_id_card__isnull=False
-        ).values_list('student_id_card', flat=True)
-        
-        # Combine both sets of existing IDs
-        all_existing_ids = set(existing_ids) | set(existing_pass_ids)
-        
-        # Start from 1 and find the first available number
-        counter = 1
-        while True:
-            new_id = f"student-{str(counter).zfill(2)}"
-            if new_id not in all_existing_ids:
-                return new_id
-            counter += 1
-
     def post(self, request):
-        # Generate unique student_id_card before creating student
-        student_id_card = self.generate_student_id_card()
+        # Check if student_id_card is provided in request
+        student_id_card = request.data.get('student_id_card')
         
-        # Add student_id_card to request data
-        request.data._mutable = True
-        request.data['student_id_card'] = student_id_card
-        request.data._mutable = False
+        if not student_id_card:
+            return Response(
+                {
+                    "success": False,
+                    "message": "student_id_card is required"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Check if student_id_card already exists in Student model
+        if Student.objects.filter(student_id_card=student_id_card).exists():
+            return Response(
+                {
+                    "success": False,
+                    "message": f"Student with ID card '{student_id_card}' already exists"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Check if student_id_card already exists in StudentPass model
+        if StudentPass.objects.filter(student_id_card=student_id_card).exists():
+            return Response(
+                {
+                    "success": False,
+                    "message": f"Student ID card '{student_id_card}' already exists in student pass"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         
         serializer = StudentSerializer(data=request.data)
 
         if serializer.is_valid():
             try:
+                # Save student with provided student_id_card
                 student = serializer.save()
                 
                 # Create student pass with the same student_id_card
-                student_pass = StudentPass.objects.create(
+                StudentPass.objects.create(
                     student=student,
                     student_id_card=student_id_card
                 )
-                
-                # Prepare response with student pass data
-                student_data = StudentSerializer(student).data
-                student_data['student_pass'] = {
-                    'id': student_pass.id,
-                    'student_id_card': student_pass.student_id_card,
-                    'is_active': student_pass.is_active,
-                    'created_at': student_pass.created_at
-                }
                 
                 return Response(
                     {
                         "success": True,
                         "message": "Student created successfully",
-                        "data": student_data,
+                        "data": StudentSerializer(student).data,
                     },
                     status=status.HTTP_201_CREATED,
                 )
@@ -99,27 +92,12 @@ class StudentListView(APIView):
     def get(self, request):
         students = Student.objects.all().order_by("-id")
         serializer = StudentSerializer(students, many=True)
-        
-        # Add student pass info to each student
-        data = []
-        for student in students:
-            student_data = StudentSerializer(student).data
-            try:
-                student_pass = StudentPass.objects.get(student=student)
-                student_data['student_pass'] = {
-                    'id': student_pass.id,
-                    'student_id_card': student_pass.student_id_card,
-                    'is_active': student_pass.is_active,
-                }
-            except StudentPass.DoesNotExist:
-                student_data['student_pass'] = None
-            data.append(student_data)
 
         return Response(
             {
                 "success": True,
                 "count": students.count(),
-                "data": data,
+                "data": serializer.data,
             },
             status=status.HTTP_200_OK,
         )
@@ -146,25 +124,10 @@ class StudentDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        student_data = StudentSerializer(student).data
-        
-        # Add student pass info
-        try:
-            student_pass = StudentPass.objects.get(student=student)
-            student_data['student_pass'] = {
-                'id': student_pass.id,
-                'student_id_card': student_pass.student_id_card,
-                'is_active': student_pass.is_active,
-                'last_login': student_pass.last_login,
-                'created_at': student_pass.created_at
-            }
-        except StudentPass.DoesNotExist:
-            student_data['student_pass'] = None
-
         return Response(
             {
                 "success": True,
-                "data": student_data,
+                "data": StudentSerializer(student).data,
             },
             status=status.HTTP_200_OK,
         )
@@ -181,11 +144,28 @@ class StudentDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Remove student_id_card from request data if present (it's read-only)
+        # Check if student_id_card is being updated
         if 'student_id_card' in request.data:
-            request.data._mutable = True
-            del request.data['student_id_card']
-            request.data._mutable = False
+            new_card = request.data.get('student_id_card')
+            
+            # Check if new card already exists (excluding current student)
+            if Student.objects.filter(student_id_card=new_card).exclude(id=pk).exists():
+                return Response(
+                    {
+                        "success": False,
+                        "message": f"Student ID card '{new_card}' already exists"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            if StudentPass.objects.filter(student_id_card=new_card).exclude(student_id=pk).exists():
+                return Response(
+                    {
+                        "success": False,
+                        "message": f"Student ID card '{new_card}' already exists in student pass"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         serializer = StudentSerializer(
             student,
@@ -194,6 +174,15 @@ class StudentDetailView(APIView):
 
         if serializer.is_valid():
             student = serializer.save()
+            
+            # Update student pass if student_id_card was changed
+            if 'student_id_card' in request.data:
+                try:
+                    student_pass = StudentPass.objects.get(student=student)
+                    student_pass.student_id_card = request.data['student_id_card']
+                    student_pass.save()
+                except StudentPass.DoesNotExist:
+                    pass
 
             return Response(
                 {
@@ -224,11 +213,28 @@ class StudentDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Remove student_id_card from request data if present (it's read-only)
+        # Check if student_id_card is being updated
         if 'student_id_card' in request.data:
-            request.data._mutable = True
-            del request.data['student_id_card']
-            request.data._mutable = False
+            new_card = request.data.get('student_id_card')
+            
+            # Check if new card already exists (excluding current student)
+            if Student.objects.filter(student_id_card=new_card).exclude(id=pk).exists():
+                return Response(
+                    {
+                        "success": False,
+                        "message": f"Student ID card '{new_card}' already exists"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            if StudentPass.objects.filter(student_id_card=new_card).exclude(student_id=pk).exists():
+                return Response(
+                    {
+                        "success": False,
+                        "message": f"Student ID card '{new_card}' already exists in student pass"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         serializer = StudentSerializer(
             student,
@@ -238,6 +244,15 @@ class StudentDetailView(APIView):
 
         if serializer.is_valid():
             student = serializer.save()
+            
+            # Update student pass if student_id_card was changed
+            if 'student_id_card' in request.data:
+                try:
+                    student_pass = StudentPass.objects.get(student=student)
+                    student_pass.student_id_card = request.data['student_id_card']
+                    student_pass.save()
+                except StudentPass.DoesNotExist:
+                    pass
 
             return Response(
                 {

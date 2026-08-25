@@ -11,7 +11,6 @@ class StudentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Student
         fields = "__all__"
-        read_only_fields = ['student_id_card']  # Make it read-only for API
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

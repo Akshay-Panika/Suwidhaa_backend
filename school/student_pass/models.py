@@ -46,16 +46,6 @@ class StudentPass(models.Model):
         return dob_str
     
     def save(self, *args, **kwargs):
-        # If no student_id_card, try to get it from student
-        if not self.student_id_card:
-            if self.student and self.student.student_id_card:
-                self.student_id_card = self.student.student_id_card
-            else:
-                # Generate a unique ID
-                from .views import StudentCreateView
-                generator = StudentCreateView()
-                self.student_id_card = generator.generate_student_id_card()
-        
         # If no password, set default
         if not self.password:
             default_password = self.generate_default_password()
