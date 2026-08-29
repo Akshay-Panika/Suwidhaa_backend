@@ -248,19 +248,19 @@ class TeacherDetailView(APIView):
         )
 
 
-# ✅ Teacher Resend WhatsApp Credentials View
+# ✅ Teacher Resend WhatsApp Credentials View - COMPLETE FIX
 class TeacherResendWhatsAppCredentialsView(APIView):
     def post(self, request):
-        teacher_id = request.data.get('teacher_id')
+        teacher_id_card = request.data.get('teacher_id_card')
         
-        if not teacher_id:
+        if not teacher_id_card:
             return Response(
-                {"success": False, "message": "teacher_id is required"},
+                {"success": False, "message": "teacher_id_card is required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         try:
-            teacher = Teacher.objects.get(id=teacher_id)
+            teacher = Teacher.objects.get(teacher_id_card=teacher_id_card)
             teacher_pass = TeacherPass.objects.get(teacher=teacher)
             
             if not teacher.phone:
@@ -273,10 +273,10 @@ class TeacherResendWhatsAppCredentialsView(APIView):
             whatsapp_service = WhatsAppService()
             teacher_name = f"{teacher.first_name} {teacher.last_name}"
             
-            whatsapp_response = whatsapp_service.send_student_credentials(
+            whatsapp_response = whatsapp_service.send_teacher_credentials(
                 phone_number=teacher.phone,
-                student_name=teacher_name,
-                student_id=teacher_pass.teacher_id_card,
+                teacher_name=teacher_name,
+                teacher_id=teacher_pass.teacher_id_card,
                 password=default_password
             )
             
@@ -291,7 +291,7 @@ class TeacherResendWhatsAppCredentialsView(APIView):
             
         except Teacher.DoesNotExist:
             return Response(
-                {"success": False, "message": "Teacher not found"},
+                {"success": False, "message": "Teacher not found with this ID card"},
                 status=status.HTTP_404_NOT_FOUND
             )
         except TeacherPass.DoesNotExist:
