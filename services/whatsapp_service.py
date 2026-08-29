@@ -63,6 +63,11 @@ class WhatsAppService:
         return phone_number
 
     def _create_message(self, student_name, student_id, password):
+        # ✅ Play Store App Link - Change URL as per your app
+        app_link = "https://play.google.com/store/apps/details?id=com.suwidhaa.app"
+        # OR if you have a short link
+        # app_link = "https://suwidhaa.page.link/app"
+        
         return f"""🎓 Welcome {student_name}!
 
 Your student account has been created successfully.
@@ -72,5 +77,8 @@ Your student account has been created successfully.
 
 Please login using your Student ID and Password.
 For security, please change your password after first login.
+
+📲 Download our app:
+{app_link}
 
 Thank you!"""
