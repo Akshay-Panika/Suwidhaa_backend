@@ -56,10 +56,12 @@ class TeacherCreateView(APIView):
                 if teacher.phone:
                     whatsapp_service = WhatsAppService()
                     teacher_name = f"{teacher.first_name} {teacher.last_name}"
-                    whatsapp_response = whatsapp_service.send_student_credentials(
+                    
+                    # ✅ FIXED: Use send_teacher_credentials
+                    whatsapp_response = whatsapp_service.send_teacher_credentials(
                         phone_number=teacher.phone,
-                        student_name=teacher_name,
-                        student_id=teacher_id_card,
+                        teacher_name=teacher_name,
+                        teacher_id=teacher_id_card,
                         password=default_password
                     )
                 else:
@@ -248,7 +250,7 @@ class TeacherDetailView(APIView):
         )
 
 
-# ✅ Teacher Resend WhatsApp Credentials View - COMPLETE FIX
+# ✅ Teacher Resend WhatsApp Credentials View - FIXED
 class TeacherResendWhatsAppCredentialsView(APIView):
     def post(self, request):
         teacher_id_card = request.data.get('teacher_id_card')
@@ -273,6 +275,7 @@ class TeacherResendWhatsAppCredentialsView(APIView):
             whatsapp_service = WhatsAppService()
             teacher_name = f"{teacher.first_name} {teacher.last_name}"
             
+            # ✅ FIXED: Use send_teacher_credentials
             whatsapp_response = whatsapp_service.send_teacher_credentials(
                 phone_number=teacher.phone,
                 teacher_name=teacher_name,
