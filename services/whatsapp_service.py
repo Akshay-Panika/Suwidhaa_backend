@@ -33,23 +33,11 @@ class WhatsAppService:
             self.client = None
 
     def send_credentials(self, phone_number, name, id_card, password, user_type="Student"):
-        """
-        Send credentials via WhatsApp (Works for both Student & Teacher)
-        
-        Args:
-            phone_number: Parent's/Teacher's phone number
-            name: Full name
-            id_card: Student ID or Teacher ID
-            password: Default password (DOB)
-            user_type: "Student" or "Teacher"
-        """
         if not self.client:
             return {'success': False, 'error': 'Twilio client not initialized'}
         
         try:
             phone_number = self._format_phone_number(phone_number)
-            
-            # ✅ Create message with user type
             message_body = self._create_message(name, id_card, password, user_type)
             
             message = self.client.messages.create(
@@ -72,11 +60,9 @@ class WhatsAppService:
                 return {'success': False, 'error': 'Please send "join open-speed" to +14155238886 first'}
             return {'success': False, 'error': error_msg}
 
-    # ✅ Keep old method for backward compatibility
     def send_student_credentials(self, phone_number, student_name, student_id, password):
         return self.send_credentials(phone_number, student_name, student_id, password, "Student")
 
-    # ✅ New method for Teacher
     def send_teacher_credentials(self, phone_number, teacher_name, teacher_id, password):
         return self.send_credentials(phone_number, teacher_name, teacher_id, password, "Teacher")
 
@@ -91,7 +77,6 @@ class WhatsAppService:
     def _create_message(self, name, id_card, password, user_type="Student"):
         app_link = "https://play.google.com/store/apps/details?id=com.suwidhaa.app"
         
-        # ✅ Different messages for Student and Teacher
         if user_type == "Teacher":
             return f"""🎓 Welcome {name}!
 

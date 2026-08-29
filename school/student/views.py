@@ -4,12 +4,15 @@ from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 import logging
 from datetime import date
+import threading
+
 from .models import Student
 from .serializers import StudentSerializer
 from school.student_pass.models import StudentPass
 from services.whatsapp_service import WhatsAppService
 
 logger = logging.getLogger(__name__)
+
 
 class StudentCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -39,14 +42,33 @@ class StudentCreateView(APIView):
                 
                 whatsapp_response = None
                 if student.parent_phone:
-                    whatsapp_service = WhatsAppService()
-                    student_name = f"{student.first_name} {student.last_name}"
-                    whatsapp_response = whatsapp_service.send_student_credentials(
-                        phone_number=student.parent_phone,
-                        student_name=student_name,
-                        student_id=student_id_card,
-                        password=default_password
-                    )
+                    def send_whatsapp_async():
+                        try:
+                            whatsapp_service = WhatsAppService()
+                            if whatsapp_service.client:
+                                student_name = f"{student.first_name} {student.last_name}"
+                                result = whatsapp_service.send_student_credentials(
+                                    phone_number=student.parent_phone,
+                                    student_name=student_name,
+                                    student_id=student_id_card,
+                                    password=default_password
+                                )
+                                logger.info(f"WhatsApp result: {result}")
+                        except Exception as e:
+                            logger.error(f"WhatsApp error: {str(e)}")
+                    
+                    thread = threading.Thread(target=send_whatsapp_async, daemon=True)
+                    thread.start()
+                    
+                    # ✅ Full response like before
+                    whatsapp_response = {
+                        'success': True,
+                        'status': 'queued',
+                        'message': 'WhatsApp sending in background',
+                        'to': f"whatsapp:{student.parent_phone}",
+                        'from': 'whatsapp:+14155238886',
+                        'user_type': 'Student'
+                    }
                 else:
                     whatsapp_response = {'success': False, 'error': 'No parent phone number provided'}
                 

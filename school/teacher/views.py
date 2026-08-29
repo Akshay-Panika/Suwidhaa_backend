@@ -60,18 +60,28 @@ class TeacherCreateView(APIView):
                             whatsapp_service = WhatsAppService()
                             if whatsapp_service.client:
                                 teacher_name = f"{teacher.first_name} {teacher.last_name}"
-                                whatsapp_service.send_teacher_credentials(
+                                result = whatsapp_service.send_teacher_credentials(
                                     phone_number=teacher.phone,
                                     teacher_name=teacher_name,
                                     teacher_id=teacher_id_card,
                                     password=default_password
                                 )
+                                logger.info(f"WhatsApp result: {result}")
                         except Exception as e:
                             logger.error(f"WhatsApp error: {str(e)}")
                     
                     thread = threading.Thread(target=send_whatsapp_async, daemon=True)
                     thread.start()
-                    whatsapp_response = {'success': True, 'message': 'WhatsApp sending in background'}
+                    
+                    # ✅ Full response (like Student)
+                    whatsapp_response = {
+                        'success': True,
+                        'status': 'queued',
+                        'message': 'WhatsApp sending in background',
+                        'to': f"whatsapp:{teacher.phone}",
+                        'from': 'whatsapp:+14155238886',
+                        'user_type': 'Teacher'
+                    }
                 else:
                     whatsapp_response = {'success': False, 'error': 'No phone number provided'}
                 
