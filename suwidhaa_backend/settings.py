@@ -58,6 +58,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+# ✅ FIXED: with 'u'
 ROOT_URLCONF = "suwidhaa_backend.urls"
 
 TEMPLATES = [
@@ -75,6 +76,7 @@ TEMPLATES = [
     },
 ]
 
+# ✅ FIXED: with 'u'
 WSGI_APPLICATION = "suwidhaa_backend.wsgi.application"
 
 if os.getenv("DATABASE_URL"):
@@ -157,7 +159,25 @@ CORS_ALLOW_HEADERS = [
     "x-requested-with",
 ]
 
-# ============ TWILIO WHATSAPP SETTINGS ============
+# =====================================================
+# ============ TWILIO WHATSAPP SETTINGS ===============
+# =====================================================
+
+# Get credentials from environment
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
-TWILIO_WHATSAPP_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "")
+
+# Support both variable names (local and Render)
+TWILIO_WHATSAPP_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "") or os.getenv("TWILIO_PHONE_NUMBER", "")
+
+# Ensure whatsapp: prefix
+if TWILIO_WHATSAPP_FROM:
+    if TWILIO_WHATSAPP_FROM.startswith('whatsapp:'):
+        TWILIO_WHATSAPP_FROM = TWILIO_WHATSAPP_FROM.replace('whatsapp:', '')
+    
+    TWILIO_WHATSAPP_FROM = TWILIO_WHATSAPP_FROM.strip()
+    
+    if not TWILIO_WHATSAPP_FROM.startswith('+'):
+        TWILIO_WHATSAPP_FROM = '+' + TWILIO_WHATSAPP_FROM
+    
+    TWILIO_WHATSAPP_FROM = f"whatsapp:{TWILIO_WHATSAPP_FROM}"
