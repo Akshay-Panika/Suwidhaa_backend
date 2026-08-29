@@ -2,22 +2,41 @@ import os
 import logging
 from twilio.rest import Client
 from django.conf import settings
-from decouple import config
+from dotenv import load_dotenv  # ✅ Changed from decouple
+
+# Load .env file
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 class WhatsAppService:
     def __init__(self):
-        # Get credentials from settings (which reads from .env)
+        # Get credentials from settings
         self.account_sid = settings.TWILIO_ACCOUNT_SID
         self.auth_token = settings.TWILIO_AUTH_TOKEN
         self.from_number = settings.TWILIO_WHATSAPP_FROM
         
+        # Debug - Check if loaded
+        print(f"\n{'='*50}")
+        print(f"WhatsApp Service Initialization")
+        print(f"{'='*50}")
+        print(f"Account SID: {self.account_sid[:10] + '...' if self.account_sid else '❌ MISSING'}")
+        print(f"Auth Token: {'✅ Present' if self.auth_token else '❌ MISSING'}")
+        print(f"From Number: {self.from_number if self.from_number else '❌ MISSING'}")
+        print(f"{'='*50}\n")
+        
         if not all([self.account_sid, self.auth_token, self.from_number]):
-            logger.warning("Twilio credentials not fully configured")
+            missing = []
+            if not self.account_sid: missing.append("TWILIO_ACCOUNT_SID")
+            if not self.auth_token: missing.append("TWILIO_AUTH_TOKEN")
+            if not self.from_number: missing.append("TWILIO_WHATSAPP_FROM")
+            logger.error(f"Missing Twilio credentials: {', '.join(missing)}")
+            self.client = None
+            return
         
         try:
             self.client = Client(self.account_sid, self.auth_token)
+            print("✅ Twilio client initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize Twilio client: {str(e)}")
             self.client = None
@@ -38,12 +57,16 @@ class WhatsAppService:
         if not self.client:
             return {
                 'success': False,
-                'error': 'Twilio client not initialized'
+                'error': 'Twilio client not initialized. Check credentials.'
             }
         
         try:
-            # Clean and format phone number
+            # Format phone number
             phone_number = self._format_phone_number(phone_number)
+            
+            print(f"\n📤 Sending WhatsApp message:")
+            print(f"  To: {phone_number}")
+            print(f"  From: {self.from_number}")
             
             # Create message body
             message_body = self._create_student_credentials_message(
@@ -73,11 +96,13 @@ class WhatsAppService:
             
             # Provide user-friendly error messages
             if 'not a valid phone number' in error_msg.lower():
-                user_error = "Invalid phone number format. Please include country code."
+                user_error = "Invalid phone number format. Please include country code (e.g., +919898927770)"
             elif 'not a registered whatsapp user' in error_msg.lower():
-                user_error = "Phone number is not registered on WhatsApp."
+                user_error = "Phone number is not registered on WhatsApp. Send join phrase to sandbox first."
             elif 'sandbox' in error_msg.lower():
-                user_error = "Please join the WhatsApp sandbox first by sending the join phrase."
+                user_error = "Please join the WhatsApp sandbox first by sending 'join open-speed' to +14155238886"
+            elif 'from' in error_msg.lower() and 'number' in error_msg.lower():
+                user_error = "Invalid From number. Check TWILIO_WHATSAPP_FROM in .env file."
             else:
                 user_error = error_msg
             
@@ -88,22 +113,28 @@ class WhatsAppService:
             }
     
     def _format_phone_number(self, phone_number):
-        """Format phone number for WhatsApp"""
-        # Remove any spaces
-        phone_number = phone_number.strip()
+        """
+        Format phone number for WhatsApp
+        Since all numbers are Indian, automatically add +91
+        """
+        # Remove spaces and special characters (keep + and digits)
+        phone_number = ''.join(c for c in phone_number.strip() if c.isdigit() or c == '+')
         
-        # If number doesn't have whatsapp: prefix, add it
+        # If number doesn't have whatsapp: prefix
         if not phone_number.startswith('whatsapp:'):
-            # Ensure number has + prefix for international format
+            # Check if number already has country code
             if not phone_number.startswith('+'):
-                # If no +, add +91 for India (adjust as needed)
-                if phone_number.startswith('0'):
+                # For Indian numbers (10 digits or starting with 0)
+                if len(phone_number) == 10:
+                    phone_number = '+91' + phone_number
+                elif phone_number.startswith('0'):
                     phone_number = '+91' + phone_number[1:]
-                elif phone_number.startswith('9') or phone_number.startswith('8') or phone_number.startswith('7'):
+                elif len(phone_number) == 11 and phone_number.startswith('9'):
+                    # Sometimes 11 digits starting with 9
                     phone_number = '+91' + phone_number
                 else:
-                    # Try to add + if not present
-                    phone_number = '+' + phone_number
+                    # Assume it's an Indian number
+                    phone_number = '+91' + phone_number
             
             phone_number = f"whatsapp:{phone_number}"
         
@@ -126,11 +157,6 @@ Thank you!"""
     def send_template_message(self, phone_number, template_sid, template_variables):
         """
         Send a template message (for business-initiated conversations)
-        
-        Args:
-            phone_number: Parent's phone number
-            template_sid: Twilio content template SID
-            template_variables: Dict of template variables
         """
         if not self.client:
             return {
