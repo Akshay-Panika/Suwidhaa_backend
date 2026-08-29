@@ -1,12 +1,8 @@
 from rest_framework import serializers
 from .models import Student
 
-
 class StudentSerializer(serializers.ModelSerializer):
-    student_profile = serializers.FileField(
-        required=False,
-        allow_null=True,
-    )
+    student_profile = serializers.FileField(required=False, allow_null=True)
 
     class Meta:
         model = Student
@@ -14,10 +10,5 @@ class StudentSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-
-        if instance.student_profile:
-            data["student_profile"] = instance.student_profile.url
-        else:
-            data["student_profile"] = None
-
+        data["student_profile"] = instance.student_profile.url if instance.student_profile else None
         return data

@@ -1,16 +1,13 @@
 from pathlib import Path
 import os
-
 import cloudinary
 import dj_database_url
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-development-only-key")
-
+SECRET_KEY = os.getenv("SECRET_KEY")
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
 ALLOWED_HOSTS = [
@@ -34,11 +31,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
     "rest_framework",
     "cloudinary",
     "cloudinary_storage",
-
     "school.student",
     "school.teacher",
     "school.classes",
@@ -58,7 +53,6 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# ✅ FIXED: with 'u'
 ROOT_URLCONF = "suwidhaa_backend.urls"
 
 TEMPLATES = [
@@ -76,7 +70,6 @@ TEMPLATES = [
     },
 ]
 
-# ✅ FIXED: with 'u'
 WSGI_APPLICATION = "suwidhaa_backend.wsgi.application"
 
 if os.getenv("DATABASE_URL"):
@@ -100,18 +93,10 @@ else:
     }
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
 LANGUAGE_CODE = "en-us"
@@ -121,63 +106,28 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-
 DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 
 REST_FRAMEWORK = {
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
-    ],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
 }
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# ============ CORS SETTINGS ============
+# CORS
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOW_METHODS = [
-    "GET",
-    "POST",
-    "PUT",
-    "PATCH",
-    "DELETE",
-    "OPTIONS",
-]
-
-CORS_ALLOW_HEADERS = [
-    "accept",
-    "accept-encoding",
-    "authorization",
-    "content-type",
-    "dnt",
-    "origin",
-    "user-agent",
-    "x-csrftoken",
-    "x-requested-with",
-]
-
-# =====================================================
-# ============ TWILIO WHATSAPP SETTINGS ===============
-# =====================================================
-
-# Get credentials from environment
+# Twilio WhatsApp
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
-
-# Support both variable names (local and Render)
 TWILIO_WHATSAPP_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "") or os.getenv("TWILIO_PHONE_NUMBER", "")
 
-# Ensure whatsapp: prefix
-if TWILIO_WHATSAPP_FROM:
+if TWILIO_WHATSAPP_FROM and not TWILIO_WHATSAPP_FROM.startswith('whatsapp:'):
     if TWILIO_WHATSAPP_FROM.startswith('whatsapp:'):
         TWILIO_WHATSAPP_FROM = TWILIO_WHATSAPP_FROM.replace('whatsapp:', '')
-    
     TWILIO_WHATSAPP_FROM = TWILIO_WHATSAPP_FROM.strip()
-    
     if not TWILIO_WHATSAPP_FROM.startswith('+'):
         TWILIO_WHATSAPP_FROM = '+' + TWILIO_WHATSAPP_FROM
-    
     TWILIO_WHATSAPP_FROM = f"whatsapp:{TWILIO_WHATSAPP_FROM}"
