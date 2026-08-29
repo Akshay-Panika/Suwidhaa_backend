@@ -2,10 +2,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+import logging
 
 from .models import Student
 from .serializers import StudentSerializer
-from school.student_pass.models import StudentPass  # Import StudentPass
+from school.student_pass.models import StudentPass
+from services.whatsapp_service import WhatsAppService
+
+logger = logging.getLogger(__name__)
 
 
 class StudentCreateView(APIView):
@@ -51,17 +55,51 @@ class StudentCreateView(APIView):
                 # Save student with provided student_id_card
                 student = serializer.save()
                 
-                # Create student pass with the same student_id_card
-                StudentPass.objects.create(
+                # Generate default password (DOB)
+                if student.dob:
+                    default_password = student.dob.strftime('%Y%m%d')
+                else:
+                    from datetime import date
+                    default_password = date.today().strftime('%Y%m%d')
+                
+                # Create student pass with hashed password
+                student_pass = StudentPass.objects.create(
                     student=student,
                     student_id_card=student_id_card
                 )
+                student_pass.set_password(default_password)
+                student_pass.save()
+                
+                # Send WhatsApp message to parent
+                whatsapp_response = None
+                if student.parent_phone:
+                    whatsapp_service = WhatsAppService()
+                    student_name = f"{student.first_name} {student.last_name}"
+                    
+                    whatsapp_response = whatsapp_service.send_student_credentials(
+                        phone_number=student.parent_phone,
+                        student_name=student_name,
+                        student_id=student_id_card,
+                        password=default_password
+                    )
+                    
+                    if not whatsapp_response.get('success', False):
+                        logger.warning(
+                            f"WhatsApp message failed for {student.parent_phone}: "
+                            f"{whatsapp_response.get('error', 'Unknown error')}"
+                        )
+                else:
+                    whatsapp_response = {
+                        'success': False,
+                        'error': 'No parent phone number provided'
+                    }
                 
                 return Response(
                     {
                         "success": True,
                         "message": "Student created successfully",
                         "data": StudentSerializer(student).data,
+                        "whatsapp": whatsapp_response
                     },
                     status=status.HTTP_201_CREATED,
                 )
@@ -70,6 +108,7 @@ class StudentCreateView(APIView):
                 # If anything fails, delete the student
                 if 'student' in locals():
                     student.delete()
+                logger.error(f"Failed to create student: {str(e)}")
                 return Response(
                     {
                         "success": False,
@@ -299,3 +338,91 @@ class StudentDetailView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+# Add this new view for resending WhatsApp messages
+class ResendWhatsAppCredentialsView(APIView):
+    """
+    Resend WhatsApp credentials for an existing student
+    """
+    
+    def post(self, request):
+        student_id = request.data.get('student_id')
+        
+        if not student_id:
+            return Response(
+                {
+                    "success": False,
+                    "message": "student_id is required"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            student = Student.objects.get(id=student_id)
+            
+            # Check if student has a pass
+            try:
+                student_pass = StudentPass.objects.get(student=student)
+            except StudentPass.DoesNotExist:
+                return Response(
+                    {
+                        "success": False,
+                        "message": "Student pass not found for this student"
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            if not student.parent_phone:
+                return Response(
+                    {
+                        "success": False,
+                        "message": "Parent phone number not available"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Generate the default password
+            if student.dob:
+                default_password = student.dob.strftime('%Y%m%d')
+            else:
+                from datetime import date
+                default_password = date.today().strftime('%Y%m%d')
+            
+            # Send WhatsApp message
+            whatsapp_service = WhatsAppService()
+            student_name = f"{student.first_name} {student.last_name}"
+            
+            whatsapp_response = whatsapp_service.send_student_credentials(
+                phone_number=student.parent_phone,
+                student_name=student_name,
+                student_id=student_pass.student_id_card,
+                password=default_password
+            )
+            
+            return Response(
+                {
+                    "success": whatsapp_response.get('success', False),
+                    "message": "WhatsApp message sent successfully" if whatsapp_response.get('success', False) else "Failed to send WhatsApp message",
+                    "whatsapp": whatsapp_response
+                },
+                status=status.HTTP_200_OK if whatsapp_response.get('success', False) else status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            
+        except Student.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Student not found"
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Error in ResendWhatsAppCredentialsView: {str(e)}")
+            return Response(
+                {
+                    "success": False,
+                    "message": f"Error: {str(e)}"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
