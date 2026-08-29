@@ -38,7 +38,7 @@ urlpatterns = [
         include("school.student_pass.urls"),
     ),
     path(
-            "api/v1/school/",
-            include("school.teacher_pass.urls"),
+        "api/v1/school/",
+        include("school.teacher_pass.urls"),
     ),
 ]
