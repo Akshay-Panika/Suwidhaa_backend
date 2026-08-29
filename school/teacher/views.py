@@ -13,7 +13,7 @@ from services.whatsapp_service import WhatsAppService
 
 logger = logging.getLogger(__name__)
 
-#--
+
 class TeacherCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
@@ -55,34 +55,23 @@ class TeacherCreateView(APIView):
                 
                 whatsapp_response = None
                 if teacher.phone:
-                    # ✅ Send WhatsApp in background
                     def send_whatsapp_async():
                         try:
                             whatsapp_service = WhatsAppService()
                             if whatsapp_service.client:
                                 teacher_name = f"{teacher.first_name} {teacher.last_name}"
-                                result = whatsapp_service.send_teacher_credentials(
+                                whatsapp_service.send_teacher_credentials(
                                     phone_number=teacher.phone,
                                     teacher_name=teacher_name,
                                     teacher_id=teacher_id_card,
                                     password=default_password
                                 )
-                                logger.info(f"WhatsApp result: {result}")
                         except Exception as e:
                             logger.error(f"WhatsApp error: {str(e)}")
                     
                     thread = threading.Thread(target=send_whatsapp_async, daemon=True)
                     thread.start()
-                    
-                    # ✅ Return full response (like Student)
-                    whatsapp_response = {
-                        'success': True,
-                        'status': 'queued',
-                        'message': 'WhatsApp sending in background',
-                        'to': f"whatsapp:{teacher.phone}",
-                        'from': 'whatsapp:+14155238886',
-                        'user_type': 'Teacher'
-                    }
+                    whatsapp_response = {'success': True, 'message': 'WhatsApp sending in background'}
                 else:
                     whatsapp_response = {'success': False, 'error': 'No phone number provided'}
                 
@@ -110,7 +99,7 @@ class TeacherCreateView(APIView):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    
+
 class TeacherListView(APIView):
     def get(self, request):
         teachers = Teacher.objects.all().order_by("-id")
