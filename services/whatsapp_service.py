@@ -32,27 +32,53 @@ class WhatsAppService:
             logger.error(f"Failed to initialize Twilio client: {str(e)}")
             self.client = None
 
-    def send_student_credentials(self, phone_number, student_name, student_id, password):
+    def send_credentials(self, phone_number, name, id_card, password, user_type="Student"):
+        """
+        Send credentials via WhatsApp (Works for both Student & Teacher)
+        
+        Args:
+            phone_number: Parent's/Teacher's phone number
+            name: Full name
+            id_card: Student ID or Teacher ID
+            password: Default password (DOB)
+            user_type: "Student" or "Teacher"
+        """
         if not self.client:
             return {'success': False, 'error': 'Twilio client not initialized'}
         
         try:
             phone_number = self._format_phone_number(phone_number)
-            message_body = self._create_message(student_name, student_id, password)
-            message = self.client.messages.create(from_=self.from_number, to=phone_number, body=message_body)
+            
+            # ✅ Create message with user type
+            message_body = self._create_message(name, id_card, password, user_type)
+            
+            message = self.client.messages.create(
+                from_=self.from_number, 
+                to=phone_number, 
+                body=message_body
+            )
             
             return {
                 'success': True,
                 'message_sid': message.sid,
                 'status': message.status,
                 'to': phone_number,
-                'from': self.from_number
+                'from': self.from_number,
+                'user_type': user_type
             }
         except Exception as e:
             error_msg = str(e)
             if 'not a registered whatsapp user' in error_msg.lower() or 'sandbox' in error_msg.lower():
                 return {'success': False, 'error': 'Please send "join open-speed" to +14155238886 first'}
             return {'success': False, 'error': error_msg}
+
+    # ✅ Keep old method for backward compatibility
+    def send_student_credentials(self, phone_number, student_name, student_id, password):
+        return self.send_credentials(phone_number, student_name, student_id, password, "Student")
+
+    # ✅ New method for Teacher
+    def send_teacher_credentials(self, phone_number, teacher_name, teacher_id, password):
+        return self.send_credentials(phone_number, teacher_name, teacher_id, password, "Teacher")
 
     def _format_phone_number(self, phone_number):
         phone_number = ''.join(c for c in phone_number.strip() if c.isdigit() or c == '+')
@@ -62,17 +88,31 @@ class WhatsAppService:
             phone_number = f"whatsapp:{phone_number}"
         return phone_number
 
-    def _create_message(self, student_name, student_id, password):
-        # ✅ Play Store App Link - Change URL as per your app
+    def _create_message(self, name, id_card, password, user_type="Student"):
         app_link = "https://play.google.com/store/apps/details?id=com.suwidhaa.app"
-        # OR if you have a short link
-        # app_link = "https://suwidhaa.page.link/app"
         
-        return f"""🎓 Welcome {student_name}!
+        # ✅ Different messages for Student and Teacher
+        if user_type == "Teacher":
+            return f"""🎓 Welcome {name}!
+
+Your teacher account has been created successfully.
+
+📋 Teacher ID: {id_card}
+🔑 Default Password: {password}
+
+Please login using your Teacher ID and Password.
+For security, please change your password after first login.
+
+📲 Download our app:
+{app_link}
+
+Thank you!"""
+        else:
+            return f"""🎓 Welcome {name}!
 
 Your student account has been created successfully.
 
-📋 Student ID: {student_id}
+📋 Student ID: {id_card}
 🔑 Default Password: {password}
 
 Please login using your Student ID and Password.

@@ -22,6 +22,7 @@ class TeacherSerializer(serializers.ModelSerializer):
             
         return data
     
+    # ✅ Only validate teacher_id_card (removed teacher_id validation)
     def validate_teacher_id_card(self, value):
         """Validate that teacher_id_card is unique if provided"""
         if value:

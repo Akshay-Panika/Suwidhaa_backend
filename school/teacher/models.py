@@ -3,7 +3,8 @@ from cloudinary.models import CloudinaryField
 
 
 class Teacher(models.Model):
-    teacher_id = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    # ❌ REMOVED: teacher_id = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    
     teacher_profile = CloudinaryField(
         "teacher_profile",
         folder="suwidhaa/school/teacher",
@@ -19,7 +20,15 @@ class Teacher(models.Model):
     phone = models.CharField(max_length=20, blank=True, null=True)
     alt_phone = models.CharField(max_length=20, blank=True, null=True)
     email = models.EmailField(max_length=254, blank=True, null=True)
-    teacher_id_card = models.CharField(max_length=50, blank=True, null=True, unique=True, db_index=True)
+    
+    # ✅ Only teacher_id_card (Like Student)
+    teacher_id_card = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        unique=True,
+        db_index=True
+    )
 
     address = models.TextField(blank=True, null=True)
     qualification = models.CharField(max_length=200, blank=True, null=True)
@@ -35,4 +44,5 @@ class Teacher(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     def __str__(self):
-        return f"{self.first_name} {self.last_name} ({self.teacher_id})"
+        # ✅ Updated to use teacher_id_card
+        return f"{self.first_name} {self.last_name} ({self.teacher_id_card})"
