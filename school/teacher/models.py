@@ -19,7 +19,8 @@ class Teacher(models.Model):
     phone = models.CharField(max_length=20, blank=True, null=True)
     alt_phone = models.CharField(max_length=20, blank=True, null=True)
     email = models.EmailField(max_length=254, blank=True, null=True)
-    
+    teacher_id_card = models.CharField(max_length=50, blank=True, null=True, unique=True, db_index=True)
+
     address = models.TextField(blank=True, null=True)
     qualification = models.CharField(max_length=200, blank=True, null=True)
     experience = models.IntegerField(default=0, blank=True, null=True)

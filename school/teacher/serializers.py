@@ -22,12 +22,12 @@ class TeacherSerializer(serializers.ModelSerializer):
             
         return data
     
-    def validate_teacher_id(self, value):
-        """Validate that teacher_id is unique if provided"""
+    def validate_teacher_id_card(self, value):
+        """Validate that teacher_id_card is unique if provided"""
         if value:
             instance = self.instance
-            if Teacher.objects.exclude(pk=instance.pk if instance else None).filter(teacher_id=value).exists():
-                raise serializers.ValidationError("Teacher ID already exists.")
+            if Teacher.objects.exclude(pk=instance.pk if instance else None).filter(teacher_id_card=value).exists():
+                raise serializers.ValidationError("Teacher ID Card already exists.")
         return value
     
     def validate_email(self, value):
@@ -41,7 +41,6 @@ class TeacherSerializer(serializers.ModelSerializer):
     def validate_phone(self, value):
         """Validate phone number format"""
         if value:
-            # Basic phone validation - you can add more specific validation
             if not value.isdigit():
                 raise serializers.ValidationError("Phone number must contain only digits.")
         return value
