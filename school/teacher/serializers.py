@@ -14,34 +14,5 @@ class TeacherSerializer(serializers.ModelSerializer):
     
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        
-        if instance.teacher_profile:
-            data["teacher_profile"] = instance.teacher_profile.url
-        else:
-            data["teacher_profile"] = None
-            
+        data["teacher_profile"] = instance.teacher_profile.url if instance.teacher_profile else None
         return data
-    
-    # ✅ Only validate teacher_id_card (removed teacher_id validation)
-    def validate_teacher_id_card(self, value):
-        """Validate that teacher_id_card is unique if provided"""
-        if value:
-            instance = self.instance
-            if Teacher.objects.exclude(pk=instance.pk if instance else None).filter(teacher_id_card=value).exists():
-                raise serializers.ValidationError("Teacher ID Card already exists.")
-        return value
-    
-    def validate_email(self, value):
-        """Validate email format if provided"""
-        if value:
-            instance = self.instance
-            if Teacher.objects.exclude(pk=instance.pk if instance else None).filter(email=value).exists():
-                raise serializers.ValidationError("Email already exists.")
-        return value
-    
-    def validate_phone(self, value):
-        """Validate phone number format"""
-        if value:
-            if not value.isdigit():
-                raise serializers.ValidationError("Phone number must contain only digits.")
-        return value

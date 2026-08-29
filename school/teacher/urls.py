@@ -3,13 +3,12 @@ from .views import (
     TeacherCreateView,
     TeacherListView,
     TeacherDetailView,
-    TeacherResendWhatsAppCredentialsView  
+    ResendWhatsAppCredentialsView
 )
 
 urlpatterns = [
-    path("teacher/create/", TeacherCreateView.as_view(), name="teacher-create"),
-    path("teacher/list/", TeacherListView.as_view(), name="teacher-list"),
-    path("teacher/<int:pk>/", TeacherDetailView.as_view(), name="teacher-detail"),
-    path("teacher/resend-whatsapp/", TeacherResendWhatsAppCredentialsView.as_view()),
-
+    path("teacher/create/", TeacherCreateView.as_view()),
+    path("teacher/list/", TeacherListView.as_view()),
+    path("teacher/<int:pk>/", TeacherDetailView.as_view()),
+    path("teacher/resend-whatsapp/", ResendWhatsAppCredentialsView.as_view()),
 ]

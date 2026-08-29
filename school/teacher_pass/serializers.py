@@ -9,16 +9,7 @@ class TeacherPassSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = TeacherPass
-        fields = [
-            'id',
-            'teacher',
-            'teacher_name',
-            'teacher_class',
-            'teacher_id_card',
-            'is_active',
-            'last_login',
-            'created_at'
-        ]
+        fields = ['id', 'teacher', 'teacher_name', 'teacher_class', 'teacher_id_card', 'is_active', 'last_login', 'created_at']
         read_only_fields = ['created_at', 'updated_at', 'last_login', 'teacher_id_card']
     
     def get_teacher_name(self, obj):

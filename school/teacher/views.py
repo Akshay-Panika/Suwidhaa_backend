@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 import logging
 from datetime import date
-import threading  # ✅ ADD THIS
+import threading
 
 from .models import Teacher
 from .serializers import TeacherSerializer
@@ -53,7 +53,7 @@ class TeacherCreateView(APIView):
                 teacher_pass.set_password(default_password)
                 teacher_pass.save()
                 
-                # ✅ WhatsApp in Background Thread
+                whatsapp_response = None
                 if teacher.phone:
                     def send_whatsapp_async():
                         try:
@@ -67,7 +67,7 @@ class TeacherCreateView(APIView):
                                     password=default_password
                                 )
                         except Exception as e:
-                            logger.error(f"WhatsApp background error: {str(e)}")
+                            logger.error(f"WhatsApp error: {str(e)}")
                     
                     thread = threading.Thread(target=send_whatsapp_async, daemon=True)
                     thread.start()
@@ -75,7 +75,6 @@ class TeacherCreateView(APIView):
                 else:
                     whatsapp_response = {'success': False, 'error': 'No phone number provided'}
                 
-                # ✅ Instant Response - No waiting!
                 return Response(
                     {
                         "success": True,
@@ -259,8 +258,7 @@ class TeacherDetailView(APIView):
         )
 
 
-# ✅ Teacher Resend WhatsApp Credentials View
-class TeacherResendWhatsAppCredentialsView(APIView):
+class ResendWhatsAppCredentialsView(APIView):
     def post(self, request):
         teacher_id_card = request.data.get('teacher_id_card')
         
@@ -281,8 +279,6 @@ class TeacherResendWhatsAppCredentialsView(APIView):
                 )
             
             default_password = teacher.dob.strftime('%Y%m%d') if teacher.dob else date.today().strftime('%Y%m%d')
-            
-            # ✅ Send WhatsApp (direct, not background - resend is manual)
             whatsapp_service = WhatsAppService()
             teacher_name = f"{teacher.first_name} {teacher.last_name}"
             
