@@ -1,11 +1,10 @@
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 import logging
 from datetime import date
-import threading  # ✅ ADD THIS IMPORT
+import threading  # ✅ ADD THIS
 
 from .models import Teacher
 from .serializers import TeacherSerializer
@@ -54,38 +53,29 @@ class TeacherCreateView(APIView):
                 teacher_pass.set_password(default_password)
                 teacher_pass.save()
                 
-                # ✅ SEND WHATSAPP IN BACKGROUND (NO WAITING)
-                whatsapp_response = {'success': False, 'error': 'No phone number provided'}
-                
+                # ✅ WhatsApp in Background Thread
                 if teacher.phone:
                     def send_whatsapp_async():
                         try:
                             whatsapp_service = WhatsAppService()
                             if whatsapp_service.client:
                                 teacher_name = f"{teacher.first_name} {teacher.last_name}"
-                                result = whatsapp_service.send_teacher_credentials(
+                                whatsapp_service.send_teacher_credentials(
                                     phone_number=teacher.phone,
                                     teacher_name=teacher_name,
                                     teacher_id=teacher_id_card,
                                     password=default_password
                                 )
-                                logger.info(f"WhatsApp result: {result}")
-                            else:
-                                logger.warning("WhatsApp client not initialized")
                         except Exception as e:
-                            logger.error(f"Background WhatsApp error: {str(e)}")
+                            logger.error(f"WhatsApp background error: {str(e)}")
                     
-                    # Start background thread (daemon=True so it doesn't block)
                     thread = threading.Thread(target=send_whatsapp_async, daemon=True)
                     thread.start()
-                    
-                    whatsapp_response = {
-                        'success': True,
-                        'message': 'WhatsApp sending in background',
-                        'async': True
-                    }
+                    whatsapp_response = {'success': True, 'message': 'WhatsApp sending in background'}
+                else:
+                    whatsapp_response = {'success': False, 'error': 'No phone number provided'}
                 
-                # ✅ IMMEDIATE RESPONSE - NO WAITING!
+                # ✅ Instant Response - No waiting!
                 return Response(
                     {
                         "success": True,
@@ -109,7 +99,8 @@ class TeacherCreateView(APIView):
             {"success": False, "errors": serializer.errors},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
+
 class TeacherListView(APIView):
     def get(self, request):
         teachers = Teacher.objects.all().order_by("-id")
@@ -268,7 +259,7 @@ class TeacherDetailView(APIView):
         )
 
 
-# ✅ Teacher Resend WhatsApp Credentials View - FIXED
+# ✅ Teacher Resend WhatsApp Credentials View
 class TeacherResendWhatsAppCredentialsView(APIView):
     def post(self, request):
         teacher_id_card = request.data.get('teacher_id_card')
@@ -290,10 +281,11 @@ class TeacherResendWhatsAppCredentialsView(APIView):
                 )
             
             default_password = teacher.dob.strftime('%Y%m%d') if teacher.dob else date.today().strftime('%Y%m%d')
+            
+            # ✅ Send WhatsApp (direct, not background - resend is manual)
             whatsapp_service = WhatsAppService()
             teacher_name = f"{teacher.first_name} {teacher.last_name}"
             
-            # ✅ FIXED: Use send_teacher_credentials
             whatsapp_response = whatsapp_service.send_teacher_credentials(
                 phone_number=teacher.phone,
                 teacher_name=teacher_name,
