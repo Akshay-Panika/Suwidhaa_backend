@@ -4,7 +4,6 @@ from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 import logging
 from datetime import date
-
 from .models import Student
 from .serializers import StudentSerializer
 from school.student_pass.models import StudentPass
