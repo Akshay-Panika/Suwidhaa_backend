@@ -13,6 +13,10 @@ class HomeworkSerializer(serializers.ModelSerializer):
             'issue_date',
             'end_date',
             'image',
+            'class_name',
+            'teacher_name',
+            'teacher_id',
+            'school_type',
             'created_at',
             'updated_at'
         ]

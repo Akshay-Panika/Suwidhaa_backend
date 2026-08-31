@@ -12,13 +12,23 @@ logger = logging.getLogger(__name__)
 
 class HomeworkCreateView(APIView):
     """
-    POST: Create new homework with image upload
+    POST: Create new homework
     """
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request):
-        # Check if required fields are present
-        required_fields = ['subject_name', 'subject_topic', 'issue_date', 'end_date']
+        # Check required fields
+        required_fields = [
+            'subject_name', 
+            'subject_topic', 
+            'issue_date', 
+            'end_date',
+            'class_name',
+            'teacher_name',
+            'teacher_id',
+            'school_type'
+        ]
+        
         missing_fields = [field for field in required_fields if not request.data.get(field)]
         
         if missing_fields:
@@ -68,7 +78,7 @@ class HomeworkListView(APIView):
 class HomeworkDetailView(APIView):
     """
     GET: Retrieve specific homework
-    PUT: Update specific homework
+    PUT: Update specific homework (full update)
     PATCH: Partial update specific homework
     DELETE: Delete specific homework
     """
@@ -100,6 +110,26 @@ class HomeworkDetailView(APIView):
                 "success": False,
                 "message": "Homework not found"
             }, status=status.HTTP_404_NOT_FOUND)
+
+        # Check required fields for full update
+        required_fields = [
+            'subject_name', 
+            'subject_topic', 
+            'issue_date', 
+            'end_date',
+            'class_name',
+            'teacher_name',
+            'teacher_id',
+            'school_type'
+        ]
+        
+        missing_fields = [field for field in required_fields if not request.data.get(field)]
+        
+        if missing_fields:
+            return Response({
+                "success": False,
+                "message": f"Required fields missing: {', '.join(missing_fields)}"
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = HomeworkSerializer(homework, data=request.data)
         if serializer.is_valid():
