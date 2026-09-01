@@ -49,16 +49,18 @@ class TransportSerializer(serializers.ModelSerializer):
 
 
 class TransportListSerializer(serializers.ModelSerializer):
-    """Simplified serializer for list view"""
+    """List serializer with full student data"""
     driver_image_url = serializers.SerializerMethodField()
     student_count = serializers.SerializerMethodField()
+    students = TransportStudentSerializer(many=True, read_only=True)
     
     class Meta:
         model = Transport
         fields = [
             'id', 'transport_type', 'school_type', 'vehicle_number', 
             'driver_name', 'driver_number', 'driver_image_url',
-            'capacity', 'route_name', 'student_count'
+            'capacity', 'route_name', 
+            'students', 'student_count'
         ]
     
     def get_driver_image_url(self, obj):

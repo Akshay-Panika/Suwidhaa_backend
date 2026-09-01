@@ -47,7 +47,7 @@ class TransportCreateView(APIView):
 
 
 class TransportListView(APIView):
-    """List all transports"""
+    """List all transports with full student data"""
     
     def get(self, request):
         queryset = Transport.objects.all()
@@ -69,6 +69,9 @@ class TransportListView(APIView):
         # Ordering
         order_by = request.query_params.get('order_by', '-created_at')
         queryset = queryset.order_by(order_by)
+        
+        # Prefetch students for performance
+        queryset = queryset.prefetch_related('students')
         
         serializer = TransportListSerializer(queryset, many=True)
         
@@ -244,6 +247,61 @@ class TransportStudentAddView(APIView):
             "success": True,
             "message": "Student added successfully",
             "data": serializer.data
+        }, status=status.HTTP_201_CREATED)
+
+
+class TransportStudentBulkAddView(APIView):
+    """Bulk add students to transport"""
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    
+    def post(self, request, pk):
+        try:
+            transport = Transport.objects.get(pk=pk)
+        except Transport.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Transport not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        students_data = request.data.get('students', [])
+        
+        if not students_data or not isinstance(students_data, list):
+            return Response({
+                "success": False,
+                "message": "students list is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        created = []
+        errors = []
+        
+        for student_data in students_data:
+            student_name = student_data.get('student_name')
+            student_id = student_data.get('student_id')
+            
+            if not student_name or not student_id:
+                errors.append(f"Missing student_name or student_id for: {student_data}")
+                continue
+            
+            # Check for duplicate
+            if TransportStudent.objects.filter(transport=transport, student_id=student_id).exists():
+                errors.append(f"Student with ID '{student_id}' already exists")
+                continue
+            
+            # Create student
+            student = TransportStudent.objects.create(
+                transport=transport,
+                student_name=student_name,
+                student_id=student_id,
+                pickup_time=student_data.get('pickup_time'),
+                drop_time=student_data.get('drop_time')
+            )
+            created.append(TransportStudentSerializer(student).data)
+        
+        return Response({
+            "success": True,
+            "message": f"Added {len(created)} students successfully",
+            "created": created,
+            "errors": errors
         }, status=status.HTTP_201_CREATED)
 
 

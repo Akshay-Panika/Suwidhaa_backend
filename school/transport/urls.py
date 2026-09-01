@@ -5,6 +5,7 @@ from .views import (
     TransportListView,
     TransportDetailView,
     TransportStudentAddView,
+    TransportStudentBulkAddView,
     TransportStudentUpdateView,
     TransportStudentDeleteView,
     TransportStudentListView,
@@ -19,6 +20,7 @@ urlpatterns = [
     # Student Management
     path("transport/<int:pk>/students/", TransportStudentListView.as_view(), name="transport-students-list"),
     path("transport/<int:pk>/students/add/", TransportStudentAddView.as_view(), name="transport-student-add"),
+    path("transport/<int:pk>/students/bulk-add/", TransportStudentBulkAddView.as_view(), name="transport-student-bulk-add"),
     path("transport/<int:pk>/students/<str:student_id>/", TransportStudentUpdateView.as_view(), name="transport-student-update"),
     path("transport/<int:pk>/students/<str:student_id>/delete/", TransportStudentDeleteView.as_view(), name="transport-student-delete"),
 ]
