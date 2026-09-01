@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "school.student_pass",
     "school.teacher_pass",
     "school.homework",
+    "school.transport",
 ]
 
 MIDDLEWARE = [
