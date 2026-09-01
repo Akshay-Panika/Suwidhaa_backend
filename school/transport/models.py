@@ -18,13 +18,6 @@ class Transport(models.Model):
         null=True
     )
     
-    # Students List (Manual Data Entry as JSON)
-    students_data = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="List of students with their details"
-    )
-    
     # Additional Fields
     capacity = models.CharField(max_length=50, blank=True, null=True)
     route_name = models.CharField(max_length=200, blank=True, null=True)
