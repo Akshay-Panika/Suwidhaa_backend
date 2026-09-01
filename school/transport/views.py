@@ -51,10 +51,6 @@ class TransportListView(APIView):
         if transport_type:
             queryset = queryset.filter(transport_type__icontains=transport_type)
         
-        is_active = request.query_params.get('is_active')
-        if is_active is not None:
-            queryset = queryset.filter(is_active=is_active.lower() == 'true')
-        
         # Search by vehicle number or driver name
         search = request.query_params.get('search')
         if search:

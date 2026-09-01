@@ -10,7 +10,7 @@ class TransportSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'transport_type', 'school_type', 'vehicle_number',
             'driver_name', 'driver_number', 'driver_image',
-            'capacity', 'route_name', 'is_active',
+            'capacity', 'route_name',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
@@ -40,7 +40,7 @@ class TransportListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'transport_type', 'school_type', 'vehicle_number', 
             'driver_name', 'driver_number', 'driver_image_url',
-            'capacity', 'is_active', 'route_name'
+            'capacity', 'route_name'
         ]
     
     def get_driver_image_url(self, obj):
