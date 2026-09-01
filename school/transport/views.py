@@ -3,10 +3,16 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.db import models
 import logging
 
-from .models import Transport
-from .serializers import TransportSerializer, TransportListSerializer
+from .models import Transport, TransportStudent
+from .serializers import (
+    TransportSerializer, 
+    TransportListSerializer, 
+    TransportDetailSerializer,
+    TransportStudentSerializer
+)
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +30,7 @@ class TransportCreateView(APIView):
                 return Response({
                     "success": True,
                     "message": "Transport created successfully",
-                    "data": TransportSerializer(transport).data
+                    "data": TransportDetailSerializer(transport).data
                 }, status=status.HTTP_201_CREATED)
             except Exception as e:
                 logger.error(f"Failed to create transport: {str(e)}")
@@ -91,7 +97,7 @@ class TransportDetailView(APIView):
                 "message": "Transport not found"
             }, status=status.HTTP_404_NOT_FOUND)
         
-        serializer = TransportSerializer(transport)
+        serializer = TransportDetailSerializer(transport)
         return Response({
             "success": True,
             "data": serializer.data
@@ -123,7 +129,7 @@ class TransportDetailView(APIView):
                 return Response({
                     "success": True,
                     "message": "Transport updated successfully",
-                    "data": TransportSerializer(transport).data
+                    "data": TransportDetailSerializer(transport).data
                 }, status=status.HTTP_200_OK)
             except Exception as e:
                 logger.error(f"Failed to update transport: {str(e)}")
@@ -156,7 +162,7 @@ class TransportDetailView(APIView):
                 return Response({
                     "success": True,
                     "message": "Transport updated successfully",
-                    "data": TransportSerializer(transport).data
+                    "data": TransportDetailSerializer(transport).data
                 }, status=status.HTTP_200_OK)
             except Exception as e:
                 logger.error(f"Failed to update transport: {str(e)}")
@@ -190,3 +196,138 @@ class TransportDetailView(APIView):
                 "success": False,
                 "message": f"Failed to delete transport: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ==================== STUDENT MANAGEMENT VIEWS ====================
+
+class TransportStudentAddView(APIView):
+    """Add a student to transport"""
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    
+    def post(self, request, pk):
+        try:
+            transport = Transport.objects.get(pk=pk)
+        except Transport.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Transport not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Validate required fields
+        student_name = request.data.get('student_name')
+        student_id = request.data.get('student_id')
+        
+        if not student_name or not student_id:
+            return Response({
+                "success": False,
+                "message": "student_name and student_id are required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check for duplicate
+        if TransportStudent.objects.filter(transport=transport, student_id=student_id).exists():
+            return Response({
+                "success": False,
+                "message": f"Student with ID '{student_id}' already exists in this transport"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create student
+        student = TransportStudent.objects.create(
+            transport=transport,
+            student_name=student_name,
+            student_id=student_id,
+            pickup_time=request.data.get('pickup_time'),
+            drop_time=request.data.get('drop_time')
+        )
+        
+        serializer = TransportStudentSerializer(student)
+        return Response({
+            "success": True,
+            "message": "Student added successfully",
+            "data": serializer.data
+        }, status=status.HTTP_201_CREATED)
+
+
+class TransportStudentUpdateView(APIView):
+    """Update a student in transport"""
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    
+    def put(self, request, pk, student_id):
+        try:
+            transport = Transport.objects.get(pk=pk)
+        except Transport.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Transport not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        try:
+            student = TransportStudent.objects.get(transport=transport, student_id=student_id)
+        except TransportStudent.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": f"Student with ID '{student_id}' not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Update fields
+        student.student_name = request.data.get('student_name', student.student_name)
+        student.pickup_time = request.data.get('pickup_time', student.pickup_time)
+        student.drop_time = request.data.get('drop_time', student.drop_time)
+        student.save()
+        
+        serializer = TransportStudentSerializer(student)
+        return Response({
+            "success": True,
+            "message": "Student updated successfully",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    def patch(self, request, pk, student_id):
+        return self.put(request, pk, student_id)
+
+
+class TransportStudentDeleteView(APIView):
+    """Remove a student from transport"""
+    
+    def delete(self, request, pk, student_id):
+        try:
+            transport = Transport.objects.get(pk=pk)
+        except Transport.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Transport not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        try:
+            student = TransportStudent.objects.get(transport=transport, student_id=student_id)
+            student.delete()
+            return Response({
+                "success": True,
+                "message": f"Student with ID '{student_id}' removed successfully"
+            }, status=status.HTTP_200_OK)
+        except TransportStudent.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": f"Student with ID '{student_id}' not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+
+
+class TransportStudentListView(APIView):
+    """List all students in a transport"""
+    
+    def get(self, request, pk):
+        try:
+            transport = Transport.objects.get(pk=pk)
+        except Transport.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Transport not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        students = transport.students.all()
+        serializer = TransportStudentSerializer(students, many=True)
+        
+        return Response({
+            "success": True,
+            "count": students.count(),
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)

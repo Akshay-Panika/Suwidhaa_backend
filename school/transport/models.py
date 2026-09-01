@@ -1,6 +1,7 @@
 # school/transport/models.py
 from django.db import models
 from cloudinary.models import CloudinaryField
+from school.student.models import Student
 
 class Transport(models.Model):
     # Transport Details (all manual entry)
@@ -31,3 +32,27 @@ class Transport(models.Model):
     
     def __str__(self):
         return f"{self.transport_type} - {self.vehicle_number}"
+
+
+class TransportStudent(models.Model):
+    """Model to store students assigned to a transport"""
+    transport = models.ForeignKey(
+        Transport,
+        on_delete=models.CASCADE,
+        related_name='students'
+    )
+    student_name = models.CharField(max_length=200)
+    student_id = models.CharField(max_length=50)
+    pickup_time = models.CharField(max_length=50, blank=True, null=True)
+    drop_time = models.CharField(max_length=50, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['student_name']
+        verbose_name = 'Transport Student'
+        verbose_name_plural = 'Transport Students'
+        unique_together = [['transport', 'student_id']]  # Prevent duplicate student in same transport
+    
+    def __str__(self):
+        return f"{self.transport.vehicle_number} - {self.student_name}"
