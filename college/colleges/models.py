@@ -22,7 +22,7 @@ class CollegeImage(models.Model):
         'image',
         folder='suwidhaa/college/images',
         blank=True,
-        null=True  # Allow null for testing
+        null=True  # Keep this to avoid migration issues
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
