@@ -12,4 +12,8 @@ class CollegeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = College
-        fields = ['id', 'name', 'address', 'website', 'images', 'created_at', 'updated_at']
+        fields = [
+            'id', 'name', 'address', 'website', 
+            'category',  # Free text field
+            'images', 'created_at', 'updated_at'
+        ]

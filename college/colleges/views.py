@@ -13,6 +13,7 @@ class CollegeCreateView(APIView):
         name = request.data.get('name')
         address = request.data.get('address')
         website = request.data.get('website', '')
+        category = request.data.get('category', '')  # Free text, can be anything
         
         # Validate
         if not name:
@@ -31,7 +32,8 @@ class CollegeCreateView(APIView):
         college = College.objects.create(
             name=name,
             address=address,
-            website=website
+            website=website,
+            category=category  # User can enter anything
         )
         
         # Handle images
@@ -53,7 +55,15 @@ class CollegeCreateView(APIView):
 
 class CollegeListView(APIView):
     def get(self, request):
-        colleges = College.objects.all().order_by('-id')
+        # Get category filter from query params
+        category = request.query_params.get('category')
+        
+        # Filter by category if provided (exact match)
+        if category:
+            colleges = College.objects.filter(category__icontains=category).order_by('-id')
+        else:
+            colleges = College.objects.all().order_by('-id')
+        
         serializer = CollegeSerializer(colleges, many=True)
         return Response({
             "success": True,
@@ -95,6 +105,8 @@ class CollegeDetailView(APIView):
         college.name = request.data.get('name', college.name)
         college.address = request.data.get('address', college.address)
         college.website = request.data.get('website', college.website)
+        college.category = request.data.get('category', college.category)  # Free text
+        
         college.save()
         
         # Handle images (replace all old images with new ones)

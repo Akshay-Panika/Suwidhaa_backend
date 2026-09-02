@@ -5,11 +5,17 @@ class College(models.Model):
     name = models.CharField(max_length=255)
     address = models.TextField()
     website = models.URLField(blank=True, null=True)
+    category = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="User can enter any category (e.g., Engineering, Medical, Arts, etc.)"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.category or 'No Category'})"
 
 
 class CollegeImage(models.Model):
@@ -22,7 +28,7 @@ class CollegeImage(models.Model):
         'image',
         folder='suwidhaa/college/images',
         blank=True,
-        null=True  # Keep this to avoid migration issues
+        null=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
