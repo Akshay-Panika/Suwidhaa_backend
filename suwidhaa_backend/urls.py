@@ -61,4 +61,8 @@ urlpatterns = [
         "api/v1/college/",
         include("college.room.urls"),
     ),
+    path(
+        "api/v1/college/",
+        include("college.tiffin.urls"),
+    ),
 ]
