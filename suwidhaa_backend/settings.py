@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "school.transport",
     "college.college_banner",
     "college.colleges",
+    "college.room",
 ]
 
 MIDDLEWARE = [

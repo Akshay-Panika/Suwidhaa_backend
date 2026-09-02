@@ -57,4 +57,8 @@ urlpatterns = [
         "api/v1/college/",
         include("college.colleges.urls"),
     ),
+    path(
+        "api/v1/college/",
+        include("college.room.urls"),
+    ),
 ]
