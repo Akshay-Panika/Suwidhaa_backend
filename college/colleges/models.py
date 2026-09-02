@@ -20,7 +20,9 @@ class CollegeImage(models.Model):
     )
     image = CloudinaryField(
         'image',
-        folder='suwidhaa/college/images'
+        folder='suwidhaa/college/images',
+        blank=True,
+        null=True  # Allow null for testing
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
