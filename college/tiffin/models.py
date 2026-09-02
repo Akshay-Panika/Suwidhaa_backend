@@ -7,9 +7,19 @@ class Tiffin(models.Model):
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     
-    # Tiffin Type
-    is_veg = models.BooleanField(default=True)  # True = Veg, False = Non-Veg
-    is_nonveg = models.BooleanField(default=False)  # True = Non-Veg
+    # Tiffin Type - Free text (user can enter anything)
+    is_veg = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="User can enter any veg type (e.g., Pure Veg, Veg, Jain Veg, etc.)"
+    )
+    is_nonveg = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="User can enter any non-veg type (e.g., Chicken, Mutton, Fish, Egg, etc.)"
+    )
     
     # Booking & Rating
     is_booking = models.BooleanField(default=False)  # True = Booked, False = Available
@@ -18,6 +28,14 @@ class Tiffin(models.Model):
         decimal_places=2, 
         default=0.00,
         help_text="Rating out of 5"
+    )
+    
+    # Contact Number
+    contact_number = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="Contact number for tiffin orders"
     )
     
     # Near College (manual entry)
@@ -33,7 +51,9 @@ class Tiffin(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.title} - ₹{self.price} ({'Veg' if self.is_veg else 'Non-Veg'})"
+        veg_status = self.is_veg if self.is_veg else "Veg"
+        nonveg_status = self.is_nonveg if self.is_nonveg else "Non-Veg"
+        return f"{self.title} - ₹{self.price} ({veg_status}/{nonveg_status})"
 
     class Meta:
         ordering = ['-created_at']

@@ -17,6 +17,7 @@ class RoomCreateView(APIView):
         price = request.data.get('price')
         room_type = request.data.get('room_type', '')
         is_booking = request.data.get('is_booking', False)
+        contact_number = request.data.get('contact_number', '')
         wifi = request.data.get('wifi', False)
         ac = request.data.get('ac', False)
         parking = request.data.get('parking', False)
@@ -74,6 +75,7 @@ class RoomCreateView(APIView):
             price=price,
             room_type=room_type,
             is_booking=is_booking,
+            contact_number=contact_number,
             wifi=wifi,
             ac=ac,
             parking=parking,
@@ -83,7 +85,7 @@ class RoomCreateView(APIView):
             near_college=near_college
         )
         
-        # Handle images (same as College app)
+        # Handle images
         images = request.FILES.getlist('images')
         for image in images:
             RoomImage.objects.create(
@@ -197,6 +199,7 @@ class RoomDetailView(APIView):
         room.address = request.data.get('address', room.address)
         room.price = request.data.get('price', room.price)
         room.room_type = request.data.get('room_type', room.room_type)
+        room.contact_number = request.data.get('contact_number', room.contact_number)
         
         # Update boolean fields
         is_booking = request.data.get('is_booking', room.is_booking)
@@ -238,7 +241,7 @@ class RoomDetailView(APIView):
         
         room.save()
         
-        # Handle images (replace all old images with new ones) - Same as College
+        # Handle images (replace all old images with new ones)
         images = request.FILES.getlist('images')
         if images:
             room.room_images.all().delete()

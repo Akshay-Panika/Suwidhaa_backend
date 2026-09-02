@@ -23,6 +23,7 @@ class TiffinSerializer(serializers.ModelSerializer):
             'id', 'title', 'description', 'price',
             'is_veg', 'is_nonveg',
             'is_booking', 'rating',
+            'contact_number',
             'near_college',
             'tiffin_images',
             'created_at', 'updated_at'

@@ -16,6 +16,14 @@ class Room(models.Model):
         null=True,
     )
     
+    # Contact Number
+    contact_number = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="Contact number for room inquiries"
+    )
+    
     # Amenities
     wifi = models.BooleanField(default=False)
     ac = models.BooleanField(default=False)

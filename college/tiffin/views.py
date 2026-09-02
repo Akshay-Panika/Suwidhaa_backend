@@ -15,17 +15,14 @@ class TiffinCreateView(APIView):
         title = request.data.get('title')
         description = request.data.get('description')
         price = request.data.get('price')
-        is_veg = request.data.get('is_veg', True)
-        is_nonveg = request.data.get('is_nonveg', False)
+        is_veg = request.data.get('is_veg', '')
+        is_nonveg = request.data.get('is_nonveg', '')
         is_booking = request.data.get('is_booking', False)
         rating = request.data.get('rating', 0)
+        contact_number = request.data.get('contact_number', '')
         near_college = request.data.get('near_college', '')
         
         # Convert boolean strings
-        if isinstance(is_veg, str):
-            is_veg = is_veg.lower() == 'true'
-        if isinstance(is_nonveg, str):
-            is_nonveg = is_nonveg.lower() == 'true'
         if isinstance(is_booking, str):
             is_booking = is_booking.lower() == 'true'
         
@@ -57,6 +54,7 @@ class TiffinCreateView(APIView):
             is_nonveg=is_nonveg,
             is_booking=is_booking,
             rating=rating,
+            contact_number=contact_number,
             near_college=near_college
         )
         
@@ -96,12 +94,10 @@ class TiffinListView(APIView):
         
         # Apply filters
         if is_veg is not None:
-            is_veg_bool = is_veg.lower() == 'true'
-            tiffins = tiffins.filter(is_veg=is_veg_bool)
+            tiffins = tiffins.filter(is_veg__icontains=is_veg)
         
         if is_nonveg is not None:
-            is_nonveg_bool = is_nonveg.lower() == 'true'
-            tiffins = tiffins.filter(is_nonveg=is_nonveg_bool)
+            tiffins = tiffins.filter(is_nonveg__icontains=is_nonveg)
         
         if is_booking is not None:
             is_booking_bool = is_booking.lower() == 'true'
@@ -172,19 +168,12 @@ class TiffinDetailView(APIView):
         tiffin.title = request.data.get('title', tiffin.title)
         tiffin.description = request.data.get('description', tiffin.description)
         tiffin.price = request.data.get('price', tiffin.price)
+        tiffin.is_veg = request.data.get('is_veg', tiffin.is_veg)
+        tiffin.is_nonveg = request.data.get('is_nonveg', tiffin.is_nonveg)
         tiffin.near_college = request.data.get('near_college', tiffin.near_college)
+        tiffin.contact_number = request.data.get('contact_number', tiffin.contact_number)
         
         # Update boolean fields
-        is_veg = request.data.get('is_veg', tiffin.is_veg)
-        if isinstance(is_veg, str):
-            is_veg = is_veg.lower() == 'true'
-        tiffin.is_veg = is_veg
-        
-        is_nonveg = request.data.get('is_nonveg', tiffin.is_nonveg)
-        if isinstance(is_nonveg, str):
-            is_nonveg = is_nonveg.lower() == 'true'
-        tiffin.is_nonveg = is_nonveg
-        
         is_booking = request.data.get('is_booking', tiffin.is_booking)
         if isinstance(is_booking, str):
             is_booking = is_booking.lower() == 'true'

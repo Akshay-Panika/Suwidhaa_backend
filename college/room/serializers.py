@@ -22,6 +22,7 @@ class RoomSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'description', 'address', 'price', 
             'is_booking', 'room_type',
+            'contact_number',
             'wifi', 'ac', 'parking', 'security', 'laundry', 'water',
             'near_college',
             'room_images',
