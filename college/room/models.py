@@ -9,6 +9,14 @@ class Room(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     is_booking = models.BooleanField(default=False)  # True = Booked, False = Available
     
+    # Room Type (manual entry)
+    room_type = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="User can enter any room type (e.g., 1BHK, 2BHK, Studio, Penthouse, etc.)"
+    )
+    
     # Amenities (Boolean fields)
     wifi = models.BooleanField(default=False)
     ac = models.BooleanField(default=False)
@@ -25,9 +33,6 @@ class Room(models.Model):
         help_text="Nearby college name (user can enter anything)"
     )
     
-    # Images
-    images = models.JSONField(default=list, blank=True)  # Store image URLs as list
-    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -40,7 +45,7 @@ class Room(models.Model):
 
 
 class RoomImage(models.Model):
-    """Alternative: If you want separate image model with Cloudinary"""
+    """Room images with Cloudinary"""
     room = models.ForeignKey(
         Room,
         on_delete=models.CASCADE,

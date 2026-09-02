@@ -21,7 +21,7 @@ class RoomSerializer(serializers.ModelSerializer):
         model = Room
         fields = [
             'id', 'title', 'description', 'address', 'price', 
-            'is_booking',
+            'is_booking', 'room_type',
             'wifi', 'ac', 'parking', 'security', 'laundry', 'water',
             'near_college',
             'room_images',
@@ -42,7 +42,7 @@ class RoomCreateUpdateSerializer(serializers.ModelSerializer):
         model = Room
         fields = [
             'id', 'title', 'description', 'address', 'price', 
-            'is_booking',
+            'is_booking', 'room_type',
             'wifi', 'ac', 'parking', 'security', 'laundry', 'water',
             'near_college',
             'images',
@@ -56,7 +56,7 @@ class RoomCreateUpdateSerializer(serializers.ModelSerializer):
         # Create room
         room = Room.objects.create(**validated_data)
         
-        # Handle images if you're using RoomImage model
+        # Handle images
         for image in images:
             RoomImage.objects.create(
                 room=room,
