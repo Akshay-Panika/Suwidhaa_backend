@@ -49,4 +49,8 @@ urlpatterns = [
         "api/v1/school/",
         include("school.transport.urls"),
     ),
+    path(
+        "api/v1/college/",
+        include("college.college_banner.urls"),
+    ),
 ]
