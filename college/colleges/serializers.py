@@ -2,9 +2,16 @@ from rest_framework import serializers
 from .models import College, CollegeImage
 
 class CollegeImageSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+    
     class Meta:
         model = CollegeImage
-        fields = ['id', 'image', 'created_at']
+        fields = ['id', 'url', 'created_at']
+    
+    def get_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        return None
 
 
 class CollegeSerializer(serializers.ModelSerializer):
@@ -14,6 +21,6 @@ class CollegeSerializer(serializers.ModelSerializer):
         model = College
         fields = [
             'id', 'name', 'address', 'website', 
-            'category',  # Free text field
+            'category',
             'images', 'created_at', 'updated_at'
         ]
