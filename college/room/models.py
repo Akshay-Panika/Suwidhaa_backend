@@ -50,7 +50,9 @@ class RoomImage(models.Model):
     )
     image = CloudinaryField(
         'image',
-        folder='suwidhaa/room/images'
+        folder='suwidhaa/room/images',
+        blank=True,
+        null=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
