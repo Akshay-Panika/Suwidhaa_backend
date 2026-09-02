@@ -7,17 +7,16 @@ class Room(models.Model):
     description = models.TextField()
     address = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    is_booking = models.BooleanField(default=False)  # True = Booked, False = Available
+    is_booking = models.BooleanField(default=False)
     
-    # Room Type (manual entry)
+    # Room Type
     room_type = models.CharField(
         max_length=255,
         blank=True,
         null=True,
-        help_text="User can enter any room type (e.g., 1BHK, 2BHK, Studio, Penthouse, etc.)"
     )
     
-    # Amenities (Boolean fields)
+    # Amenities
     wifi = models.BooleanField(default=False)
     ac = models.BooleanField(default=False)
     parking = models.BooleanField(default=False)
@@ -25,12 +24,11 @@ class Room(models.Model):
     laundry = models.BooleanField(default=False)
     water = models.BooleanField(default=False)
     
-    # Near College (manual entry)
+    # Near College
     near_college = models.CharField(
         max_length=255,
         blank=True,
         null=True,
-        help_text="Nearby college name (user can enter anything)"
     )
     
     # Timestamps
@@ -45,7 +43,6 @@ class Room(models.Model):
 
 
 class RoomImage(models.Model):
-    """Room images with Cloudinary"""
     room = models.ForeignKey(
         Room,
         on_delete=models.CASCADE,
@@ -53,9 +50,7 @@ class RoomImage(models.Model):
     )
     image = CloudinaryField(
         'image',
-        folder='suwidhaa/room/images',
-        blank=True,
-        null=True
+        folder='suwidhaa/room/images'
     )
     created_at = models.DateTimeField(auto_now_add=True)
 

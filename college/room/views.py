@@ -3,8 +3,12 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.db.models import Q
+import cloudinary.uploader
+import logging
 from .models import Room, RoomImage
-from .serializers import RoomSerializer, RoomCreateUpdateSerializer
+from .serializers import RoomSerializer
+
+logger = logging.getLogger(__name__)
 
 class RoomCreateView(APIView):
     """Create a new room"""
@@ -14,16 +18,43 @@ class RoomCreateView(APIView):
         try:
             # Log everything for debugging
             print("=== REQUEST DATA ===")
+            print("Content Type:", request.content_type)
             print("Data:", request.data)
             print("FILES:", request.FILES)
             print("POST:", request.POST)
+            print("FILES keys:", request.FILES.keys())
             
-            # Get data
-            title = request.data.get('title')
-            description = request.data.get('description')
-            address = request.data.get('address')
-            price = request.data.get('price')
-            room_type = request.data.get('room_type', '')
+            # Get data from request.data (for JSON) or request.POST (for form-data)
+            if request.content_type and 'application/json' in request.content_type:
+                # JSON request
+                title = request.data.get('title')
+                description = request.data.get('description')
+                address = request.data.get('address')
+                price = request.data.get('price')
+                room_type = request.data.get('room_type', '')
+                is_booking = request.data.get('is_booking', False)
+                wifi = request.data.get('wifi', False)
+                ac = request.data.get('ac', False)
+                parking = request.data.get('parking', False)
+                security = request.data.get('security', False)
+                laundry = request.data.get('laundry', False)
+                water = request.data.get('water', False)
+                near_college = request.data.get('near_college', '')
+            else:
+                # Form-data request
+                title = request.POST.get('title')
+                description = request.POST.get('description')
+                address = request.POST.get('address')
+                price = request.POST.get('price')
+                room_type = request.POST.get('room_type', '')
+                is_booking = request.POST.get('is_booking', 'false')
+                wifi = request.POST.get('wifi', 'false')
+                ac = request.POST.get('ac', 'false')
+                parking = request.POST.get('parking', 'false')
+                security = request.POST.get('security', 'false')
+                laundry = request.POST.get('laundry', 'false')
+                water = request.POST.get('water', 'false')
+                near_college = request.POST.get('near_college', '')
             
             # Validate required fields
             if not title:
@@ -50,36 +81,21 @@ class RoomCreateView(APIView):
                     "message": "Price is required"
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Get boolean fields (handle both string and boolean)
-            is_booking = request.data.get('is_booking', False)
+            # Convert boolean values
             if isinstance(is_booking, str):
                 is_booking = is_booking.lower() == 'true'
-            
-            wifi = request.data.get('wifi', False)
             if isinstance(wifi, str):
                 wifi = wifi.lower() == 'true'
-            
-            ac = request.data.get('ac', False)
             if isinstance(ac, str):
                 ac = ac.lower() == 'true'
-            
-            parking = request.data.get('parking', False)
             if isinstance(parking, str):
                 parking = parking.lower() == 'true'
-            
-            security = request.data.get('security', False)
             if isinstance(security, str):
                 security = security.lower() == 'true'
-            
-            laundry = request.data.get('laundry', False)
             if isinstance(laundry, str):
                 laundry = laundry.lower() == 'true'
-            
-            water = request.data.get('water', False)
             if isinstance(water, str):
                 water = water.lower() == 'true'
-            
-            near_college = request.data.get('near_college', '')
             
             # Create room
             room = Room.objects.create(
@@ -98,16 +114,49 @@ class RoomCreateView(APIView):
                 near_college=near_college
             )
             
-            # Handle images - IMPORTANT: use 'images' key, not 'room_images'
-            images = request.FILES.getlist('images')
-            print(f"Number of images: {len(images)}")
+            print(f"Room created with ID: {room.id}")
             
-            for image in images:
-                print(f"Processing image: {image.name}")
-                RoomImage.objects.create(
-                    room=room,
-                    image=image
-                )
+            # Handle images - Method 1: Using request.FILES
+            images = request.FILES.getlist('images')
+            print(f"Images from getlist: {len(images)}")
+            
+            # Method 2: If getlist doesn't work, try iterating directly
+            if not images:
+                print("Trying alternative method...")
+                for key in request.FILES.keys():
+                    print(f"Key: {key}")
+                    if key == 'images' or key.startswith('images'):
+                        images = request.FILES.getlist(key)
+                        print(f"Got {len(images)} images from key: {key}")
+                        break
+            
+            # Method 3: Direct upload to Cloudinary
+            if images:
+                for idx, image in enumerate(images):
+                    try:
+                        print(f"Processing image {idx+1}: {image.name}")
+                        
+                        # Upload directly to Cloudinary
+                        upload_result = cloudinary.uploader.upload(
+                            image,
+                            folder='suwidhaa/room/images'
+                        )
+                        print(f"Uploaded to Cloudinary: {upload_result['secure_url']}")
+                        
+                        # Create RoomImage with the uploaded file
+                        RoomImage.objects.create(
+                            room=room,
+                            image=image
+                        )
+                        print(f"RoomImage created for image {idx+1}")
+                        
+                    except Exception as e:
+                        print(f"Error uploading image {idx+1}: {str(e)}")
+            else:
+                print("No images found in request")
+                # Try to get images from request.data
+                if 'images' in request.data:
+                    print(f"Images in request.data: {request.data['images']}")
             
             serializer = RoomSerializer(room)
             return Response({
@@ -228,55 +277,104 @@ class RoomDetailView(APIView):
             }, status=status.HTTP_404_NOT_FOUND)
         
         try:
-            # Update basic fields
-            room.title = request.data.get('title', room.title)
-            room.description = request.data.get('description', room.description)
-            room.address = request.data.get('address', room.address)
-            room.price = request.data.get('price', room.price)
-            room.room_type = request.data.get('room_type', room.room_type)
+            # Get data
+            if request.content_type and 'application/json' in request.content_type:
+                title = request.data.get('title')
+                description = request.data.get('description')
+                address = request.data.get('address')
+                price = request.data.get('price')
+                room_type = request.data.get('room_type')
+                is_booking = request.data.get('is_booking')
+                wifi = request.data.get('wifi')
+                ac = request.data.get('ac')
+                parking = request.data.get('parking')
+                security = request.data.get('security')
+                laundry = request.data.get('laundry')
+                water = request.data.get('water')
+                near_college = request.data.get('near_college')
+            else:
+                title = request.POST.get('title')
+                description = request.POST.get('description')
+                address = request.POST.get('address')
+                price = request.POST.get('price')
+                room_type = request.POST.get('room_type')
+                is_booking = request.POST.get('is_booking')
+                wifi = request.POST.get('wifi')
+                ac = request.POST.get('ac')
+                parking = request.POST.get('parking')
+                security = request.POST.get('security')
+                laundry = request.POST.get('laundry')
+                water = request.POST.get('water')
+                near_college = request.POST.get('near_college')
+            
+            # Update fields
+            if title:
+                room.title = title
+            if description:
+                room.description = description
+            if address:
+                room.address = address
+            if price:
+                room.price = price
+            if room_type is not None:
+                room.room_type = room_type
             
             # Update boolean fields
-            is_booking = request.data.get('is_booking', room.is_booking)
-            if isinstance(is_booking, str):
-                is_booking = is_booking.lower() == 'true'
-            room.is_booking = is_booking
+            if is_booking is not None:
+                if isinstance(is_booking, str):
+                    room.is_booking = is_booking.lower() == 'true'
+                else:
+                    room.is_booking = is_booking
             
-            wifi = request.data.get('wifi', room.wifi)
-            if isinstance(wifi, str):
-                wifi = wifi.lower() == 'true'
-            room.wifi = wifi
+            if wifi is not None:
+                if isinstance(wifi, str):
+                    room.wifi = wifi.lower() == 'true'
+                else:
+                    room.wifi = wifi
             
-            ac = request.data.get('ac', room.ac)
-            if isinstance(ac, str):
-                ac = ac.lower() == 'true'
-            room.ac = ac
+            if ac is not None:
+                if isinstance(ac, str):
+                    room.ac = ac.lower() == 'true'
+                else:
+                    room.ac = ac
             
-            parking = request.data.get('parking', room.parking)
-            if isinstance(parking, str):
-                parking = parking.lower() == 'true'
-            room.parking = parking
+            if parking is not None:
+                if isinstance(parking, str):
+                    room.parking = parking.lower() == 'true'
+                else:
+                    room.parking = parking
             
-            security = request.data.get('security', room.security)
-            if isinstance(security, str):
-                security = security.lower() == 'true'
-            room.security = security
+            if security is not None:
+                if isinstance(security, str):
+                    room.security = security.lower() == 'true'
+                else:
+                    room.security = security
             
-            laundry = request.data.get('laundry', room.laundry)
-            if isinstance(laundry, str):
-                laundry = laundry.lower() == 'true'
-            room.laundry = laundry
+            if laundry is not None:
+                if isinstance(laundry, str):
+                    room.laundry = laundry.lower() == 'true'
+                else:
+                    room.laundry = laundry
             
-            water = request.data.get('water', room.water)
-            if isinstance(water, str):
-                water = water.lower() == 'true'
-            room.water = water
+            if water is not None:
+                if isinstance(water, str):
+                    room.water = water.lower() == 'true'
+                else:
+                    room.water = water
             
-            room.near_college = request.data.get('near_college', room.near_college)
+            if near_college is not None:
+                room.near_college = near_college
             
             room.save()
             
-            # Handle images if provided - IMPORTANT: use 'images' key
+            # Handle images
             images = request.FILES.getlist('images')
+            if not images:
+                for key in request.FILES.keys():
+                    if key == 'images' or key.startswith('images'):
+                        images = request.FILES.getlist(key)
+                        break
+            
             if images:
                 room.room_images.all().delete()
                 for image in images:
@@ -293,6 +391,7 @@ class RoomDetailView(APIView):
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
+            print(f"Error updating room: {str(e)}")
             return Response({
                 "success": False,
                 "message": str(e)
