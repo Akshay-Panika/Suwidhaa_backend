@@ -13,7 +13,10 @@ class CollegeCreateView(APIView):
         name = request.data.get('name')
         address = request.data.get('address')
         website = request.data.get('website', '')
-        category = request.data.get('category', '')  # Free text, can be anything
+        contact_number = request.data.get('contact_number', '')
+        category = request.data.get('category', '')
+        is_recommended = request.data.get('is_recommended', 'false').lower() == 'true'
+        logo = request.FILES.get('logo')
         
         # Validate
         if not name:
@@ -33,8 +36,15 @@ class CollegeCreateView(APIView):
             name=name,
             address=address,
             website=website,
-            category=category  # User can enter anything
+            contact_number=contact_number,
+            category=category,
+            is_recommended=is_recommended
         )
+        
+        # Handle logo
+        if logo:
+            college.logo = logo
+            college.save()
         
         # Handle images
         images = request.FILES.getlist('images')
@@ -55,14 +65,29 @@ class CollegeCreateView(APIView):
 
 class CollegeListView(APIView):
     def get(self, request):
-        # Get category filter from query params
+        # Get filters from query params
         category = request.query_params.get('category')
+        is_recommended = request.query_params.get('is_recommended')
+        search = request.query_params.get('search')
         
-        # Filter by category if provided (exact match)
+        # Start with all colleges
+        colleges = College.objects.all().order_by('-id')
+        
+        # Filter by category if provided
         if category:
-            colleges = College.objects.filter(category__icontains=category).order_by('-id')
-        else:
-            colleges = College.objects.all().order_by('-id')
+            colleges = colleges.filter(category__icontains=category)
+        
+        # Filter by is_recommended if provided
+        if is_recommended is not None:
+            is_recommended_bool = is_recommended.lower() == 'true'
+            colleges = colleges.filter(is_recommended=is_recommended_bool)
+        
+        # Search by name or address
+        if search:
+            colleges = colleges.filter(
+                models.Q(name__icontains=search) | 
+                models.Q(address__icontains=search)
+            )
         
         serializer = CollegeSerializer(colleges, many=True)
         return Response({
@@ -73,6 +98,8 @@ class CollegeListView(APIView):
 
 
 class CollegeDetailView(APIView):
+    parser_classes = [MultiPartParser, FormParser]
+    
     def get_object(self, pk):
         try:
             return College.objects.get(pk=pk)
@@ -105,7 +132,17 @@ class CollegeDetailView(APIView):
         college.name = request.data.get('name', college.name)
         college.address = request.data.get('address', college.address)
         college.website = request.data.get('website', college.website)
-        college.category = request.data.get('category', college.category)  # Free text
+        college.contact_number = request.data.get('contact_number', college.contact_number)
+        college.category = request.data.get('category', college.category)
+        
+        # Update is_recommended if provided
+        if request.data.get('is_recommended') is not None:
+            college.is_recommended = request.data.get('is_recommended', 'false').lower() == 'true'
+        
+        # Handle logo update
+        logo = request.FILES.get('logo')
+        if logo:
+            college.logo = logo
         
         college.save()
         
