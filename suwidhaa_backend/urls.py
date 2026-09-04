@@ -65,4 +65,8 @@ urlpatterns = [
         "api/v1/college/",
         include("college.tiffin.urls"),
     ),
+    path(
+        "api/v1/auth/",
+        include("auth.app_auth.urls"),
+    ),
 ]

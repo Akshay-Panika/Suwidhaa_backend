@@ -22,7 +22,7 @@ class CollegeSerializer(serializers.ModelSerializer):
         model = College
         fields = [
             'id', 'name', 'address', 'website', 'contact_number',
-            'category', 'logo', 'logo_url', 'is_recommended',
+            'category', 'logo_url', 'is_recommended',
             'images', 'created_at', 'updated_at'
         ]
     
