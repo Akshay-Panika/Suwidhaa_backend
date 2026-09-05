@@ -8,8 +8,8 @@ class User(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'app_auth_user'  # Changed from 'auth_user' to avoid conflict
+        db_table = 'app_auth_user'
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.name} ({self.phone_number})"
+        return self.name
