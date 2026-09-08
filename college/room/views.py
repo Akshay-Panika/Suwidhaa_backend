@@ -1,36 +1,19 @@
+# views.py
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Q
-from django.contrib.auth import get_user_model
 from .models import Room, RoomImage
 from .serializers import RoomSerializer
-
-User = get_user_model()
+from django.contrib.auth.models import User  # Add this import
+from rest_framework.permissions import IsAuthenticated  # Add this import
 
 class RoomCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [IsAuthenticated]  # Add permission to ensure user is authenticated
     
     def post(self, request):
-        # Get user_id from request data
-        user_id = request.data.get('user_id')
-        
-        # Validate user_id
-        if not user_id:
-            return Response({
-                "success": False,
-                "message": "user_id is required"
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        try:
-            user = User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            return Response({
-                "success": False,
-                "message": "User not found with the given user_id"
-            }, status=status.HTTP_404_NOT_FOUND)
-        
         # Get data
         title = request.data.get('title')
         description = request.data.get('description')
@@ -88,9 +71,9 @@ class RoomCreateView(APIView):
                 "message": "Price is required"
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Create room with user
+        # Create room with user from request
         room = Room.objects.create(
-            user=user,  # Associate room with user
+            user=request.user,  # Add user from authenticated request
             title=title,
             description=description,
             address=address,
@@ -123,12 +106,10 @@ class RoomCreateView(APIView):
             "data": serializer.data
         }, status=status.HTTP_201_CREATED)
 
+
 class RoomListView(APIView):
     def get(self, request):
-        # Get user_id filter from query params
-        user_id = request.query_params.get('user_id')
-        
-        # Get other filters
+        # Get category filter from query params
         room_type = request.query_params.get('room_type')
         is_booking = request.query_params.get('is_booking')
         near_college = request.query_params.get('near_college')
@@ -138,22 +119,15 @@ class RoomListView(APIView):
         wifi = request.query_params.get('wifi')
         ac = request.query_params.get('ac')
         parking = request.query_params.get('parking')
+        user_id = request.query_params.get('user_id')  # Add filter by user_id
         
         # Start with all rooms
         rooms = Room.objects.all()
         
-        # Filter by user_id if provided
+        # Apply filters
         if user_id:
-            try:
-                user = User.objects.get(id=user_id)
-                rooms = rooms.filter(user=user)
-            except User.DoesNotExist:
-                return Response({
-                    "success": False,
-                    "message": "User not found with the given user_id"
-                }, status=status.HTTP_404_NOT_FOUND)
+            rooms = rooms.filter(user_id=user_id)  # Filter by user_id
         
-        # Apply other filters
         if is_booking is not None:
             is_booking_bool = is_booking.lower() == 'true'
             rooms = rooms.filter(is_booking=is_booking_bool)
@@ -189,7 +163,6 @@ class RoomListView(APIView):
             parking_bool = parking.lower() == 'true'
             rooms = rooms.filter(parking=parking_bool)
         
-        # Serialize with safe handling for null user
         serializer = RoomSerializer(rooms, many=True)
         return Response({
             "success": True,
@@ -197,9 +170,10 @@ class RoomListView(APIView):
             "data": serializer.data
         }, status=status.HTTP_200_OK)
 
-    
+
 class RoomDetailView(APIView):
     parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [IsAuthenticated]  # Add permission for update/delete operations
     
     def get_object(self, pk):
         try:
@@ -229,17 +203,12 @@ class RoomDetailView(APIView):
                 "message": "Room not found"
             }, status=status.HTTP_404_NOT_FOUND)
         
-        # Get user_id for update if provided
-        user_id = request.data.get('user_id')
-        if user_id:
-            try:
-                user = User.objects.get(id=user_id)
-                room.user = user
-            except User.DoesNotExist:
-                return Response({
-                    "success": False,
-                    "message": "User not found with the given user_id"
-                }, status=status.HTTP_404_NOT_FOUND)
+        # Check if the user owns this room (optional security)
+        if room.user != request.user:
+            return Response({
+                "success": False,
+                "message": "You don't have permission to update this room"
+            }, status=status.HTTP_403_FORBIDDEN)
         
         # Update fields
         room.title = request.data.get('title', room.title)
@@ -313,6 +282,13 @@ class RoomDetailView(APIView):
                 "success": False,
                 "message": "Room not found"
             }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if the user owns this room (optional security)
+        if room.user != request.user:
+            return Response({
+                "success": False,
+                "message": "You don't have permission to delete this room"
+            }, status=status.HTTP_403_FORBIDDEN)
         
         room.delete()
         return Response({

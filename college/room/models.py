@@ -1,21 +1,16 @@
+# models.py
 from django.db import models
 from cloudinary.models import CloudinaryField
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
+from django.contrib.auth.models import User  # Add this import
 
 class Room(models.Model):
-    # User who created/owns this room - nullable for migration safety
+    # Basic Information
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='rooms',
-        help_text="User who owns this room",
-        null=True,  # Allow null for existing rooms
-        blank=True
-    )
-    
-    # Basic Information
+        help_text="User who created/owns this room"
+    )  # This is the required user_id field
     title = models.CharField(max_length=255)
     description = models.TextField()
     address = models.TextField()
