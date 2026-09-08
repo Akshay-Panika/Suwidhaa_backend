@@ -69,4 +69,8 @@ urlpatterns = [
         "api/v1/auth/",
         include("auth.app_auth.urls"),
     ),
+    # path(
+    #     "api/v1/auth/",
+    #     include("auth.app_profile.urls"),
+    # ),
 ]

@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "college.room",
     "college.tiffin",
     "auth.app_auth",
+    # "auth.app_profile",
 ]
 
 MIDDLEWARE = [
