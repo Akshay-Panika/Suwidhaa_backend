@@ -123,7 +123,6 @@ class RoomCreateView(APIView):
             "data": serializer.data
         }, status=status.HTTP_201_CREATED)
 
-
 class RoomListView(APIView):
     def get(self, request):
         # Get user_id filter from query params
@@ -190,6 +189,7 @@ class RoomListView(APIView):
             parking_bool = parking.lower() == 'true'
             rooms = rooms.filter(parking=parking_bool)
         
+        # Serialize with safe handling for null user
         serializer = RoomSerializer(rooms, many=True)
         return Response({
             "success": True,
@@ -197,7 +197,7 @@ class RoomListView(APIView):
             "data": serializer.data
         }, status=status.HTTP_200_OK)
 
-
+    
 class RoomDetailView(APIView):
     parser_classes = [MultiPartParser, FormParser]
     

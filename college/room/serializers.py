@@ -16,11 +16,10 @@ class RoomImageSerializer(serializers.ModelSerializer):
             return obj.image.url
         return None
 
-
 class RoomSerializer(serializers.ModelSerializer):
     room_images = RoomImageSerializer(many=True, read_only=True)
-    user_id = serializers.IntegerField(source='user.id', read_only=True, allow_null=True)
-    user_name = serializers.CharField(source='user.username', read_only=True, allow_null=True)
+    user_id = serializers.SerializerMethodField()
+    user_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Room
@@ -46,3 +45,13 @@ class RoomSerializer(serializers.ModelSerializer):
             'created_at', 
             'updated_at'
         ]
+    
+    def get_user_id(self, obj):
+        if obj.user:
+            return obj.user.id
+        return None
+    
+    def get_user_name(self, obj):
+        if obj.user:
+            return obj.user.username
+        return None
