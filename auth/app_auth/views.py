@@ -3,12 +3,24 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.db import IntegrityError
+from django.db import connection
 from .models import User
 from .serializers import UserSerializer, RegisterSerializer, LoginSerializer
 
 class RegisterView(APIView):
     def post(self, request):
         try:
+            # First, check if the table exists and has the correct columns
+            with connection.cursor() as cursor:
+                try:
+                    cursor.execute("SELECT 1 FROM app_auth_user LIMIT 1")
+                except Exception as e:
+                    # Table doesn't exist or has issues
+                    return Response({
+                        "success": False,
+                        "error": f"Database table issue: {str(e)}"
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
             serializer = RegisterSerializer(data=request.data)
             if serializer.is_valid():
                 user = serializer.create(serializer.validated_data)
@@ -22,10 +34,16 @@ class RegisterView(APIView):
                 "success": False,
                 "errors": serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
-        except IntegrityError:
+        except IntegrityError as e:
+            # Handle specific integrity errors
+            if "phone_number" in str(e) or "unique" in str(e):
+                return Response({
+                    "success": False,
+                    "error": "Phone number already exists"
+                }, status=status.HTTP_400_BAD_REQUEST)
             return Response({
                 "success": False,
-                "error": "Phone number already exists"
+                "error": f"Database error: {str(e)}"
             }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({
@@ -58,6 +76,16 @@ class LoginView(APIView):
 class UserListView(APIView):
     def get(self, request):
         try:
+            # Check if table exists first
+            with connection.cursor() as cursor:
+                try:
+                    cursor.execute("SELECT 1 FROM app_auth_user LIMIT 1")
+                except Exception as e:
+                    return Response({
+                        "success": False,
+                        "error": f"Table app_auth_user does not exist or has issues: {str(e)}"
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
             users = User.objects.all()
             serializer = UserSerializer(users, many=True)
             return Response({
