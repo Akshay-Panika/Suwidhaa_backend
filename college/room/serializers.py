@@ -19,8 +19,8 @@ class RoomImageSerializer(serializers.ModelSerializer):
 
 class RoomSerializer(serializers.ModelSerializer):
     room_images = RoomImageSerializer(many=True, read_only=True)
-    user_id = serializers.IntegerField(source='user.id', read_only=True)
-    user_name = serializers.CharField(source='user.username', read_only=True)
+    user_id = serializers.IntegerField(source='user.id', read_only=True, allow_null=True)
+    user_name = serializers.CharField(source='user.username', read_only=True, allow_null=True)
 
     class Meta:
         model = Room
