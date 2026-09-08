@@ -11,6 +11,7 @@ class RoomCreateView(APIView):
     
     def post(self, request):
         # Get data
+        user_id = request.data.get('user_id')  # Add this line
         title = request.data.get('title')
         description = request.data.get('description')
         address = request.data.get('address')
@@ -43,6 +44,12 @@ class RoomCreateView(APIView):
             water = water.lower() == 'true'
         
         # Validate required fields
+        if not user_id:  # Add validation for user_id
+            return Response({
+                "success": False,
+                "message": "User ID is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         if not title:
             return Response({
                 "success": False,
@@ -69,6 +76,7 @@ class RoomCreateView(APIView):
         
         # Create room
         room = Room.objects.create(
+            user_id=user_id,  # Add this line
             title=title,
             description=description,
             address=address,
@@ -100,7 +108,6 @@ class RoomCreateView(APIView):
             "message": "Room created successfully",
             "data": serializer.data
         }, status=status.HTTP_201_CREATED)
-
 
 class RoomListView(APIView):
     def get(self, request):
@@ -194,6 +201,7 @@ class RoomDetailView(APIView):
             }, status=status.HTTP_404_NOT_FOUND)
         
         # Update fields
+        room.user_id = request.data.get('user_id', room.user_id)
         room.title = request.data.get('title', room.title)
         room.description = request.data.get('description', room.description)
         room.address = request.data.get('address', room.address)
