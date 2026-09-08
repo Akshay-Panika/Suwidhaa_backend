@@ -9,32 +9,74 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 class RegisterSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=100)
-    phone_number = serializers.CharField(max_length=15)
+    name = serializers.CharField(
+        max_length=100,
+        error_messages={
+            'required': 'Name is required',
+            'blank': 'Name cannot be empty',
+            'max_length': 'Name cannot exceed 100 characters'
+        }
+    )
+    phone_number = serializers.CharField(
+        max_length=15,
+        error_messages={
+            'required': 'Phone number is required',
+            'blank': 'Phone number cannot be empty',
+            'max_length': 'Phone number cannot exceed 15 characters'
+        }
+    )
 
     def validate_phone_number(self, value):
+        # Clean phone number (remove spaces, special characters)
+        value = ''.join(filter(str.isdigit, value))
+        
+        if len(value) < 10:
+            raise serializers.ValidationError("Phone number must be at least 10 digits")
+        
+        # Check if user exists
         try:
-            # Check if user exists
             if User.objects.filter(phone_number=value).exists():
-                raise serializers.ValidationError("User with this phone number already exists")
+                raise serializers.ValidationError("Phone number already exists. Please use a different number.")
         except Exception as e:
             # If there's a database error, log it but proceed
             print(f"Database error in validation: {e}")
-            # Don't raise the error, let the create handle it
             pass
+        
         return value
+
+    def validate(self, data):
+        # Additional cross-field validation if needed
+        return data
 
     def create(self, validated_data):
         try:
             return User.objects.create(**validated_data)
+        except IntegrityError as e:
+            if "duplicate key" in str(e) or "unique constraint" in str(e):
+                raise serializers.ValidationError({
+                    "phone_number": "Phone number already exists. Please use a different number."
+                })
+            raise serializers.ValidationError(f"Database error: {str(e)}")
         except Exception as e:
-            # If creation fails, raise a validation error
             raise serializers.ValidationError(f"Failed to create user: {str(e)}")
 
 class LoginSerializer(serializers.Serializer):
-    phone_number = serializers.CharField(max_length=15)
+    phone_number = serializers.CharField(
+        max_length=15,
+        error_messages={
+            'required': 'Phone number is required',
+            'blank': 'Phone number cannot be empty',
+            'max_length': 'Phone number cannot exceed 15 characters'
+        }
+    )
 
     def validate_phone_number(self, value):
+        # Clean phone number
+        value = ''.join(filter(str.isdigit, value))
+        
+        if len(value) < 10:
+            raise serializers.ValidationError("Phone number must be at least 10 digits")
+        
         try:
             user = User.objects.get(phone_number=value)
             return value

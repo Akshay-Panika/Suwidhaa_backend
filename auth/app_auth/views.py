@@ -15,10 +15,9 @@ class RegisterView(APIView):
                 try:
                     cursor.execute("SELECT 1 FROM app_auth_user LIMIT 1")
                 except Exception as e:
-                    # Table doesn't exist or has issues
                     return Response({
                         "success": False,
-                        "error": f"Database table issue: {str(e)}"
+                        "error": "Database table issue. Please contact support."
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
             serializer = RegisterSerializer(data=request.data)
@@ -30,25 +29,32 @@ class RegisterView(APIView):
                     "message": "User registered successfully",
                     "data": response_serializer.data
                 }, status=status.HTTP_201_CREATED)
+            
+            # Return validation errors cleanly
             return Response({
                 "success": False,
                 "errors": serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
+            
         except IntegrityError as e:
-            # Handle specific integrity errors
-            if "phone_number" in str(e) or "unique" in str(e):
+            error_msg = str(e)
+            # Handle duplicate phone number error
+            if "duplicate key" in error_msg or "unique constraint" in error_msg or "phone_number" in error_msg:
                 return Response({
                     "success": False,
-                    "error": "Phone number already exists"
+                    "error": "Phone number already exists. Please use a different phone number."
                 }, status=status.HTTP_400_BAD_REQUEST)
+            # Handle other integrity errors
             return Response({
                 "success": False,
-                "error": f"Database error: {str(e)}"
+                "error": "Database error occurred. Please try again."
             }, status=status.HTTP_400_BAD_REQUEST)
+            
         except Exception as e:
+            # Return a clean error message for any other errors
             return Response({
                 "success": False,
-                "error": str(e)
+                "error": "An unexpected error occurred. Please try again."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class LoginView(APIView):
@@ -63,14 +69,22 @@ class LoginView(APIView):
                     "message": "Login successful",
                     "data": response_serializer.data
                 }, status=status.HTTP_200_OK)
+            
             return Response({
                 "success": False,
                 "errors": serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
+            
+        except User.DoesNotExist:
+            return Response({
+                "success": False,
+                "error": "User not found with this phone number"
+            }, status=status.HTTP_404_NOT_FOUND)
+            
         except Exception as e:
             return Response({
                 "success": False,
-                "error": str(e)
+                "error": "An unexpected error occurred during login"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class UserListView(APIView):
@@ -83,7 +97,7 @@ class UserListView(APIView):
                 except Exception as e:
                     return Response({
                         "success": False,
-                        "error": f"Table app_auth_user does not exist or has issues: {str(e)}"
+                        "error": "Database table issue. Please contact support."
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
             users = User.objects.all()
@@ -93,10 +107,11 @@ class UserListView(APIView):
                 "count": users.count(),
                 "data": serializer.data
             }, status=status.HTTP_200_OK)
+            
         except Exception as e:
             return Response({
                 "success": False,
-                "error": str(e)
+                "error": "Failed to fetch users. Please try again."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class UserDeleteView(APIView):
@@ -108,8 +123,15 @@ class UserDeleteView(APIView):
                 "success": True,
                 "message": "User deleted successfully"
             }, status=status.HTTP_200_OK)
+            
+        except User.DoesNotExist:
+            return Response({
+                "success": False,
+                "error": f"User with ID {user_id} not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+            
         except Exception as e:
             return Response({
                 "success": False,
-                "error": str(e)
+                "error": "Failed to delete user. Please try again."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
