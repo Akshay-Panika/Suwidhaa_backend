@@ -3,12 +3,6 @@ from cloudinary.models import CloudinaryField
 
 class Room(models.Model):
     # Basic Information
-    user_id = models.CharField(
-        max_length=10,
-        blank=True,
-        null=True,  # Add this to make it optional
-        default=None
-    )
     title = models.CharField(max_length=255)
     description = models.TextField()
     address = models.TextField()
