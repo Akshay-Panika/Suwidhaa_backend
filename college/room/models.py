@@ -1,7 +1,18 @@
 from django.db import models
 from cloudinary.models import CloudinaryField
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class Room(models.Model):
+    # User who created/owns this room
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='rooms',
+        help_text="User who owns this room"
+    )
+    
     # Basic Information
     title = models.CharField(max_length=255)
     description = models.TextField()

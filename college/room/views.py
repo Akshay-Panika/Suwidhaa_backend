@@ -3,13 +3,34 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Q
+from django.contrib.auth import get_user_model
 from .models import Room, RoomImage
 from .serializers import RoomSerializer
+
+User = get_user_model()
 
 class RoomCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser]
     
     def post(self, request):
+        # Get user_id from request data
+        user_id = request.data.get('user_id')
+        
+        # Validate user_id
+        if not user_id:
+            return Response({
+                "success": False,
+                "message": "user_id is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "User not found with the given user_id"
+            }, status=status.HTTP_404_NOT_FOUND)
+        
         # Get data
         title = request.data.get('title')
         description = request.data.get('description')
@@ -67,8 +88,9 @@ class RoomCreateView(APIView):
                 "message": "Price is required"
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Create room
+        # Create room with user
         room = Room.objects.create(
+            user=user,  # Associate room with user
             title=title,
             description=description,
             address=address,
@@ -104,7 +126,10 @@ class RoomCreateView(APIView):
 
 class RoomListView(APIView):
     def get(self, request):
-        # Get category filter from query params
+        # Get user_id filter from query params
+        user_id = request.query_params.get('user_id')
+        
+        # Get other filters
         room_type = request.query_params.get('room_type')
         is_booking = request.query_params.get('is_booking')
         near_college = request.query_params.get('near_college')
@@ -118,7 +143,18 @@ class RoomListView(APIView):
         # Start with all rooms
         rooms = Room.objects.all()
         
-        # Apply filters
+        # Filter by user_id if provided
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id)
+                rooms = rooms.filter(user=user)
+            except User.DoesNotExist:
+                return Response({
+                    "success": False,
+                    "message": "User not found with the given user_id"
+                }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Apply other filters
         if is_booking is not None:
             is_booking_bool = is_booking.lower() == 'true'
             rooms = rooms.filter(is_booking=is_booking_bool)
@@ -192,6 +228,18 @@ class RoomDetailView(APIView):
                 "success": False,
                 "message": "Room not found"
             }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get user_id for update if provided
+        user_id = request.data.get('user_id')
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id)
+                room.user = user
+            except User.DoesNotExist:
+                return Response({
+                    "success": False,
+                    "message": "User not found with the given user_id"
+                }, status=status.HTTP_404_NOT_FOUND)
         
         # Update fields
         room.title = request.data.get('title', room.title)
