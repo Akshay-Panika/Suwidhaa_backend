@@ -14,9 +14,9 @@ class RoomImageSerializer(serializers.ModelSerializer):
             return obj.image.url
         return None
 
-
 class RoomSerializer(serializers.ModelSerializer):
     room_images = RoomImageSerializer(many=True, read_only=True)
+    user_id = serializers.IntegerField(required=False, allow_null=True)
 
     class Meta:
         model = Room

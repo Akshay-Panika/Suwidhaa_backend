@@ -12,7 +12,7 @@ class RoomCreateView(APIView):
 
     def post(self, request):
         # Get data
-        user_id = request.data.get("user_id")
+        user_id = request.data.get("user_id")  # This will be None if not provided
         title = request.data.get("title")
         description = request.data.get("description")
         address = request.data.get("address")
@@ -69,9 +69,9 @@ class RoomCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Create room
+        # Create room - handle user_id (set to None if not provided)
         room = Room.objects.create(
-            user_id=user_id,
+            user_id=user_id if user_id else None,  # Explicitly set None if no user_id
             title=title,
             description=description,
             address=address,
@@ -103,7 +103,6 @@ class RoomCreateView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
-
 
 class RoomListView(APIView):
     def get(self, request):
