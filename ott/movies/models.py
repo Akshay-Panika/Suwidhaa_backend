@@ -1,12 +1,24 @@
 from django.db import models
+from cloudinary.models import CloudinaryField
 
 
 class Movie(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
 
-    thumbnail_horijental = models.URLField(max_length=500)
-    thumbnail_vertical = models.URLField(max_length=500)
+    thumbnail_horijental = CloudinaryField(
+        "thumbnail_horijental",
+        folder="suwidhaa/ott/movies/horizontal",
+        blank=False,
+        null=False,
+    )
+
+    thumbnail_vertical = CloudinaryField(
+        "thumbnail_vertical",
+        folder="suwidhaa/ott/movies/vertical",
+        blank=False,
+        null=False,
+    )
 
     content_type = models.CharField(max_length=50)
     release_date = models.DateField()

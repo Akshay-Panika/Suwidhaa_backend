@@ -1,12 +1,15 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser, FormParser
 
 from .models import Movie
 from .serializers import MovieSerializer
 
 
 class MovieCreateView(APIView):
+
+    parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request):
         serializer = MovieSerializer(data=request.data)
@@ -50,6 +53,8 @@ class MovieListView(APIView):
 
 
 class MovieDetailView(APIView):
+
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_object(self, pk):
         try:

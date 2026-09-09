@@ -7,8 +7,10 @@ class MovieSerializer(serializers.ModelSerializer):
 
     title = serializers.CharField(required=True)
     description = serializers.CharField(required=True)
-    thumbnail_horijental = serializers.URLField(required=True)
-    thumbnail_vertical = serializers.URLField(required=True)
+
+    thumbnail_horijental = serializers.ImageField(required=True)
+    thumbnail_vertical = serializers.ImageField(required=True)
+
     content_type = serializers.CharField(required=True)
     release_date = serializers.DateField(required=True)
     language = serializers.CharField(required=True)
