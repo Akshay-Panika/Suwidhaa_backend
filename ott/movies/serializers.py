@@ -8,7 +8,7 @@ class MovieSerializer(serializers.ModelSerializer):
     title = serializers.CharField(required=True)
     description = serializers.CharField(required=True)
 
-    thumbnail_horijental = serializers.ImageField(required=True)
+    thumbnail_horizontal = serializers.ImageField(required=True)
     thumbnail_vertical = serializers.ImageField(required=True)
 
     content_type = serializers.CharField(required=True)
@@ -28,7 +28,7 @@ class MovieSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "description",
-            "thumbnail_horijental",
+            "thumbnail_horizontal",
             "thumbnail_vertical",
             "content_type",
             "release_date",

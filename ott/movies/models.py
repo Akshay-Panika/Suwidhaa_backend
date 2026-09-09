@@ -6,18 +6,18 @@ class Movie(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
 
-    thumbnail_horijental = CloudinaryField(
-        "thumbnail_horijental",
+    thumbnail_horizontal = CloudinaryField(
+        "thumbnail_horizontal", 
         folder="suwidhaa/ott/movies/horizontal",
-        blank=False,
-        null=False,
+        blank=True,
+        null=True,
     )
 
     thumbnail_vertical = CloudinaryField(
         "thumbnail_vertical",
         folder="suwidhaa/ott/movies/vertical",
-        blank=False,
-        null=False,
+        blank=True,
+        null=True,
     )
 
     content_type = models.CharField(max_length=50)
