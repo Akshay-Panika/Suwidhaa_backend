@@ -1,35 +1,41 @@
 from django.db import models
 from cloudinary.models import CloudinaryField
 
+
 class Tiffin(models.Model):
+    # User ID
+    user_id = models.CharField(max_length=255,null=True,blank=True)
+
     # Basic Information
     title = models.CharField(max_length=255)
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    
-    # Tiffin Type - Free text (user can enter anything)
+
+    # Tiffin Type
     is_veg = models.CharField(
         max_length=255,
         blank=True,
         null=True,
         help_text="User can enter any veg type (e.g., Pure Veg, Veg, Jain Veg, etc.)"
     )
+
     is_nonveg = models.CharField(
         max_length=255,
         blank=True,
         null=True,
         help_text="User can enter any non-veg type (e.g., Chicken, Mutton, Fish, Egg, etc.)"
     )
-    
+
     # Booking & Rating
-    is_booking = models.BooleanField(default=False)  # True = Booked, False = Available
+    is_booking = models.BooleanField(default=False)
+
     rating = models.DecimalField(
-        max_digits=3, 
-        decimal_places=2, 
+        max_digits=3,
+        decimal_places=2,
         default=0.00,
         help_text="Rating out of 5"
     )
-    
+
     # Contact Number
     contact_number = models.CharField(
         max_length=20,
@@ -37,15 +43,15 @@ class Tiffin(models.Model):
         null=True,
         help_text="Contact number for tiffin orders"
     )
-    
-    # Near College (manual entry)
+
+    # Near College
     near_college = models.CharField(
         max_length=255,
         blank=True,
         null=True,
         help_text="Nearby college name"
     )
-    
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -61,17 +67,20 @@ class Tiffin(models.Model):
 
 class TiffinImage(models.Model):
     """Tiffin images with Cloudinary"""
+
     tiffin = models.ForeignKey(
         Tiffin,
         on_delete=models.CASCADE,
         related_name='tiffin_images'
     )
+
     image = CloudinaryField(
         'image',
         folder='suwidhaa/tiffin/images',
         blank=True,
         null=True
     )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
