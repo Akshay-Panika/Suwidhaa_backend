@@ -1,21 +1,25 @@
 from django.db import models
 from cloudinary.models import CloudinaryField
 
+
 class Room(models.Model):
+    # User
+    user_id = models.CharField(max_length=255)
+
     # Basic Information
     title = models.CharField(max_length=255)
     description = models.TextField()
     address = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     is_booking = models.BooleanField(default=False)
-    
+
     # Room Type
     room_type = models.CharField(
         max_length=255,
         blank=True,
         null=True,
     )
-    
+
     # Contact Number
     contact_number = models.CharField(
         max_length=20,
@@ -23,7 +27,7 @@ class Room(models.Model):
         null=True,
         help_text="Contact number for room inquiries"
     )
-    
+
     # Amenities
     wifi = models.BooleanField(default=False)
     ac = models.BooleanField(default=False)
@@ -31,14 +35,14 @@ class Room(models.Model):
     security = models.BooleanField(default=False)
     laundry = models.BooleanField(default=False)
     water = models.BooleanField(default=False)
-    
+
     # Near College
     near_college = models.CharField(
         max_length=255,
         blank=True,
         null=True,
     )
-    
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -56,12 +60,14 @@ class RoomImage(models.Model):
         on_delete=models.CASCADE,
         related_name='room_images'
     )
+
     image = CloudinaryField(
         'image',
         folder='suwidhaa/room/images',
         blank=True,
         null=True
     )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
