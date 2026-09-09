@@ -14,70 +14,25 @@ class MovieCreateView(APIView):
 
     def post(self, request):
         try:
-            # Log incoming data for debugging
-            print("=== REQUEST DATA ===")
-            print("Data:", request.data)
-            print("FILES:", request.FILES)
-            print("====================")
-            
-            # Create a mutable copy of request data
             data = request.data.copy()
             
-            # Handle thumbnail_horizontal upload
+            # Handle horizontal thumbnail
             if 'thumbnail_horizontal' in request.FILES:
-                try:
-                    uploaded_file = request.FILES['thumbnail_horizontal']
-                    result = cloudinary.uploader.upload(
-                        uploaded_file,
-                        folder="suwidhaa/ott/movies/horizontal"
-                    )
-                    data['thumbnail_horizontal'] = result['secure_url']
-                    print(f"Horizontal uploaded: {result['secure_url']}")
-                except Exception as e:
-                    print(f"Horizontal upload error: {str(e)}")
-                    return Response(
-                        {
-                            "success": False,
-                            "message": f"Horizontal thumbnail upload failed: {str(e)}"
-                        },
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-            else:
-                # If no file, set to None
-                data['thumbnail_horizontal'] = None
-                print("No horizontal file provided")
+                result = cloudinary.uploader.upload(
+                    request.FILES['thumbnail_horizontal'],
+                    folder="suwidhaa/ott/movies/horizontal"
+                )
+                data['thumbnail_horizontal'] = result['secure_url']
             
-            # Handle thumbnail_vertical upload
+            # Handle vertical thumbnail
             if 'thumbnail_vertical' in request.FILES:
-                try:
-                    uploaded_file = request.FILES['thumbnail_vertical']
-                    result = cloudinary.uploader.upload(
-                        uploaded_file,
-                        folder="suwidhaa/ott/movies/vertical"
-                    )
-                    data['thumbnail_vertical'] = result['secure_url']
-                    print(f"Vertical uploaded: {result['secure_url']}")
-                except Exception as e:
-                    print(f"Vertical upload error: {str(e)}")
-                    return Response(
-                        {
-                            "success": False,
-                            "message": f"Vertical thumbnail upload failed: {str(e)}"
-                        },
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-            else:
-                data['thumbnail_vertical'] = None
-                print("No vertical file provided")
+                result = cloudinary.uploader.upload(
+                    request.FILES['thumbnail_vertical'],
+                    folder="suwidhaa/ott/movies/vertical"
+                )
+                data['thumbnail_vertical'] = result['secure_url']
             
-            # Log processed data
-            print("=== PROCESSED DATA ===")
-            print(data)
-            print("======================")
-            
-            # Create serializer with processed data
             serializer = MovieSerializer(data=data)
-            
             if serializer.is_valid():
                 movie = serializer.save()
                 return Response(
@@ -88,29 +43,19 @@ class MovieCreateView(APIView):
                     },
                     status=status.HTTP_201_CREATED
                 )
-            else:
-                print("=== SERIALIZER ERRORS ===")
-                print(serializer.errors)
-                print("==========================")
-                return Response(
-                    {
-                        "success": False,
-                        "message": "Movie creation failed",
-                        "errors": serializer.errors
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-                
-        except Exception as e:
-            import traceback
-            print("=== EXCEPTION ===")
-            print(traceback.format_exc())
-            print("=================")
             return Response(
                 {
                     "success": False,
-                    "message": f"An error occurred: {str(e)}",
-                    "traceback": traceback.format_exc()  # Remove this in production
+                    "message": "Validation failed",
+                    "errors": serializer.errors
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {
+                    "success": False,
+                    "message": str(e)
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -141,7 +86,7 @@ class MovieDetailView(APIView):
 
     def get(self, request, pk):
         movie = self.get_object(pk)
-        if movie is None:
+        if not movie:
             return Response(
                 {
                     "success": False,
@@ -161,7 +106,7 @@ class MovieDetailView(APIView):
 
     def put(self, request, pk):
         movie = self.get_object(pk)
-        if movie is None:
+        if not movie:
             return Response(
                 {
                     "success": False,
@@ -172,40 +117,23 @@ class MovieDetailView(APIView):
         
         data = request.data.copy()
         
-        # Handle file uploads for update
+        # Handle horizontal thumbnail upload
         if 'thumbnail_horizontal' in request.FILES:
-            try:
-                result = cloudinary.uploader.upload(
-                    request.FILES['thumbnail_horizontal'],
-                    folder="suwidhaa/ott/movies/horizontal"
-                )
-                data['thumbnail_horizontal'] = result['secure_url']
-            except Exception as e:
-                return Response(
-                    {
-                        "success": False,
-                        "message": f"Horizontal thumbnail upload failed: {str(e)}"
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            result = cloudinary.uploader.upload(
+                request.FILES['thumbnail_horizontal'],
+                folder="suwidhaa/ott/movies/horizontal"
+            )
+            data['thumbnail_horizontal'] = result['secure_url']
         
+        # Handle vertical thumbnail upload
         if 'thumbnail_vertical' in request.FILES:
-            try:
-                result = cloudinary.uploader.upload(
-                    request.FILES['thumbnail_vertical'],
-                    folder="suwidhaa/ott/movies/vertical"
-                )
-                data['thumbnail_vertical'] = result['secure_url']
-            except Exception as e:
-                return Response(
-                    {
-                        "success": False,
-                        "message": f"Vertical thumbnail upload failed: {str(e)}"
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            result = cloudinary.uploader.upload(
+                request.FILES['thumbnail_vertical'],
+                folder="suwidhaa/ott/movies/vertical"
+            )
+            data['thumbnail_vertical'] = result['secure_url']
         
-        serializer = MovieSerializer(movie, data=data)
+        serializer = MovieSerializer(movie, data=data, partial=True)
         if serializer.is_valid():
             movie = serializer.save()
             return Response(
@@ -219,7 +147,7 @@ class MovieDetailView(APIView):
         return Response(
             {
                 "success": False,
-                "message": "Movie update failed",
+                "message": "Validation failed",
                 "errors": serializer.errors
             },
             status=status.HTTP_400_BAD_REQUEST
@@ -227,7 +155,7 @@ class MovieDetailView(APIView):
 
     def delete(self, request, pk):
         movie = self.get_object(pk)
-        if movie is None:
+        if not movie:
             return Response(
                 {
                     "success": False,
