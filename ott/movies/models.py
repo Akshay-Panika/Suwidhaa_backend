@@ -29,9 +29,9 @@ class Movie(models.Model):
 
     rating = models.CharField(max_length=20)
 
-    is_trending = models.BooleanField()
-    is_recommended = models.BooleanField()
-    is_active = models.BooleanField()
+    is_trending = models.BooleanField(default=False) 
+    is_recommended = models.BooleanField(default=False)  
+    is_active = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
