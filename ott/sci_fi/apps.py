@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class CartoonsConfig(AppConfig):
+class SciFiConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'ott.cartoons'
+    name = 'ott.sci_fi'

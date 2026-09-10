@@ -77,4 +77,16 @@ urlpatterns = [
         "api/v1/ott/",
         include("ott.movies.urls"),
     ),
+    path(
+        "api/v1/ott/",
+        include("ott.cartoons.urls"),
+    ),
+    path(
+        "api/v1/ott/",
+        include("ott.sports.urls"),
+    ),
+    path(
+        "api/v1/ott/",
+        include("ott.sci_fi.urls"),
+    ),
 ]

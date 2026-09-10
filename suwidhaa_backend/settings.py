@@ -50,6 +50,9 @@ INSTALLED_APPS = [
     "auth.app_auth",
     "ott.content",
     "ott.movies",
+    "ott.cartoons",
+    "ott.sports",
+    "ott.sci_fi"
 ]
 
 MIDDLEWARE = [

@@ -2,24 +2,24 @@ from django.db import models
 from cloudinary.models import CloudinaryField
 
 
-class Cartoon(models.Model):
+class SciFi(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
 
     thumbnail_horizontal = CloudinaryField(
         "thumbnail_horizontal",
-        folder="suwidhaa/ott/cartoons/horizontal",
+        folder="suwidhaa/ott/sci_fi/horizontal",
         blank=True, null=True,
     )
     thumbnail_vertical = CloudinaryField(
         "thumbnail_vertical",
-        folder="suwidhaa/ott/cartoons/vertical",
+        folder="suwidhaa/ott/sci_fi/vertical",
         blank=True, null=True,
     )
 
     content_type = models.CharField(
         max_length=50,
-        default='cartoon',
+        default='sci_fi',
         editable=False,
     )
 
