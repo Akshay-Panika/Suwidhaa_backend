@@ -1,6 +1,3 @@
-from django.shortcuts import render
-
-# Create your views here.
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -11,21 +8,22 @@ from .serializers import MovieSerializer
 
 class MovieListCreateAPIView(APIView):
     """
-    GET: List all active movies
+    GET: List all movies (active + inactive)
     POST: Create a new movie
     """
     def get(self, request):
-        movies = Movie.objects.filter(is_active=True).order_by('-created_at')
+        movies = Movie.objects.all().order_by('-created_at')  # filter hata diya
         serializer = MovieSerializer(movies, many=True)
         return Response({
             "success": True,
+            "count": movies.count(),
             "data": serializer.data
         }, status=status.HTTP_200_OK)
 
     def post(self, request):
         serializer = MovieSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()  # content_type automatically "movie" set ho jayega
+            serializer.save()
             return Response({
                 "success": True,
                 "message": "Movie created successfully",
@@ -41,7 +39,7 @@ class MovieDetailAPIView(APIView):
     """
     GET: Retrieve a single movie
     PUT: Update a movie
-    DELETE: Soft delete a movie
+    DELETE: Hard delete a movie
     """
     def get_object(self, pk):
         return get_object_or_404(Movie, pk=pk)
@@ -71,9 +69,8 @@ class MovieDetailAPIView(APIView):
 
     def delete(self, request, pk):
         movie = self.get_object(pk)
-        movie.is_active = False
-        movie.save()
+        movie.delete()   # hard delete (database se hamesha ke liye hata dega)
         return Response({
             "success": True,
-            "message": "Movie deactivated successfully"
+            "message": "Movie deleted successfully"
         }, status=status.HTTP_204_NO_CONTENT)

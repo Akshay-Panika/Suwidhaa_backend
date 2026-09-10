@@ -7,9 +7,9 @@ from .serializers import ContentSerializer
 
 
 class ContentListAPIView(APIView):
-    """GET: List all active content"""
+    """GET: List all content (active + inactive)"""
     def get(self, request):
-        contents = Content.objects.filter(is_active=True).order_by('-created_at')
+        contents = Content.objects.all().order_by('-created_at')  # filter hata diya
         serializer = ContentSerializer(contents, many=True)
         return Response({
             "success": True,
