@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     "college.room",
     "college.tiffin",
     "auth.app_auth",
-    # "ott.movies",
+    "ott.movies",
 ]
 
 MIDDLEWARE = [
