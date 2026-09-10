@@ -1,59 +1,31 @@
-# from rest_framework import serializers
-# from .models import Movie
-
-
-# class MovieSerializer(serializers.ModelSerializer):
-#     content_type = serializers.CharField(read_only=True)
-#     thumbnail_horizontal = serializers.SerializerMethodField()
-#     thumbnail_vertical = serializers.SerializerMethodField()
-
-#     class Meta:
-#         model = Movie
-#         fields = '__all__'
-#         read_only_fields = ('id', 'content_type', 'created_at', 'updated_at')
-
-#     def get_thumbnail_horizontal(self, obj):
-#         if obj.thumbnail_horizontal:
-#             return obj.thumbnail_horizontal.url
-#         return None
-
-#     def get_thumbnail_vertical(self, obj):
-#         if obj.thumbnail_vertical:
-#             return obj.thumbnail_vertical.url
-#         return None
-
-
-
 from rest_framework import serializers
 from .models import Movie
 from ott.content.models import Content
 
 
+class CloudinaryInputField(serializers.Field):
+    def to_representation(self, value):
+        if value:
+            return value.url
+        return None
+
+    def to_internal_value(self, data):
+        # data = uploaded file
+        return data
+
+
 class MovieSerializer(serializers.ModelSerializer):
     content_type = serializers.CharField(read_only=True)
-    thumbnail_horizontal = serializers.SerializerMethodField()
-    thumbnail_vertical = serializers.SerializerMethodField()
+    thumbnail_horizontal = CloudinaryInputField(required=False, allow_null=True)
+    thumbnail_vertical = CloudinaryInputField(required=False, allow_null=True)
 
     class Meta:
         model = Movie
         fields = '__all__'
         read_only_fields = ('id', 'content_type', 'created_at', 'updated_at')
 
-    def get_thumbnail_horizontal(self, obj):
-        if obj.thumbnail_horizontal:
-            return obj.thumbnail_horizontal.url
-        return None
-
-    def get_thumbnail_vertical(self, obj):
-        if obj.thumbnail_vertical:
-            return obj.thumbnail_vertical.url
-        return None
-
     def create(self, validated_data):
-        # 1. Movie create karo
         movie = Movie.objects.create(**validated_data)
-
-        # 2. Content entry automatically create karo
         Content.objects.create(
             movie=movie,
             title=movie.title,
@@ -69,12 +41,10 @@ class MovieSerializer(serializers.ModelSerializer):
         return movie
 
     def update(self, instance, validated_data):
-        # 1. Movie update karo
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
-        # 2. Content entry bhi update karo (agar nahi hai toh create karo)
         content, _ = Content.objects.get_or_create(movie=instance)
         content.title = instance.title
         content.thumbnail_horizontal = instance.thumbnail_horizontal.url if instance.thumbnail_horizontal else None
