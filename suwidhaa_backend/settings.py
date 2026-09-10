@@ -52,7 +52,8 @@ INSTALLED_APPS = [
     "ott.movies",
     "ott.cartoons",
     "ott.sports",
-    "ott.sci_fi"
+    "ott.sci_fi",
+    "ott.banner",
 ]
 
 MIDDLEWARE = [

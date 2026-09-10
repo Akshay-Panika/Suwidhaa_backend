@@ -89,4 +89,8 @@ urlpatterns = [
         "api/v1/ott/",
         include("ott.sci_fi.urls"),
     ),
+    path(
+        "api/v1/ott/",
+        include("ott.banner.urls"),
+    ),
 ]
