@@ -7,70 +7,111 @@ from .serializers import MovieSerializer
 
 
 class MovieListCreateAPIView(APIView):
-    """
-    GET: List all movies (active + inactive)
-    POST: Create a new movie
-    """
-    def get(self, request):
-        movies = Movie.objects.all().order_by('-created_at')  # filter hata diya
-        serializer = MovieSerializer(movies, many=True)
-        return Response({
-            "success": True,
-            "count": movies.count(),
-            "data": serializer.data
-        }, status=status.HTTP_200_OK)
+    """GET: List all movies | POST: Create a new movie"""
 
-    def post(self, request):
-        serializer = MovieSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
+    def get(self, request):
+        try:
+            movies = Movie.objects.all().order_by('-created_at')
+            serializer = MovieSerializer(movies, many=True)
             return Response({
                 "success": True,
-                "message": "Movie created successfully",
+                "count": movies.count(),
                 "data": serializer.data
-            }, status=status.HTTP_201_CREATED)
-        return Response({
-            "success": False,
-            "errors": serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "success": False,
+                "error": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def post(self, request):
+        try:
+            serializer = MovieSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({
+                    "success": True,
+                    "message": "Movie created successfully",
+                    "data": serializer.data
+                }, status=status.HTTP_201_CREATED)
+            return Response({
+                "success": False,
+                "errors": serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({
+                "success": False,
+                "error": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class MovieDetailAPIView(APIView):
-    """
-    GET: Retrieve a single movie
-    PUT: Update a movie
-    DELETE: Hard delete a movie
-    """
+    """GET | PUT | DELETE a single movie"""
+
     def get_object(self, pk):
         return get_object_or_404(Movie, pk=pk)
 
     def get(self, request, pk):
-        movie = self.get_object(pk)
-        serializer = MovieSerializer(movie)
-        return Response({
-            "success": True,
-            "data": serializer.data
-        }, status=status.HTTP_200_OK)
-
-    def put(self, request, pk):
-        movie = self.get_object(pk)
-        serializer = MovieSerializer(movie, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
+        try:
+            movie = self.get_object(pk)
+            serializer = MovieSerializer(movie)
             return Response({
                 "success": True,
-                "message": "Movie updated successfully",
                 "data": serializer.data
             }, status=status.HTTP_200_OK)
-        return Response({
-            "success": False,
-            "errors": serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
+        except Movie.DoesNotExist:
+            return Response({
+                "success": False,
+                "error": "Movie not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                "success": False,
+                "error": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def put(self, request, pk):
+        try:
+            movie = self.get_object(pk)
+            serializer = MovieSerializer(movie, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({
+                    "success": True,
+                    "message": "Movie updated successfully",
+                    "data": serializer.data
+                }, status=status.HTTP_200_OK)
+            return Response({
+                "success": False,
+                "errors": serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Movie.DoesNotExist:
+            return Response({
+                "success": False,
+                "error": "Movie not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                "success": False,
+                "error": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, pk):
-        movie = self.get_object(pk)
-        movie.delete()   # hard delete (database se hamesha ke liye hata dega)
-        return Response({
-            "success": True,
-            "message": "Movie deleted successfully"
-        }, status=status.HTTP_204_NO_CONTENT)
+        try:
+            movie = self.get_object(pk)
+            title = movie.title
+            movie.delete()   # Cascade delete → Content bhi delete ho jayega
+            return Response({
+                "success": True,
+                "message": f"Movie '{title}' deleted successfully"
+            }, status=status.HTTP_200_OK)   # ← 200 use karo taaki body aaye
+        except Movie.DoesNotExist:
+            return Response({
+                "success": False,
+                "error": "Movie not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                "success": False,
+                "error": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -4,13 +4,11 @@ from ott.content.models import Content
 
 
 class CloudinaryInputField(serializers.Field):
+    """File input → Full URL output"""
     def to_representation(self, value):
-        if value:
-            return value.url
-        return None
+        return value.url if value else None
 
     def to_internal_value(self, data):
-        # data = uploaded file
         return data
 
 
@@ -25,7 +23,10 @@ class MovieSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'content_type', 'created_at', 'updated_at')
 
     def create(self, validated_data):
+        # Movie create
         movie = Movie.objects.create(**validated_data)
+
+        # Content auto-create
         Content.objects.create(
             movie=movie,
             title=movie.title,
@@ -41,10 +42,12 @@ class MovieSerializer(serializers.ModelSerializer):
         return movie
 
     def update(self, instance, validated_data):
+        # Movie update
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
+        # Content auto-update
         content, _ = Content.objects.get_or_create(movie=instance)
         content.title = instance.title
         content.thumbnail_horizontal = instance.thumbnail_horizontal.url if instance.thumbnail_horizontal else None

@@ -2,10 +2,9 @@ from django.db import models
 
 
 class Content(models.Model):
-    # Source movie ka reference (future mein cartoons, webseries bhi link kar sakte hain)
     movie = models.OneToOneField(
         'movies.Movie',
-        on_delete=models.CASCADE,
+        on_delete=models.CASCADE,   # ✅ Movie delete → Content bhi delete
         null=True,
         blank=True,
         related_name='content_entry',
