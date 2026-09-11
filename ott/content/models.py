@@ -55,7 +55,12 @@ class Content(models.Model):
         null=True, blank=True,
         related_name='content_entry',
     )
-
+    webseries = models.OneToOneField(
+    'webseries.WebSeries',
+    on_delete=models.CASCADE,
+    null=True, blank=True,
+    related_name='content_entry',
+)
     title = models.CharField(max_length=255)
     thumbnail_horizontal = models.URLField(max_length=500, blank=True, null=True)
     thumbnail_vertical = models.URLField(max_length=500, blank=True, null=True)

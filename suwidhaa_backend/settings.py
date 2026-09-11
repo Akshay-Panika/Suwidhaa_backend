@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "ott.sci_fi",
     "ott.banner",
     "ott.reels",
+    "ott.webseries"
 ]
 
 MIDDLEWARE = [

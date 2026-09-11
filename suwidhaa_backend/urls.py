@@ -97,4 +97,8 @@ urlpatterns = [
         "api/v1/ott/",
         include("ott.reels.urls"),
     ),
+    path(
+        "api/v1/ott/",
+        include("ott.webseries.urls"),
+    ),
 ]
