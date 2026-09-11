@@ -1,9 +1,10 @@
 from rest_framework import serializers
-from .models import WebSeries, Season, Episode
+from .models import Webseries, Season, Episode
 from ott.content.models import Content
 
 
 class CloudinaryInputField(serializers.Field):
+    """File input → URL output"""
     def to_representation(self, value):
         return value.url if value else None
 
@@ -11,7 +12,7 @@ class CloudinaryInputField(serializers.Field):
         return data
 
 
-# ---------- Episode ----------
+# ---------------- EPISODE ----------------
 class EpisodeSerializer(serializers.ModelSerializer):
     thumbnail_horizontal = CloudinaryInputField(required=False, allow_null=True)
     thumbnail_vertical = CloudinaryInputField(required=False, allow_null=True)
@@ -22,33 +23,35 @@ class EpisodeSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'created_at', 'updated_at')
 
 
-# ---------- Season (with nested episodes) ----------
+# ---------------- SEASON (nested episodes - read only) ----------------
 class SeasonSerializer(serializers.ModelSerializer):
     episodes = EpisodeSerializer(many=True, read_only=True)
 
     class Meta:
         model = Season
         fields = '__all__'
-        read_only_fields = ('id', 'webseries', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'created_at', 'updated_at')
 
 
-# ---------- WebSeries (with nested seasons) ----------
-class WebSeriesSerializer(serializers.ModelSerializer):
+# ---------------- WEBSERIES ----------------
+class WebseriesSerializer(serializers.ModelSerializer):
     content_type = serializers.CharField(read_only=True)
     thumbnail_horizontal = CloudinaryInputField(required=False, allow_null=True)
     thumbnail_vertical = CloudinaryInputField(required=False, allow_null=True)
-    seasons = SeasonSerializer(many=True, read_only=True)
+    seasons = SeasonSerializer(many=True, read_only=True)   # GET me nested
 
     class Meta:
-        model = WebSeries
+        model = Webseries
         fields = '__all__'
         read_only_fields = ('id', 'content_type', 'created_at', 'updated_at')
 
     def create(self, validated_data):
-        webseries = WebSeries.objects.create(**validated_data)
+        # 1) Webseries create
+        webseries = Webseries.objects.create(**validated_data)
 
-        # Content auto-create (parent only)
+        # 2) Content auto-create (parent only, no video)
         Content.objects.create(
+            webseries=webseries,
             title=webseries.title,
             thumbnail_horizontal=webseries.thumbnail_horizontal.url if webseries.thumbnail_horizontal else None,
             thumbnail_vertical=webseries.thumbnail_vertical.url if webseries.thumbnail_vertical else None,
@@ -66,10 +69,8 @@ class WebSeriesSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
 
-        content, _ = Content.objects.get_or_create(
-            title=instance.title,
-            content_type='webseries'
-        )
+        # Content auto-update
+        content, _ = Content.objects.get_or_create(webseries=instance)
         content.title = instance.title
         content.thumbnail_horizontal = instance.thumbnail_horizontal.url if instance.thumbnail_horizontal else None
         content.thumbnail_vertical = instance.thumbnail_vertical.url if instance.thumbnail_vertical else None

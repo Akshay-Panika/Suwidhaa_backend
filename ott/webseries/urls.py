@@ -1,19 +1,20 @@
 from django.urls import path
 from .views import (
-    WebSeriesListCreateAPIView,
-    WebSeriesDetailAPIView,
-    SeasonListCreateAPIView,
-    EpisodeListCreateAPIView,
+    WebseriesListCreateAPIView,
+    WebseriesDetailAPIView,
+    SeasonCreateAPIView,
+    EpisodeCreateAPIView,
 )
 
 urlpatterns = [
-    path('webseries/list/', WebSeriesListCreateAPIView.as_view(), name='webseries-list'),
-    path('webseries/create/', WebSeriesListCreateAPIView.as_view(), name='webseries-create'),
-    path('webseries/<int:pk>/', WebSeriesDetailAPIView.as_view(), name='webseries-detail'),
+    # Webseries
+    path('webseries/create/', WebseriesListCreateAPIView.as_view(), name='webseries-create'),
+    path('webseries/list/', WebseriesListCreateAPIView.as_view(), name='webseries-list'),
+    path('webseries/<int:pk>/', WebseriesDetailAPIView.as_view(), name='webseries-detail'),
 
-    path('seasons/list/', SeasonListCreateAPIView.as_view(), name='season-list'),
-    path('seasons/create/', SeasonListCreateAPIView.as_view(), name='season-create'),
+    # Season (add to existing webseries)
+    path('webseries/seasons/create/', SeasonCreateAPIView.as_view(), name='season-create'),
 
-    path('episodes/list/', EpisodeListCreateAPIView.as_view(), name='episode-list'),
-    path('episodes/create/', EpisodeListCreateAPIView.as_view(), name='episode-create'),
+    # Episode (add video to a season)
+    path('webseries/episodes/create/', EpisodeCreateAPIView.as_view(), name='episode-create'),
 ]

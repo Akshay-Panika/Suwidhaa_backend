@@ -2,11 +2,10 @@ from django.db import models
 from cloudinary.models import CloudinaryField
 
 
-class WebSeries(models.Model):
+class Webseries(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
 
-    # Cloudinary thumbnails
     thumbnail_horizontal = CloudinaryField(
         "thumbnail_horizontal",
         folder="suwidhaa/ott/webseries/horizontal",
@@ -26,6 +25,7 @@ class WebSeries(models.Model):
 
     release_date = models.DateField()
     language = models.CharField(max_length=100)
+    duration = models.CharField(max_length=50, help_text="e.g., 2h 15m or 45m")
     rating = models.DecimalField(max_digits=3, decimal_places=1, default=0.0)
 
     is_trending = models.BooleanField(default=False)
@@ -41,7 +41,7 @@ class WebSeries(models.Model):
 
 class Season(models.Model):
     webseries = models.ForeignKey(
-        WebSeries,
+        Webseries,
         on_delete=models.CASCADE,
         related_name='seasons'
     )
@@ -58,7 +58,7 @@ class Season(models.Model):
         ordering = ['season_number']
 
     def __str__(self):
-        return f"{self.webseries.title} - Season {self.season_number}"
+        return f"{self.webseries.title} - S{self.season_number}"
 
 
 class Episode(models.Model):
@@ -83,7 +83,7 @@ class Episode(models.Model):
     )
 
     duration = models.CharField(max_length=50, help_text="e.g., 45m")
-    video_url = models.URLField(max_length=500)
+    video_url = models.URLField(max_length=500)   # ✅ video sirf episode me
     release_date = models.DateField(blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
