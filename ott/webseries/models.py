@@ -62,6 +62,13 @@ class Season(models.Model):
 
 
 class Episode(models.Model):
+    # ✅ webseries direct parent
+    webseries = models.ForeignKey(
+        Webseries,
+        on_delete=models.CASCADE,
+        related_name='episodes',
+        null=True, blank=True,   # existing rows ke liye (migration friendly)
+    )
     season = models.ForeignKey(
         Season,
         on_delete=models.CASCADE,
@@ -83,7 +90,7 @@ class Episode(models.Model):
     )
 
     duration = models.CharField(max_length=50, help_text="e.g., 45m")
-    video_url = models.URLField(max_length=500)   # ✅ video sirf episode me
+    video_url = models.URLField(max_length=500)
     release_date = models.DateField(blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)

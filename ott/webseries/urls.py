@@ -3,7 +3,9 @@ from .views import (
     WebseriesListCreateAPIView,
     WebseriesDetailAPIView,
     SeasonCreateAPIView,
+    SeasonDetailAPIView,
     EpisodeCreateAPIView,
+    EpisodeDetailAPIView,
 )
 
 urlpatterns = [
@@ -12,9 +14,11 @@ urlpatterns = [
     path('webseries/list/', WebseriesListCreateAPIView.as_view(), name='webseries-list'),
     path('webseries/<int:pk>/', WebseriesDetailAPIView.as_view(), name='webseries-detail'),
 
-    # Season (add to existing webseries)
+    # Season
     path('webseries/seasons/create/', SeasonCreateAPIView.as_view(), name='season-create'),
+    path('webseries/seasons/<int:pk>/', SeasonDetailAPIView.as_view(), name='season-detail'),
 
-    # Episode (add video to a season)
+    # Episode
     path('webseries/episodes/create/', EpisodeCreateAPIView.as_view(), name='episode-create'),
+    path('webseries/episodes/<int:pk>/', EpisodeDetailAPIView.as_view(), name='episode-detail'),
 ]

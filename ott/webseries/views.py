@@ -14,7 +14,7 @@ from .serializers import (
 # WEBSERIES
 # =========================================================
 class WebseriesListCreateAPIView(APIView):
-    """GET: list all webseries (with seasons+episodes) | POST: create webseries"""
+    """GET: list all webseries | POST: create webseries"""
 
     def get(self, request):
         try:
@@ -90,11 +90,10 @@ class WebseriesDetailAPIView(APIView):
 
 
 # =========================================================
-# SEASON (add to existing webseries)
+# SEASON
 # =========================================================
 class SeasonCreateAPIView(APIView):
-    """POST: add a new season to a webseries
-    Body: { "webseries": <id>, "season_number": 1, "title": "...", ... }"""
+    """POST: add a new season to a webseries"""
 
     def post(self, request):
         try:
@@ -113,13 +112,65 @@ class SeasonCreateAPIView(APIView):
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class SeasonDetailAPIView(APIView):
+    """GET / PUT / DELETE single season"""
+
+    def get_object(self, pk):
+        return get_object_or_404(Season, pk=pk)
+
+    def get(self, request, pk):
+        try:
+            obj = self.get_object(pk)
+            return Response({
+                "success": True,
+                "data": SeasonSerializer(obj).data
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"success": False, "error": str(e)},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def put(self, request, pk):
+        try:
+            obj = self.get_object(pk)
+            serializer = SeasonSerializer(obj, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"success": True, "data": serializer.data},
+                                status=status.HTTP_200_OK)
+            return Response({"success": False, "errors": serializer.errors},
+                            status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"success": False, "error": str(e)},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, pk):
+        try:
+            obj = self.get_object(pk)
+            info = f"{obj.webseries.title} - S{obj.season_number}"
+            obj.delete()
+            return Response({
+                "success": True,
+                "message": f"Season '{info}' deleted successfully"
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"success": False, "error": str(e)},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 # =========================================================
-# EPISODE (add video to a season)
+# EPISODE
 # =========================================================
 class EpisodeCreateAPIView(APIView):
-    """POST: add a new episode (with video_url) to a season
-    Body: { "season": <id>, "episode_number": 1, "title": "...",
-            "video_url": "...", "duration": "45m", ... }"""
+    """POST: add a new episode
+    Body: {
+        "webseries_id": 2,       ← ✅ manual
+        "season": 2,
+        "episode_number": 1,
+        "title": "...",
+        "duration": "45m",
+        "video_url": "...",
+        ...
+    }"""
 
     def post(self, request):
         try:
@@ -133,6 +184,51 @@ class EpisodeCreateAPIView(APIView):
                 }, status=status.HTTP_201_CREATED)
             return Response({"success": False, "errors": serializer.errors},
                             status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"success": False, "error": str(e)},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class EpisodeDetailAPIView(APIView):
+    """GET / PUT / DELETE single episode"""
+
+    def get_object(self, pk):
+        return get_object_or_404(Episode, pk=pk)
+
+    def get(self, request, pk):
+        try:
+            obj = self.get_object(pk)
+            return Response({
+                "success": True,
+                "data": EpisodeSerializer(obj).data
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"success": False, "error": str(e)},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def put(self, request, pk):
+        try:
+            obj = self.get_object(pk)
+            serializer = EpisodeSerializer(obj, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"success": True, "data": serializer.data},
+                                status=status.HTTP_200_OK)
+            return Response({"success": False, "errors": serializer.errors},
+                            status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"success": False, "error": str(e)},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, pk):
+        try:
+            obj = self.get_object(pk)
+            info = f"{obj.season.webseries.title} - S{obj.season.season_number}E{obj.episode_number}"
+            obj.delete()
+            return Response({
+                "success": True,
+                "message": f"Episode '{info}' deleted successfully"
+            }, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"success": False, "error": str(e)},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)

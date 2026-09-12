@@ -14,13 +14,47 @@ class CloudinaryInputField(serializers.Field):
 
 # ---------------- EPISODE ----------------
 class EpisodeSerializer(serializers.ModelSerializer):
-    thumbnail_horizontal = CloudinaryInputField(required=False, allow_null=True)
-    thumbnail_vertical = CloudinaryInputField(required=False, allow_null=True)
+    # ✅ webseries input bhi lega, output bhi dega (model me field hai ab)
+    webseries = serializers.PrimaryKeyRelatedField(
+        queryset=Webseries.objects.all(), required=True
+    )
+    season = serializers.PrimaryKeyRelatedField(
+        queryset=Season.objects.all(), required=True
+    )
 
     class Meta:
         model = Episode
-        fields = '__all__'
+        # ✅ thumbnail fields removed
+        fields = (
+            'id',
+            'webseries',        # ✅ input + output
+            'season',
+            'episode_number',
+            'title',
+            'description',
+            'duration',
+            'video_url',
+            'release_date',
+            'created_at',
+            'updated_at',
+        )
         read_only_fields = ('id', 'created_at', 'updated_at')
+
+    def validate(self, attrs):
+        """Check: season usi webseries ka hai jo webseries me diya"""
+        webseries = attrs.get('webseries')
+        season = attrs.get('season')
+
+        if season and webseries:
+            if season.webseries_id != webseries.id:
+                raise serializers.ValidationError({
+                    "webseries": (
+                        f"Season {season.season_number} (id={season.id}) "
+                        f"webseries id={season.webseries_id} ka part hai, "
+                        f"not webseries id={webseries.id}."
+                    )
+                })
+        return attrs
 
 
 # ---------------- SEASON (nested episodes - read only) ----------------
@@ -38,7 +72,7 @@ class WebseriesSerializer(serializers.ModelSerializer):
     content_type = serializers.CharField(read_only=True)
     thumbnail_horizontal = CloudinaryInputField(required=False, allow_null=True)
     thumbnail_vertical = CloudinaryInputField(required=False, allow_null=True)
-    seasons = SeasonSerializer(many=True, read_only=True)   # GET me nested
+    seasons = SeasonSerializer(many=True, read_only=True)
 
     class Meta:
         model = Webseries
@@ -46,10 +80,8 @@ class WebseriesSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'content_type', 'created_at', 'updated_at')
 
     def create(self, validated_data):
-        # 1) Webseries create
         webseries = Webseries.objects.create(**validated_data)
 
-        # 2) Content auto-create (parent only, no video)
         Content.objects.create(
             webseries=webseries,
             title=webseries.title,
@@ -69,7 +101,6 @@ class WebseriesSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
 
-        # Content auto-update
         content, _ = Content.objects.get_or_create(webseries=instance)
         content.title = instance.title
         content.thumbnail_horizontal = instance.thumbnail_horizontal.url if instance.thumbnail_horizontal else None
