@@ -20,7 +20,7 @@ class CollegeImageSerializer(serializers.ModelSerializer):
 class CollegeSerializer(serializers.ModelSerializer):
     images = CollegeImageSerializer(many=True, read_only=True)
     logo_url = serializers.SerializerMethodField()
-    booking = serializers.SerializerMethodField()   # API response me 'booking' hi rahega
+    booking = serializers.SerializerMethodField()  
 
     class Meta:
         model = College
@@ -28,7 +28,7 @@ class CollegeSerializer(serializers.ModelSerializer):
             'id', 'name', 'address', 'website', 'contact_number',
             'category', 'logo_url', 'is_recommended',
             'longitude', 'latitude',
-            'booking',    # ✅ API key 'booking' hi (client ko same response milega)
+            'booking',   
             'images', 'created_at', 'updated_at'
         ]
 
@@ -46,4 +46,4 @@ class CollegeSerializer(serializers.ModelSerializer):
                 user_id=str(user_id),
                 booking=True
             ).exists()
-        return obj.is_booked    # model field is_booked
+        return False   
