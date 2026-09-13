@@ -1,3 +1,4 @@
+import json
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -5,6 +6,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.db import models
 from .models import College, CollegeImage
 from .serializers import CollegeSerializer
+
 
 class CollegeCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser]
@@ -19,6 +21,11 @@ class CollegeCreateView(APIView):
         is_recommended = request.data.get('is_recommended', 'false').lower() == 'true'
         logo = request.FILES.get('logo')
         
+        # NEW FIELDS
+        longitude = request.data.get('longitude')
+        latitude = request.data.get('latitude')
+        user_id = request.data.get('user_id')  # This will be a JSON string like '["1","2","3"]'
+        
         # Validate
         if not name:
             return Response({
@@ -32,6 +39,14 @@ class CollegeCreateView(APIView):
                 "message": "Address is required"
             }, status=status.HTTP_400_BAD_REQUEST)
         
+        # Parse user_id if it's a JSON string
+        if user_id and isinstance(user_id, str):
+            try:
+                user_id = json.loads(user_id)
+            except (json.JSONDecodeError, TypeError):
+                # If not valid JSON, keep as string
+                pass
+        
         # Create college
         college = College.objects.create(
             name=name,
@@ -39,7 +54,10 @@ class CollegeCreateView(APIView):
             website=website,
             contact_number=contact_number,
             category=category,
-            is_recommended=is_recommended
+            is_recommended=is_recommended,
+            longitude=longitude,      # NEW
+            latitude=latitude,        # NEW
+            user_id=user_id           # NEW
         )
         
         # Handle logo
@@ -139,6 +157,22 @@ class CollegeDetailView(APIView):
         # Update is_recommended if provided
         if request.data.get('is_recommended') is not None:
             college.is_recommended = request.data.get('is_recommended', 'false').lower() == 'true'
+        
+        # NEW FIELDS - Update if provided
+        if request.data.get('longitude') is not None:
+            college.longitude = request.data.get('longitude')
+        
+        if request.data.get('latitude') is not None:
+            college.latitude = request.data.get('latitude')
+        
+        if request.data.get('user_id') is not None:
+            user_id = request.data.get('user_id')
+            if isinstance(user_id, str):
+                try:
+                    user_id = json.loads(user_id)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            college.user_id = user_id
         
         # Handle logo update
         logo = request.FILES.get('logo')

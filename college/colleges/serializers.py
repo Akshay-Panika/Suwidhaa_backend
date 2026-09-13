@@ -23,6 +23,7 @@ class CollegeSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'address', 'website', 'contact_number',
             'category', 'logo_url', 'is_recommended',
+            'longitude', 'latitude', 'user_id',   # NEW FIELDS
             'images', 'created_at', 'updated_at'
         ]
     

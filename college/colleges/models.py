@@ -28,6 +28,27 @@ class College(models.Model):
         default=False,
         help_text="Mark college as recommended (manual)"
     )
+    # NEW FIELDS
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        blank=True,
+        null=True,
+        help_text="Longitude coordinate of the college"
+    )
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        blank=True,
+        null=True,
+        help_text="Latitude coordinate of the college"
+    )
+    user_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="User ID(s) associated with the college (e.g., ['1','2','3'])"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
