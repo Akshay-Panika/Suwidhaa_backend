@@ -43,6 +43,12 @@ class College(models.Model):
         null=True,
         help_text="Latitude coordinate of the college"
     )
+    # NEW FIELD - booking list: [{"user_id": "1", "booking": true}, ...]
+    booking = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of bookings: [{'user_id': '1', 'booking': True}, ...]"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

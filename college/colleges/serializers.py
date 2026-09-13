@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import College, CollegeImage
 
+
 class CollegeImageSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
     
@@ -24,6 +25,7 @@ class CollegeSerializer(serializers.ModelSerializer):
             'id', 'name', 'address', 'website', 'contact_number',
             'category', 'logo_url', 'is_recommended',
             'longitude', 'latitude',
+            'booking',   # NEW
             'images', 'created_at', 'updated_at'
         ]
     

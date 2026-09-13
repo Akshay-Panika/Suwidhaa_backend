@@ -59,6 +59,10 @@ urlpatterns = [
     ),
     path(
         "api/v1/college/",
+        include("college.college_booking.urls"),
+    ),
+    path(
+        "api/v1/college/",
         include("college.room.urls"),
     ),
     path(
@@ -101,4 +105,5 @@ urlpatterns = [
         "api/v1/ott/",
         include("ott.webseries.urls"),
     ),
+    
 ]

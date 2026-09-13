@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "school.transport",
     "college.college_banner",
     "college.colleges",
+    "college.college_booking",
     "college.room",
     "college.tiffin",
     "auth.app_auth",
