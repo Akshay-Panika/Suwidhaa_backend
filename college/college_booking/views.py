@@ -6,13 +6,14 @@ from rest_framework import status
 from .models import CollegeBooking
 from .serializers import CollegeBookingSerializer
 from college.colleges.models import College
-
+from services.whatsapp_service import WhatsAppService   # ✅ SAHI
 
 class CollegeBookingCreateView(APIView):
     def post(self, request):
         college_id = request.data.get('college_id')
         user_id = request.data.get('user_id')
         booking = request.data.get('booking', 'true')
+        message = request.data.get('message', '')   # ✅ NEW
 
         # Convert booking to boolean
         if isinstance(booking, str):
@@ -43,27 +44,46 @@ class CollegeBookingCreateView(APIView):
 
         if existing:
             existing.booking = booking
+            existing.message = message   # ✅ update message
             existing.save()
             booking_obj = existing
         else:
             booking_obj = CollegeBooking.objects.create(
                 college_id=college_id,
                 user_id=str(user_id),
-                booking=booking
+                booking=booking,
+                message=message   # ✅ save message
             )
 
-        # ✅ FIXED: college.booking → college.is_booked
+        # ✅ Update college-level booking flag
         college.is_booked = CollegeBooking.objects.filter(
             college_id=college_id,
             booking=True
         ).exists()
         college.save()
 
+        # ✅ WhatsApp pe message bhejo (agar message hai aur booking true hai)
+        whatsapp_result = None
+        if booking and message and college.contact_number:
+            try:
+                wa_service = WhatsAppService()
+                whatsapp_result = wa_service.send_custom_message(
+                    phone_number=college.contact_number,
+                    message_body=message
+                )
+            except Exception as e:
+                # WhatsApp fail ho gaya to booking fail nahi karni
+                whatsapp_result = {
+                    "success": False,
+                    "error": str(e)
+                }
+
         serializer = CollegeBookingSerializer(booking_obj)
         return Response({
             "success": True,
             "message": "College booked successfully",
-            "data": serializer.data
+            "data": serializer.data,
+            "whatsapp": whatsapp_result   # ✅ WhatsApp result bhi bhejo
         }, status=status.HTTP_201_CREATED)
 
 
@@ -112,7 +132,7 @@ class CollegeBookingDetailView(APIView):
         college_id = booking.college_id
         booking.delete()
 
-        # ✅ FIXED: college.booking → college.is_booked
+        # ✅ Recalculate college-level booking flag
         try:
             college = College.objects.get(pk=college_id)
             college.is_booked = CollegeBooking.objects.filter(

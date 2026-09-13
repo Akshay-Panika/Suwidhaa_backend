@@ -7,12 +7,13 @@ from dotenv import load_dotenv
 load_dotenv()
 logger = logging.getLogger(__name__)
 
+
 class WhatsAppService:
     def __init__(self):
         self.account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '') or os.getenv("TWILIO_ACCOUNT_SID")
         self.auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '') or os.getenv("TWILIO_AUTH_TOKEN")
         self.from_number = getattr(settings, 'TWILIO_WHATSAPP_FROM', '') or os.getenv("TWILIO_WHATSAPP_FROM") or os.getenv("TWILIO_PHONE_NUMBER", "")
-        
+
         if self.from_number and not self.from_number.startswith('whatsapp:'):
             if self.from_number.startswith('whatsapp:'):
                 self.from_number = self.from_number.replace('whatsapp:', '')
@@ -20,12 +21,12 @@ class WhatsAppService:
             if not self.from_number.startswith('+'):
                 self.from_number = '+' + self.from_number
             self.from_number = f"whatsapp:{self.from_number}"
-        
+
         if not all([self.account_sid, self.auth_token, self.from_number]):
             logger.error("Missing Twilio credentials")
             self.client = None
             return
-        
+
         try:
             self.client = Client(self.account_sid, self.auth_token)
         except Exception as e:
@@ -35,17 +36,17 @@ class WhatsAppService:
     def send_credentials(self, phone_number, name, id_card, password, user_type="Student"):
         if not self.client:
             return {'success': False, 'error': 'Twilio client not initialized'}
-        
+
         try:
             phone_number = self._format_phone_number(phone_number)
             message_body = self._create_message(name, id_card, password, user_type)
-            
+
             message = self.client.messages.create(
-                from_=self.from_number, 
-                to=phone_number, 
+                from_=self.from_number,
+                to=phone_number,
                 body=message_body
             )
-            
+
             return {
                 'success': True,
                 'message_sid': message.sid,
@@ -66,6 +67,40 @@ class WhatsAppService:
     def send_teacher_credentials(self, phone_number, teacher_name, teacher_id, password):
         return self.send_credentials(phone_number, teacher_name, teacher_id, password, "Teacher")
 
+    # ✅ NAYA METHOD — college booking ke liye custom message bhejta hai
+    def send_custom_message(self, phone_number, message_body):
+        """
+        Send a custom message to any phone number on WhatsApp.
+        Used for college booking notifications.
+        """
+        if not self.client:
+            return {'success': False, 'error': 'Twilio client not initialized'}
+
+        try:
+            phone_number = self._format_phone_number(phone_number)
+
+            message = self.client.messages.create(
+                from_=self.from_number,
+                to=phone_number,
+                body=message_body
+            )
+
+            return {
+                'success': True,
+                'message_sid': message.sid,
+                'status': message.status,
+                'to': phone_number,
+                'from': self.from_number
+            }
+        except Exception as e:
+            error_msg = str(e)
+            if 'not a registered whatsapp user' in error_msg.lower() or 'sandbox' in error_msg.lower():
+                return {
+                    'success': False,
+                    'error': 'Please send "join open-speed" to +14155238886 first'
+                }
+            return {'success': False, 'error': error_msg}
+
     def _format_phone_number(self, phone_number):
         phone_number = ''.join(c for c in phone_number.strip() if c.isdigit() or c == '+')
         if not phone_number.startswith('whatsapp:'):
@@ -76,7 +111,7 @@ class WhatsAppService:
 
     def _create_message(self, name, id_card, password, user_type="Student"):
         app_link = "https://play.google.com/store/apps/details?id=com.suwidhaa.app"
-        
+
         if user_type == "Teacher":
             return f"""🎓 Welcome {name}!
 

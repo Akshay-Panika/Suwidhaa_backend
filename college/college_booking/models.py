@@ -15,6 +15,12 @@ class CollegeBooking(models.Model):
         default=True,
         help_text="Booking status (True = booked)"
     )
+    # ✅ NEW: manually diya gaya message, jo WhatsApp pe trigger hoga
+    message = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Message to send to the college on WhatsApp when booking is created"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
