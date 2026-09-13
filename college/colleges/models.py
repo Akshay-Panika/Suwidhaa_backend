@@ -43,12 +43,6 @@ class College(models.Model):
         null=True,
         help_text="Latitude coordinate of the college"
     )
-    user_id = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True,
-        help_text="User ID(s) associated with the college (e.g., ['1','2','3'])"
-    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

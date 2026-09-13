@@ -1,4 +1,3 @@
-import json
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -24,7 +23,6 @@ class CollegeCreateView(APIView):
         # NEW FIELDS
         longitude = request.data.get('longitude')
         latitude = request.data.get('latitude')
-        user_id = request.data.get('user_id')  # This will be a JSON string like '["1","2","3"]'
         
         # Validate
         if not name:
@@ -39,14 +37,6 @@ class CollegeCreateView(APIView):
                 "message": "Address is required"
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Parse user_id if it's a JSON string
-        if user_id and isinstance(user_id, str):
-            try:
-                user_id = json.loads(user_id)
-            except (json.JSONDecodeError, TypeError):
-                # If not valid JSON, keep as string
-                pass
-        
         # Create college
         college = College.objects.create(
             name=name,
@@ -55,9 +45,8 @@ class CollegeCreateView(APIView):
             contact_number=contact_number,
             category=category,
             is_recommended=is_recommended,
-            longitude=longitude,      # NEW
-            latitude=latitude,        # NEW
-            user_id=user_id           # NEW
+            longitude=longitude,
+            latitude=latitude
         )
         
         # Handle logo
@@ -164,15 +153,6 @@ class CollegeDetailView(APIView):
         
         if request.data.get('latitude') is not None:
             college.latitude = request.data.get('latitude')
-        
-        if request.data.get('user_id') is not None:
-            user_id = request.data.get('user_id')
-            if isinstance(user_id, str):
-                try:
-                    user_id = json.loads(user_id)
-                except (json.JSONDecodeError, TypeError):
-                    pass
-            college.user_id = user_id
         
         # Handle logo update
         logo = request.FILES.get('logo')
