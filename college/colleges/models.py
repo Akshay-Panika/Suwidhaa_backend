@@ -1,5 +1,8 @@
+# college/colleges/models.py
+
 from django.db import models
 from cloudinary.models import CloudinaryField
+
 
 class College(models.Model):
     name = models.CharField(max_length=255)
@@ -42,8 +45,8 @@ class College(models.Model):
         null=True,
         help_text="Latitude coordinate of the college"
     )
-    # ✅ CHANGED: JSONField list → BooleanField
-    booking = models.BooleanField(
+    # ✅ RENAMED: purana `booking` hatao, naya `is_booked` rakho
+    is_booked = models.BooleanField(
         default=False,
         help_text="True if any user has booked this college"
     )

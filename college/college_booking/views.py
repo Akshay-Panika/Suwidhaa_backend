@@ -1,3 +1,5 @@
+# college/college_booking/views.py
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -40,21 +42,18 @@ class CollegeBookingCreateView(APIView):
         ).first()
 
         if existing:
-            # update existing record
             existing.booking = booking
             existing.save()
             booking_obj = existing
         else:
-            # create new record
             booking_obj = CollegeBooking.objects.create(
                 college_id=college_id,
                 user_id=str(user_id),
                 booking=booking
             )
 
-        # ✅ Update college-level booking flag:
-        #    true if ANY user has booking=True for this college
-        college.booking = CollegeBooking.objects.filter(
+        # ✅ FIXED: college.booking → college.is_booked
+        college.is_booked = CollegeBooking.objects.filter(
             college_id=college_id,
             booking=True
         ).exists()
@@ -113,10 +112,10 @@ class CollegeBookingDetailView(APIView):
         college_id = booking.college_id
         booking.delete()
 
-        # ✅ Recalculate college-level booking flag after delete
+        # ✅ FIXED: college.booking → college.is_booked
         try:
             college = College.objects.get(pk=college_id)
-            college.booking = CollegeBooking.objects.filter(
+            college.is_booked = CollegeBooking.objects.filter(
                 college_id=college_id,
                 booking=True
             ).exists()

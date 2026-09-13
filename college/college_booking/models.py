@@ -1,3 +1,5 @@
+# college/college_booking/models.py
+
 from django.db import models
 
 
