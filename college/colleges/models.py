@@ -28,7 +28,6 @@ class College(models.Model):
         default=False,
         help_text="Mark college as recommended (manual)"
     )
-    # NEW FIELDS
     longitude = models.DecimalField(
         max_digits=9,
         decimal_places=6,
@@ -43,11 +42,10 @@ class College(models.Model):
         null=True,
         help_text="Latitude coordinate of the college"
     )
-    # NEW FIELD - booking list: [{"user_id": "1", "booking": true}, ...]
-    booking = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="List of bookings: [{'user_id': '1', 'booking': True}, ...]"
+    # ✅ CHANGED: JSONField list → BooleanField
+    booking = models.BooleanField(
+        default=False,
+        help_text="True if any user has booked this college"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
