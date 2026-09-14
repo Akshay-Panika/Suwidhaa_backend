@@ -15,6 +15,20 @@ class CollegeBookingCreateView(APIView):
         booking = request.data.get('booking', 'true')
         message = request.data.get('message', '')   # ✅ NEW
 
+        # ✅ ADDED: nested room object
+        room = request.data.get('room', {}) or {}
+        room_id = room.get('room_id')
+        room_name = room.get('room_name')
+        room_type = room.get('room_type')
+        room_amount = room.get('room_amount')
+
+        # ✅ ADDED: nested tiffin object
+        tiffin = request.data.get('tiffin', {}) or {}
+        tiffin_id = tiffin.get('tiffin_id')
+        tiffin_name = tiffin.get('tiffin_name')
+        tiffin_type = tiffin.get('tiffin_type')
+        tiffin_amount = tiffin.get('tiffin_amount')
+
         # Convert booking to boolean
         if isinstance(booking, str):
             booking = booking.lower() == 'true'
@@ -45,6 +59,24 @@ class CollegeBookingCreateView(APIView):
         if existing:
             existing.booking = booking
             existing.message = message   # ✅ update message
+            # ✅ ADDED: update room fields (only if provided)
+            if room_id is not None:
+                existing.room_id = room_id
+            if room_name is not None:
+                existing.room_name = room_name
+            if room_type is not None:
+                existing.room_type = room_type
+            if room_amount is not None:
+                existing.room_amount = room_amount
+            # ✅ ADDED: update tiffin fields (only if provided)
+            if tiffin_id is not None:
+                existing.tiffin_id = tiffin_id
+            if tiffin_name is not None:
+                existing.tiffin_name = tiffin_name
+            if tiffin_type is not None:
+                existing.tiffin_type = tiffin_type
+            if tiffin_amount is not None:
+                existing.tiffin_amount = tiffin_amount
             existing.save()
             booking_obj = existing
         else:
@@ -52,7 +84,17 @@ class CollegeBookingCreateView(APIView):
                 college_id=college_id,
                 user_id=str(user_id),
                 booking=booking,
-                message=message   # ✅ save message
+                message=message,   # ✅ save message
+                # ✅ ADDED: room fields
+                room_id=room_id,
+                room_name=room_name,
+                room_type=room_type,
+                room_amount=room_amount,
+                # ✅ ADDED: tiffin fields
+                tiffin_id=tiffin_id,
+                tiffin_name=tiffin_name,
+                tiffin_type=tiffin_type,
+                tiffin_amount=tiffin_amount,
             )
 
         # ✅ Update college-level booking flag
@@ -103,7 +145,7 @@ class CollegeBookingListView(APIView):
         return Response({
             "success": True,
             "count": bookings.count(),
-            "data": serializer.data
+            "data": serializer.data   # ✅ room + tiffin automatically aayenge
         }, status=status.HTTP_200_OK)
 
 
