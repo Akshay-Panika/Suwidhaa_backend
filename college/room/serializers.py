@@ -28,6 +28,8 @@ class RoomSerializer(serializers.ModelSerializer):
             'address',
             'price',
             'is_booking',
+            'longitude',
+            'latitude',
             'room_type',
             'contact_number',
             'wifi',

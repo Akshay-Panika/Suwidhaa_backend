@@ -13,6 +13,22 @@ class Room(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     is_booking = models.BooleanField(default=False)
 
+    # Location Coordinates
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        blank=True,
+        null=True,
+        help_text="Longitude coordinate of the room location"
+    )
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        blank=True,
+        null=True,
+        help_text="Latitude coordinate of the room location"
+    )
+
     # Room Type
     room_type = models.CharField(
         max_length=255,

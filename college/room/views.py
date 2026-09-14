@@ -18,6 +18,8 @@ class RoomCreateView(APIView):
         description = request.data.get('description')
         address = request.data.get('address')
         price = request.data.get('price')
+        longitude = request.data.get('longitude')
+        latitude = request.data.get('latitude')
         room_type = request.data.get('room_type', '')
         is_booking = request.data.get('is_booking', False)
         contact_number = request.data.get('contact_number', '')
@@ -82,6 +84,18 @@ class RoomCreateView(APIView):
                 "message": "Price is required"
             }, status=status.HTTP_400_BAD_REQUEST)
 
+        if longitude is None or longitude == '':
+            return Response({
+                "success": False,
+                "message": "Longitude is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if latitude is None or latitude == '':
+            return Response({
+                "success": False,
+                "message": "Latitude is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         # Create room
         room = Room.objects.create(
             user_id=user_id,
@@ -89,6 +103,8 @@ class RoomCreateView(APIView):
             description=description,
             address=address,
             price=price,
+            longitude=longitude,
+            latitude=latitude,
             room_type=room_type,
             is_booking=is_booking,
             contact_number=contact_number,
@@ -263,6 +279,15 @@ class RoomDetailView(APIView):
             'price',
             room.price
         )
+
+        # Update longitude and latitude
+        longitude = request.data.get('longitude', room.longitude)
+        if longitude is not None and longitude != '':
+            room.longitude = longitude
+
+        latitude = request.data.get('latitude', room.latitude)
+        if latitude is not None and latitude != '':
+            room.latitude = latitude
 
         room.room_type = request.data.get(
             'room_type',
