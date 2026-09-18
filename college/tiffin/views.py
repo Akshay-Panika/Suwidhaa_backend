@@ -1,5 +1,4 @@
 # college/tiffins/views.py
-
 from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,7 +10,7 @@ from .serializers import TiffinSerializer
 
 
 # ============================================================
-# TiffinCreateView (NO CHANGE)
+# TiffinCreateView (UPDATED — lat/lng required)
 # ============================================================
 class TiffinCreateView(APIView):
     """Create a new tiffin"""
@@ -24,6 +23,10 @@ class TiffinCreateView(APIView):
         title = request.data.get('title')
         description = request.data.get('description')
         price = request.data.get('price')
+
+        # ✅ ADDED: lat/lng
+        longitude = request.data.get('longitude')
+        latitude = request.data.get('latitude')
 
         is_veg = request.data.get('is_veg', '')
         is_nonveg = request.data.get('is_nonveg', '')
@@ -57,12 +60,27 @@ class TiffinCreateView(APIView):
             return Response({"success": False, "message": "Price is required"},
                             status=status.HTTP_400_BAD_REQUEST)
 
+        # ✅ Validate longitude
+        if longitude is None or longitude == '':
+            return Response({"success": False, "message": "Longitude is required"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # ✅ Validate latitude
+        if latitude is None or latitude == '':
+            return Response({"success": False, "message": "Latitude is required"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
         # Create Tiffin
         tiffin = Tiffin.objects.create(
             user_id=user_id,
             title=title,
             description=description,
             price=price,
+
+            # ✅ ADDED: lat/lng
+            longitude=longitude,
+            latitude=latitude,
+
             is_veg=is_veg,
             is_nonveg=is_nonveg,
             is_booking=is_booking,
@@ -86,8 +104,7 @@ class TiffinCreateView(APIView):
 
 
 # ============================================================
-# TiffinListView (EXISTING — Owner ke tiffins ke liye)
-# URL: /tiffins/list/?user_id=1
+# TiffinListView (NO CHANGE)
 # ============================================================
 class TiffinListView(APIView):
     """List tiffins with filters (owner-wise)"""
@@ -107,99 +124,11 @@ class TiffinListView(APIView):
         min_rating = request.query_params.get('min_rating')
         max_rating = request.query_params.get('max_rating')
 
-        # All tiffins
         tiffins = Tiffin.objects.all()
 
-        # ✅ Owner filter — jisne tiffin create kiya
         if user_id:
             tiffins = tiffins.filter(user_id=user_id)
 
-        # Veg filter
-        if is_veg is not None:
-            tiffins = tiffins.filter(is_veg__icontains=is_veg)
-
-        # Non Veg filter
-        if is_nonveg is not None:
-            tiffins = tiffins.filter(is_nonveg__icontains=is_nonveg)
-
-        # Booking filter
-        if is_booking is not None:
-            is_booking_bool = is_booking.lower() == 'true'
-            tiffins = tiffins.filter(is_booking=is_booking_bool)
-
-        # Near college filter
-        if near_college:
-            tiffins = tiffins.filter(near_college__icontains=near_college)
-
-        # Search
-        if search:
-            tiffins = tiffins.filter(
-                Q(title__icontains=search) |
-                Q(description__icontains=search)
-            )
-
-        # Price filters
-        if min_price:
-            tiffins = tiffins.filter(price__gte=min_price)
-
-        if max_price:
-            tiffins = tiffins.filter(price__lte=max_price)
-
-        # Rating filters
-        if min_rating:
-            tiffins = tiffins.filter(rating__gte=min_rating)
-
-        if max_rating:
-            tiffins = tiffins.filter(rating__lte=max_rating)
-
-        # ✅ Pass user_id in context for booking flag
-        serializer = TiffinSerializer(
-            tiffins,
-            many=True,
-            context={'user_id': user_id}   # ✅ ADDED
-        )
-
-        return Response({
-            "success": True,
-            "count": tiffins.count(),
-            "data": serializer.data
-        }, status=status.HTTP_200_OK)
-
-
-# ============================================================
-# ✅ NAYA — TiffinAllListView (Sab tiffins + user-wise booking)
-# URL: /tiffins/?user_id=9
-# ============================================================
-class TiffinAllListView(APIView):
-    """
-    GET /api/v1/college/tiffins/?user_id=9
-
-    - Sab tiffins fetch honge (koi user_id filter nahi)
-    - Har tiffin me `booking: true/false` aayega
-      (kya user 9 ne ye tiffin book kiya hai)
-    - near_college optional filter hai
-    """
-
-    def get(self, request):
-
-        # Query params
-        user_id = request.query_params.get('user_id')   # ✅ Sirf context ke liye
-        is_veg = request.query_params.get('is_veg')
-        is_nonveg = request.query_params.get('is_nonveg')
-        is_booking = request.query_params.get('is_booking')
-        near_college = request.query_params.get('near_college')
-        search = request.query_params.get('search')
-
-        min_price = request.query_params.get('min_price')
-        max_price = request.query_params.get('max_price')
-
-        min_rating = request.query_params.get('min_rating')
-        max_rating = request.query_params.get('max_rating')
-
-        # ✅ Sab tiffins — user_id se filter NAHI
-        tiffins = Tiffin.objects.all()
-
-        # ✅ Optional filters
         if is_veg is not None:
             tiffins = tiffins.filter(is_veg__icontains=is_veg)
 
@@ -231,7 +160,6 @@ class TiffinAllListView(APIView):
         if max_rating:
             tiffins = tiffins.filter(rating__lte=max_rating)
 
-        # ✅ user_id context me pass karo (booking flag ke liye)
         serializer = TiffinSerializer(
             tiffins,
             many=True,
@@ -246,7 +174,80 @@ class TiffinAllListView(APIView):
 
 
 # ============================================================
-# TiffinDetailView (NO CHANGE)
+# TiffinAllListView (NO CHANGE)
+# ============================================================
+class TiffinAllListView(APIView):
+    """
+    GET /api/v1/college/tiffins/?user_id=9
+
+    - Sab tiffins fetch honge (koi user_id filter nahi)
+    - Har tiffin me `booking: true/false` aayega
+    - near_college optional filter hai
+    """
+
+    def get(self, request):
+
+        user_id = request.query_params.get('user_id')
+        is_veg = request.query_params.get('is_veg')
+        is_nonveg = request.query_params.get('is_nonveg')
+        is_booking = request.query_params.get('is_booking')
+        near_college = request.query_params.get('near_college')
+        search = request.query_params.get('search')
+
+        min_price = request.query_params.get('min_price')
+        max_price = request.query_params.get('max_price')
+
+        min_rating = request.query_params.get('min_rating')
+        max_rating = request.query_params.get('max_rating')
+
+        tiffins = Tiffin.objects.all()
+
+        if is_veg is not None:
+            tiffins = tiffins.filter(is_veg__icontains=is_veg)
+
+        if is_nonveg is not None:
+            tiffins = tiffins.filter(is_nonveg__icontains=is_nonveg)
+
+        if is_booking is not None:
+            is_booking_bool = is_booking.lower() == 'true'
+            tiffins = tiffins.filter(is_booking=is_booking_bool)
+
+        if near_college:
+            tiffins = tiffins.filter(near_college__icontains=near_college)
+
+        if search:
+            tiffins = tiffins.filter(
+                Q(title__icontains=search) |
+                Q(description__icontains=search)
+            )
+
+        if min_price:
+            tiffins = tiffins.filter(price__gte=min_price)
+
+        if max_price:
+            tiffins = tiffins.filter(price__lte=max_price)
+
+        if min_rating:
+            tiffins = tiffins.filter(rating__gte=min_rating)
+
+        if max_rating:
+            tiffins = tiffins.filter(rating__lte=max_rating)
+
+        serializer = TiffinSerializer(
+            tiffins,
+            many=True,
+            context={'user_id': user_id}
+        )
+
+        return Response({
+            "success": True,
+            "count": tiffins.count(),
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
+
+# ============================================================
+# TiffinDetailView (UPDATED — lat/lng update)
 # ============================================================
 class TiffinDetailView(APIView):
     """Get, update, delete a specific tiffin"""
@@ -267,7 +268,6 @@ class TiffinDetailView(APIView):
             return Response({"success": False, "message": "Tiffin not found"},
                             status=status.HTTP_404_NOT_FOUND)
 
-        # ✅ user_id context me pass karo
         user_id = request.query_params.get('user_id')
 
         serializer = TiffinSerializer(tiffin, context={'user_id': user_id})
@@ -292,6 +292,15 @@ class TiffinDetailView(APIView):
         tiffin.title = request.data.get('title', tiffin.title)
         tiffin.description = request.data.get('description', tiffin.description)
         tiffin.price = request.data.get('price', tiffin.price)
+
+        # ✅ ADDED: Update lat/lng (only if provided and not empty)
+        longitude = request.data.get('longitude', tiffin.longitude)
+        if longitude is not None and longitude != '':
+            tiffin.longitude = longitude
+
+        latitude = request.data.get('latitude', tiffin.latitude)
+        if latitude is not None and latitude != '':
+            tiffin.latitude = latitude
 
         tiffin.is_veg = request.data.get('is_veg', tiffin.is_veg)
         tiffin.is_nonveg = request.data.get('is_nonveg', tiffin.is_nonveg)
@@ -318,7 +327,6 @@ class TiffinDetailView(APIView):
             for image in images:
                 TiffinImage.objects.create(tiffin=tiffin, image=image)
 
-        # ✅ user_id context me pass karo
         user_id = request.query_params.get('user_id')
 
         serializer = TiffinSerializer(tiffin, context={'user_id': user_id})

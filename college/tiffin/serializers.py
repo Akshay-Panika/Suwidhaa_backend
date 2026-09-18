@@ -1,5 +1,4 @@
 # college/tiffins/serializers.py
-
 from rest_framework import serializers
 from .models import Tiffin, TiffinImage
 
@@ -20,7 +19,7 @@ class TiffinImageSerializer(serializers.ModelSerializer):
 class TiffinSerializer(serializers.ModelSerializer):
     tiffin_images = TiffinImageSerializer(many=True, read_only=True)
 
-    # ✅ ADDED: user-wise booking field
+    # ✅ user-wise booking field
     booking = serializers.SerializerMethodField()
 
     class Meta:
@@ -31,10 +30,15 @@ class TiffinSerializer(serializers.ModelSerializer):
             'title',
             'description',
             'price',
+
+            # ✅ ADDED: latitude + longitude
+            'longitude',
+            'latitude',
+
             'is_veg',
             'is_nonveg',
             'is_booking',
-            'booking',          # ✅ ADDED
+            'booking',
             'rating',
             'contact_number',
             'near_college',
@@ -53,6 +57,6 @@ class TiffinSerializer(serializers.ModelSerializer):
 
         return CollegeBooking.objects.filter(
             user_id=str(user_id),
-            tiffin_id=obj.id,       # ✅ match tiffin_id
+            tiffin_id=obj.id,
             booking=True
         ).exists()

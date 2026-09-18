@@ -1,15 +1,28 @@
+# college/tiffins/models.py
 from django.db import models
 from cloudinary.models import CloudinaryField
 
 
 class Tiffin(models.Model):
     # User ID
-    user_id = models.CharField(max_length=255,null=True,blank=True)
+    user_id = models.CharField(max_length=255, null=True, blank=True)
 
     # Basic Information
     title = models.CharField(max_length=255)
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    # ✅ ADDED: Location Coordinates (REQUIRED)
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        help_text="Longitude coordinate of the tiffin location"
+    )
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        help_text="Latitude coordinate of the tiffin location"
+    )
 
     # Tiffin Type
     is_veg = models.CharField(
