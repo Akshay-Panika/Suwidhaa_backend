@@ -20,7 +20,7 @@ class RoomImageSerializer(serializers.ModelSerializer):
 class RoomSerializer(serializers.ModelSerializer):
     room_images = RoomImageSerializer(many=True, read_only=True)
 
-    # ✅ ADDED: user-wise booking field
+    # ✅ user-wise booking field
     booking = serializers.SerializerMethodField()
 
     class Meta:
@@ -33,7 +33,7 @@ class RoomSerializer(serializers.ModelSerializer):
             'address',
             'price',
             'is_booking',
-            'booking',          # ✅ ADDED
+            'booking',          # ✅ user-wise flag
             'longitude',
             'latitude',
             'room_type',
