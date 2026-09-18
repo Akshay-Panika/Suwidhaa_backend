@@ -1,3 +1,5 @@
+# college/tiffins/serializers.py
+
 from rest_framework import serializers
 from .models import Tiffin, TiffinImage
 
@@ -16,10 +18,10 @@ class TiffinImageSerializer(serializers.ModelSerializer):
 
 
 class TiffinSerializer(serializers.ModelSerializer):
-    tiffin_images = TiffinImageSerializer(
-        many=True,
-        read_only=True
-    )
+    tiffin_images = TiffinImageSerializer(many=True, read_only=True)
+
+    # ✅ ADDED: user-wise booking field
+    booking = serializers.SerializerMethodField()
 
     class Meta:
         model = Tiffin
@@ -32,6 +34,7 @@ class TiffinSerializer(serializers.ModelSerializer):
             'is_veg',
             'is_nonveg',
             'is_booking',
+            'booking',          # ✅ ADDED
             'rating',
             'contact_number',
             'near_college',
@@ -39,3 +42,17 @@ class TiffinSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at'
         ]
+
+    def get_booking(self, obj):
+        """Check if THIS user has booked THIS tiffin."""
+        user_id = self.context.get('user_id')
+        if not user_id:
+            return False
+
+        from college.college_booking.models import CollegeBooking
+
+        return CollegeBooking.objects.filter(
+            user_id=str(user_id),
+            tiffin_id=obj.id,       # ✅ match tiffin_id
+            booking=True
+        ).exists()

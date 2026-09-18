@@ -1,3 +1,5 @@
+# college/rooms/views.py
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -155,7 +157,7 @@ class RoomListView(APIView):
         # Start with all rooms
         rooms = Room.objects.all()
 
-        # Filter by user_id
+        # Filter by user_id (owner filter)
         if user_id:
             rooms = rooms.filter(user_id=user_id)
 
@@ -203,9 +205,11 @@ class RoomListView(APIView):
             parking_bool = parking.lower() == 'true'
             rooms = rooms.filter(parking=parking_bool)
 
+        # ✅ Pass user_id in context for booking flag
         serializer = RoomSerializer(
             rooms,
-            many=True
+            many=True,
+            context={'user_id': user_id}
         )
 
         return Response({
@@ -236,7 +240,13 @@ class RoomDetailView(APIView):
                 "message": "Room not found"
             }, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = RoomSerializer(room)
+        # ✅ user_id context me pass karo
+        user_id = request.query_params.get('user_id')
+
+        serializer = RoomSerializer(
+            room,
+            context={'user_id': user_id}
+        )
 
         return Response({
             "success": True,
@@ -393,7 +403,13 @@ class RoomDetailView(APIView):
                 )
 
         # Return response
-        serializer = RoomSerializer(room)
+        # ✅ user_id context me pass karo
+        user_id = request.query_params.get('user_id')
+
+        serializer = RoomSerializer(
+            room,
+            context={'user_id': user_id}
+        )
 
         return Response({
             "success": True,

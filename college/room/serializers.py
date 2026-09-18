@@ -1,3 +1,5 @@
+# college/rooms/serializers.py
+
 from rest_framework import serializers
 from .models import Room, RoomImage
 
@@ -18,6 +20,9 @@ class RoomImageSerializer(serializers.ModelSerializer):
 class RoomSerializer(serializers.ModelSerializer):
     room_images = RoomImageSerializer(many=True, read_only=True)
 
+    # ✅ ADDED: user-wise booking field
+    booking = serializers.SerializerMethodField()
+
     class Meta:
         model = Room
         fields = [
@@ -28,6 +33,7 @@ class RoomSerializer(serializers.ModelSerializer):
             'address',
             'price',
             'is_booking',
+            'booking',          # ✅ ADDED
             'longitude',
             'latitude',
             'room_type',
@@ -43,3 +49,17 @@ class RoomSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at'
         ]
+
+    def get_booking(self, obj):
+        """Check if THIS user has booked THIS room."""
+        user_id = self.context.get('user_id')
+        if not user_id:
+            return False
+
+        from college.college_booking.models import CollegeBooking
+
+        return CollegeBooking.objects.filter(
+            user_id=str(user_id),
+            room_id=obj.id,         # ✅ match room_id
+            booking=True
+        ).exists()
