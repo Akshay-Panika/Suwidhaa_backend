@@ -6,28 +6,29 @@ from rest_framework import status
 from .models import CollegeBooking
 from .serializers import CollegeBookingSerializer
 from college.colleges.models import College
-from services.whatsapp_service import WhatsAppService   # ✅ SAHI
+from services.whatsapp_service import WhatsAppService
+
 
 class CollegeBookingCreateView(APIView):
     def post(self, request):
         college_id = request.data.get('college_id')
         user_id = request.data.get('user_id')
         booking = request.data.get('booking', 'true')
-        message = request.data.get('message', '')   # ✅ NEW
+        message = request.data.get('message', '')
 
-        # ✅ ADDED: nested room object
+        # ✅ Nested room object
         room = request.data.get('room', {}) or {}
-        room_id = room.get('room_id')
-        room_name = room.get('room_name')
-        room_type = room.get('room_type')
-        room_amount = room.get('room_amount')
+        room_id = room.get('room_id') if room else None
+        room_name = room.get('room_name') if room else None
+        room_type = room.get('room_type') if room else None
+        room_amount = room.get('room_amount') if room else None
 
-        # ✅ ADDED: nested tiffin object
+        # ✅ Nested tiffin object
         tiffin = request.data.get('tiffin', {}) or {}
-        tiffin_id = tiffin.get('tiffin_id')
-        tiffin_name = tiffin.get('tiffin_name')
-        tiffin_type = tiffin.get('tiffin_type')
-        tiffin_amount = tiffin.get('tiffin_amount')
+        tiffin_id = tiffin.get('tiffin_id') if tiffin else None
+        tiffin_name = tiffin.get('tiffin_name') if tiffin else None
+        tiffin_type = tiffin.get('tiffin_type') if tiffin else None
+        tiffin_amount = tiffin.get('tiffin_amount') if tiffin else None
 
         # Convert booking to boolean
         if isinstance(booking, str):
@@ -50,47 +51,71 @@ class CollegeBookingCreateView(APIView):
             return Response({"success": False, "message": "College not found"},
                             status=status.HTTP_404_NOT_FOUND)
 
-        # Check if this user has already booked this college
-        existing = CollegeBooking.objects.filter(
-            college_id=college_id,
-            user_id=str(user_id)
-        ).first()
+        # ✅ FIX: Determine booking type based on what's provided
+        is_room_booking = room_id is not None
+        is_tiffin_booking = tiffin_id is not None
+        is_college_only = not is_room_booking and not is_tiffin_booking
+
+        # ✅ FIX: Build filter for existing record
+        if is_room_booking:
+            existing = CollegeBooking.objects.filter(
+                college_id=college_id,
+                user_id=str(user_id),
+                room_id=room_id,
+                booking=True,
+            ).first()
+        elif is_tiffin_booking:
+            existing = CollegeBooking.objects.filter(
+                college_id=college_id,
+                user_id=str(user_id),
+                tiffin_id=tiffin_id,
+                booking=True,
+            ).first()
+        else:
+            existing = CollegeBooking.objects.filter(
+                college_id=college_id,
+                user_id=str(user_id),
+                room_id__isnull=True,
+                tiffin_id__isnull=True,
+                booking=True,
+            ).first()
 
         if existing:
+            # ✅ Update existing record
             existing.booking = booking
-            existing.message = message   # ✅ update message
-            # ✅ ADDED: update room fields (only if provided)
-            if room_id is not None:
+            existing.message = message
+
+            # ✅ FIX: Reset fields if not provided
+            # Agar request me room nahi hai to room fields null karo
+            if is_room_booking:
                 existing.room_id = room_id
-            if room_name is not None:
                 existing.room_name = room_name
-            if room_type is not None:
                 existing.room_type = room_type
-            if room_amount is not None:
                 existing.room_amount = room_amount
-            # ✅ ADDED: update tiffin fields (only if provided)
-            if tiffin_id is not None:
+            # Warna mat chhedo (kyunki existing record room ka hai)
+            # Agar user college-only bhej raha hai, to naya record banega
+
+            if is_tiffin_booking:
                 existing.tiffin_id = tiffin_id
-            if tiffin_name is not None:
                 existing.tiffin_name = tiffin_name
-            if tiffin_type is not None:
                 existing.tiffin_type = tiffin_type
-            if tiffin_amount is not None:
                 existing.tiffin_amount = tiffin_amount
+
             existing.save()
             booking_obj = existing
         else:
+            # ✅ Naya record — jo bheja wahi save karo
             booking_obj = CollegeBooking.objects.create(
                 college_id=college_id,
                 user_id=str(user_id),
                 booking=booking,
-                message=message,   # ✅ save message
-                # ✅ ADDED: room fields
+                message=message,
+                # Room fields — agar request me hai
                 room_id=room_id,
                 room_name=room_name,
                 room_type=room_type,
                 room_amount=room_amount,
-                # ✅ ADDED: tiffin fields
+                # Tiffin fields — agar request me hai
                 tiffin_id=tiffin_id,
                 tiffin_name=tiffin_name,
                 tiffin_type=tiffin_type,
@@ -104,7 +129,7 @@ class CollegeBookingCreateView(APIView):
         ).exists()
         college.save()
 
-        # ✅ WhatsApp pe message bhejo (agar message hai aur booking true hai)
+        # WhatsApp
         whatsapp_result = None
         if booking and message and college.contact_number:
             try:
@@ -114,78 +139,12 @@ class CollegeBookingCreateView(APIView):
                     message_body=message
                 )
             except Exception as e:
-                # WhatsApp fail ho gaya to booking fail nahi karni
-                whatsapp_result = {
-                    "success": False,
-                    "error": str(e)
-                }
+                whatsapp_result = {"success": False, "error": str(e)}
 
         serializer = CollegeBookingSerializer(booking_obj)
         return Response({
             "success": True,
             "message": "College booked successfully",
             "data": serializer.data,
-            "whatsapp": whatsapp_result   # ✅ WhatsApp result bhi bhejo
+            "whatsapp": whatsapp_result
         }, status=status.HTTP_201_CREATED)
-
-
-class CollegeBookingListView(APIView):
-    def get(self, request):
-        college_id = request.query_params.get('college_id')
-        user_id = request.query_params.get('user_id')
-
-        bookings = CollegeBooking.objects.all().order_by('-id')
-
-        if college_id:
-            bookings = bookings.filter(college_id=college_id)
-        if user_id:
-            bookings = bookings.filter(user_id=user_id)
-
-        serializer = CollegeBookingSerializer(bookings, many=True)
-        return Response({
-            "success": True,
-            "count": bookings.count(),
-            "data": serializer.data   # ✅ room + tiffin automatically aayenge
-        }, status=status.HTTP_200_OK)
-
-
-class CollegeBookingDetailView(APIView):
-    def get_object(self, pk):
-        try:
-            return CollegeBooking.objects.get(pk=pk)
-        except CollegeBooking.DoesNotExist:
-            return None
-
-    def get(self, request, pk):
-        booking = self.get_object(pk)
-        if not booking:
-            return Response({"success": False, "message": "Booking not found"},
-                            status=status.HTTP_404_NOT_FOUND)
-        serializer = CollegeBookingSerializer(booking)
-        return Response({"success": True, "data": serializer.data},
-                        status=status.HTTP_200_OK)
-
-    def delete(self, request, pk):
-        booking = self.get_object(pk)
-        if not booking:
-            return Response({"success": False, "message": "Booking not found"},
-                            status=status.HTTP_404_NOT_FOUND)
-
-        college_id = booking.college_id
-        booking.delete()
-
-        # ✅ Recalculate college-level booking flag
-        try:
-            college = College.objects.get(pk=college_id)
-            college.is_booked = CollegeBooking.objects.filter(
-                college_id=college_id,
-                booking=True
-            ).exists()
-            college.save()
-        except College.DoesNotExist:
-            pass
-
-        return Response({
-            "success": True,
-            "message": "Booking deleted successfully"
-        }, status=status.HTTP_200_OK)
