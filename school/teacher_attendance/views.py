@@ -31,70 +31,27 @@ def attendance_data(rec):
 
 
 # ============================
-# HELPER — Smart Username Generator
-# ============================
-def generate_username(teacher_name):
-    """
-    Agar 'Akshay' exist karta hai, toh 'Akshay_1', 'Akshay_2' banata hai.
-    Ye database ke unique constraint ko satisfy karta hai.
-    """
-    if not User.objects.filter(username=teacher_name).exists():
-        return teacher_name
-
-    counter = 1
-    while User.objects.filter(username=f"{teacher_name}_{counter}").exists():
-        counter += 1
-    return f"{teacher_name}_{counter}"
-
-
-# ============================
-# HELPER — Get or Create Teacher
-# ============================
-def get_or_create_teacher(request):
-    teacher_id = request.data.get('teacher_id')
-    teacher_name = request.data.get('teacher_name')
-
-    if not teacher_id:
-        return None, Response({
-            "status": False,
-            "message": "teacher_id is required."
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    # 1. Pehle ID se dhundho
-    try:
-        teacher = User.objects.get(id=teacher_id)
-        return teacher, None
-    except User.DoesNotExist:
-        pass
-
-    # 2. Agar ID na mile aur name bhi na ho
-    if not teacher_name:
-        return None, Response({
-            "status": False,
-            "message": f"Teacher with id={teacher_id} not found. Send teacher_name to create a new one."
-        }, status=status.HTTP_404_NOT_FOUND)
-
-    # 3. Naya teacher banao — username automatically unique hoga
-    username = generate_username(teacher_name)
-    teacher = User.objects.create(
-        username=username,
-        first_name=teacher_name,
-        is_staff=False,
-    )
-
-    return teacher, None
-
-
-# ============================
 # 1. CHECK IN
 # ============================
 class TeacherCheckInView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        teacher, error = get_or_create_teacher(request)
-        if error:
-            return error
+        teacher_id = request.data.get('teacher_id')
+
+        if not teacher_id:
+            return Response({
+                "status": False,
+                "message": "teacher_id is required."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            teacher = User.objects.get(id=teacher_id)
+        except User.DoesNotExist:
+            return Response({
+                "status": False,
+                "message": f"Teacher with id={teacher_id} not found."
+            }, status=status.HTTP_404_NOT_FOUND)
 
         today = timezone.localtime(timezone.now()).date()
 
@@ -108,7 +65,6 @@ class TeacherCheckInView(APIView):
                 "status": False,
                 "message": "You have already checked in today.",
                 "teacher_id": teacher.id,
-                "teacher_name": teacher.username,
                 "data": attendance_data(attendance)
             }, status=status.HTTP_400_BAD_REQUEST)
 
@@ -128,7 +84,6 @@ class TeacherCheckInView(APIView):
             "status": True,
             "message": "Check-in successful.",
             "teacher_id": teacher.id,
-            "teacher_name": teacher.username,
             "data": attendance_data(attendance)
         }, status=status.HTTP_201_CREATED)
 
@@ -164,7 +119,6 @@ class TeacherCheckOutView(APIView):
                 date=today
             )
         except TeacherAttendance.DoesNotExist:
-            # Agar aaj ka nahi mila, toh kal ka check karo
             yesterday = today - timedelta(days=1)
             try:
                 attendance = TeacherAttendance.objects.get(
@@ -192,7 +146,6 @@ class TeacherCheckOutView(APIView):
                 "status": False,
                 "message": "You have already checked out today.",
                 "teacher_id": teacher.id,
-                "teacher_name": teacher.username,
                 "data": attendance_data(attendance)
             }, status=status.HTTP_400_BAD_REQUEST)
 
@@ -207,7 +160,6 @@ class TeacherCheckOutView(APIView):
             "status": True,
             "message": "Check-out successful.",
             "teacher_id": teacher.id,
-            "teacher_name": teacher.username,
             "data": attendance_data(attendance)
         }, status=status.HTTP_200_OK)
 
@@ -246,7 +198,6 @@ class TodayAttendanceView(APIView):
                 "status": True,
                 "message": "Today's attendance record found.",
                 "teacher_id": teacher.id,
-                "teacher_name": teacher.username,
                 "data": attendance_data(attendance)
             }, status=status.HTTP_200_OK)
 
@@ -255,7 +206,6 @@ class TodayAttendanceView(APIView):
                 "status": False,
                 "message": "No attendance record found for today.",
                 "teacher_id": teacher.id,
-                "teacher_name": teacher.username,
                 "data": None
             }, status=status.HTTP_200_OK)
 
@@ -309,7 +259,6 @@ class MyAttendanceHistoryView(APIView):
         return Response({
             "status": True,
             "teacher_id": teacher.id,
-            "teacher_name": teacher.username,
             "total_records": records.count(),
             "history": grouped,
         }, status=status.HTTP_200_OK)
@@ -334,7 +283,6 @@ class AttendanceDetailView(APIView):
             "status": True,
             "message": "Attendance record found.",
             "teacher_id": attendance.teacher.id,
-            "teacher_name": attendance.teacher.username,
             "data": attendance_data(attendance)
         }, status=status.HTTP_200_OK)
 
@@ -395,7 +343,6 @@ class AttendanceUpdateView(APIView):
             "status": True,
             "message": "Attendance updated successfully.",
             "teacher_id": attendance.teacher.id,
-            "teacher_name": attendance.teacher.username,
             "data": attendance_data(attendance)
         }, status=status.HTTP_200_OK)
 
@@ -419,13 +366,11 @@ class AttendanceDeleteView(APIView):
             }, status=status.HTTP_404_NOT_FOUND)
 
         teacher_id = attendance.teacher.id
-        teacher_name = attendance.teacher.username
         attendance.delete()
 
         return Response({
             "status": True,
             "message": "Attendance deleted successfully.",
             "teacher_id": teacher_id,
-            "teacher_name": teacher_name,
             "deleted_id": pk
         }, status=status.HTTP_200_OK)
