@@ -22,6 +22,10 @@ urlpatterns = [
          include("school.teacher.urls"),
     ),
     path(
+        "api/v1/school/",
+        include("school.teacher_attendance.urls"),
+    ),
+    path(
          "api/v1/school/",
          include("school.classes.urls"),
     ),
