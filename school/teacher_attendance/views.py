@@ -13,10 +13,9 @@ User = get_user_model()
 
 
 # ============================
-# HELPER — Serializer for attendance (without user info)
+# HELPER — Attendance Data
 # ============================
 def attendance_data(rec):
-    """Return only attendance-related fields, no user info."""
     return {
         "id": rec.id,
         "date": rec.date.strftime("%Y-%m-%d"),
@@ -32,7 +31,24 @@ def attendance_data(rec):
 
 
 # ============================
-# HELPER — Get or Create Teacher (No Unique Name Constraint)
+# HELPER — Smart Username Generator
+# ============================
+def generate_username(teacher_name):
+    """
+    Agar 'Akshay' exist karta hai, toh 'Akshay_1', 'Akshay_2' banata hai.
+    Ye database ke unique constraint ko satisfy karta hai.
+    """
+    if not User.objects.filter(username=teacher_name).exists():
+        return teacher_name
+
+    counter = 1
+    while User.objects.filter(username=f"{teacher_name}_{counter}").exists():
+        counter += 1
+    return f"{teacher_name}_{counter}"
+
+
+# ============================
+# HELPER — Get or Create Teacher
 # ============================
 def get_or_create_teacher(request):
     teacher_id = request.data.get('teacher_id')
@@ -44,24 +60,24 @@ def get_or_create_teacher(request):
             "message": "teacher_id is required."
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    # 1. Pehle ID se dhundhne ki koshish karein
+    # 1. Pehle ID se dhundho
     try:
         teacher = User.objects.get(id=teacher_id)
         return teacher, None
     except User.DoesNotExist:
         pass
 
-    # 2. Agar ID na mile, toh Name check karein (naya teacher create karne ke liye)
+    # 2. Agar ID na mile aur name bhi na ho
     if not teacher_name:
         return None, Response({
             "status": False,
             "message": f"Teacher with id={teacher_id} not found. Send teacher_name to create a new one."
         }, status=status.HTTP_404_NOT_FOUND)
 
-    # 3. Naya user create karein (Bina username unique check ke)
-    # Kyunki same naam ke multiple teachers ho sakte hain
+    # 3. Naya teacher banao — username automatically unique hoga
+    username = generate_username(teacher_name)
     teacher = User.objects.create(
-        username=teacher_name,
+        username=username,
         first_name=teacher_name,
         is_staff=False,
     )
@@ -80,7 +96,7 @@ class TeacherCheckInView(APIView):
         if error:
             return error
 
-        today = timezone.localtime(timezone.now()).date()  # FIXED: Local date use karein
+        today = timezone.localtime(timezone.now()).date()
 
         attendance, created = TeacherAttendance.objects.get_or_create(
             teacher=teacher,
@@ -140,7 +156,6 @@ class TeacherCheckOutView(APIView):
                 "message": f"Teacher with id={teacher_id} not found. Please check-in first."
             }, status=status.HTTP_404_NOT_FOUND)
 
-        # --- FIXED: Local date use karein (Timezone issue solved) ---
         today = timezone.localtime(timezone.now()).date()
 
         try:
@@ -149,8 +164,7 @@ class TeacherCheckOutView(APIView):
                 date=today
             )
         except TeacherAttendance.DoesNotExist:
-            # Agar aaj ka record nahi mila, toh check karein ki kal ka toh nahi hai
-            # (Sirf debugging ke liye, agar user ne raat ko check-in kiya ho)
+            # Agar aaj ka nahi mila, toh kal ka check karo
             yesterday = today - timedelta(days=1)
             try:
                 attendance = TeacherAttendance.objects.get(
@@ -184,7 +198,6 @@ class TeacherCheckOutView(APIView):
 
         attendance.check_out_time = timezone.now()
 
-        # Working hours calculate karke status update karein
         if attendance.working_hours < 4:
             attendance.status = 'HALF_DAY'
 
@@ -222,7 +235,7 @@ class TodayAttendanceView(APIView):
                 "message": f"Teacher with id={teacher_id} not found."
             }, status=status.HTTP_404_NOT_FOUND)
 
-        today = timezone.localtime(timezone.now()).date()  # FIXED
+        today = timezone.localtime(timezone.now()).date()
 
         try:
             attendance = TeacherAttendance.objects.get(
@@ -248,7 +261,7 @@ class TodayAttendanceView(APIView):
 
 
 # ============================
-# 4. OVERALL HISTORY (Year + Month wise grouped)
+# 4. OVERALL HISTORY
 # ============================
 class MyAttendanceHistoryView(APIView):
     permission_classes = [AllowAny]
@@ -303,7 +316,7 @@ class MyAttendanceHistoryView(APIView):
 
 
 # ============================
-# 5. DETAIL — Get single attendance by ID
+# 5. DETAIL
 # ============================
 class AttendanceDetailView(APIView):
     permission_classes = [AllowAny]
@@ -327,7 +340,7 @@ class AttendanceDetailView(APIView):
 
 
 # ============================
-# 6. UPDATE — Update attendance by ID
+# 6. UPDATE
 # ============================
 class AttendanceUpdateView(APIView):
     permission_classes = [AllowAny]
@@ -391,7 +404,7 @@ class AttendanceUpdateView(APIView):
 
 
 # ============================
-# 7. DELETE — Delete attendance by ID
+# 7. DELETE
 # ============================
 class AttendanceDeleteView(APIView):
     permission_classes = [AllowAny]
