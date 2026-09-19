@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from .models import TeacherAttendance
 from .serializers import TeacherAttendanceSerializer
@@ -32,7 +32,7 @@ def attendance_data(rec):
 
 
 # ============================
-# HELPER — Get or Create Teacher (Strict)
+# HELPER — Get or Create Teacher (No Unique Name Constraint)
 # ============================
 def get_or_create_teacher(request):
     teacher_id = request.data.get('teacher_id')
@@ -58,15 +58,8 @@ def get_or_create_teacher(request):
             "message": f"Teacher with id={teacher_id} not found. Send teacher_name to create a new one."
         }, status=status.HTTP_404_NOT_FOUND)
 
-    # 3. Check karein ki username pehle se exist karta hai ya nahi
-    if User.objects.filter(username=teacher_name).exists():
-        existing_user = User.objects.get(username=teacher_name)
-        return None, Response({
-            "status": False,
-            "message": f"Username '{teacher_name}' already exists with ID {existing_user.id}. Please use a different teacher_name or correct teacher_id."
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    # 4. Naya user create karein
+    # 3. Naya user create karein (Bina username unique check ke)
+    # Kyunki same naam ke multiple teachers ho sakte hain
     teacher = User.objects.create(
         username=teacher_name,
         first_name=teacher_name,
@@ -87,7 +80,7 @@ class TeacherCheckInView(APIView):
         if error:
             return error
 
-        today = timezone.now().date()
+        today = timezone.localtime(timezone.now()).date()  # FIXED: Local date use karein
 
         attendance, created = TeacherAttendance.objects.get_or_create(
             teacher=teacher,
@@ -126,8 +119,7 @@ class TeacherCheckInView(APIView):
 
 # ============================
 # 2. CHECK OUT
-from datetime import timedelta
-
+# ============================
 class TeacherCheckOutView(APIView):
     permission_classes = [AllowAny]
 
@@ -148,41 +140,32 @@ class TeacherCheckOutView(APIView):
                 "message": f"Teacher with id={teacher_id} not found. Please check-in first."
             }, status=status.HTTP_404_NOT_FOUND)
 
-        # --- TIMEZONE FIX START ---
-        # Server ka aaj ka date nikalte hain
-        today = timezone.now().date()
-        
-        # Debugging ke liye print karte hain (Render logs mein dikhega)
-        print(f"DEBUG: Today's date is {today}")
-        print(f"DEBUG: Trying to find attendance for Teacher ID: {teacher.id}")
+        # --- FIXED: Local date use karein (Timezone issue solved) ---
+        today = timezone.localtime(timezone.now()).date()
 
         try:
-            # Pehle aaj ki date ka record dhundhte hain
             attendance = TeacherAttendance.objects.get(
                 teacher=teacher,
                 date=today
             )
         except TeacherAttendance.DoesNotExist:
-            # Agar aaj ka nahi mila, toh check karte hain ki kal ka record toh nahi hai
-            # (Ye timezone ke issue ko pakadne ke liye hai)
+            # Agar aaj ka record nahi mila, toh check karein ki kal ka toh nahi hai
+            # (Sirf debugging ke liye, agar user ne raat ko check-in kiya ho)
             yesterday = today - timedelta(days=1)
             try:
                 attendance = TeacherAttendance.objects.get(
                     teacher=teacher,
                     date=yesterday
                 )
-                print(f"DEBUG: Found attendance for yesterday ({yesterday}) instead of today.")
                 return Response({
                     "status": False,
                     "message": f"Attendance record found for {yesterday}, but not for today ({today}). Please check your Timezone settings."
                 }, status=status.HTTP_400_BAD_REQUEST)
             except TeacherAttendance.DoesNotExist:
-                # Agar kal ka bhi nahi mila, toh confirm 404
                 return Response({
                     "status": False,
                     "message": f"No attendance record found for today ({today}). Please check-in first."
                 }, status=status.HTTP_404_NOT_FOUND)
-        # --- TIMEZONE FIX END ---
 
         if not attendance.check_in_time:
             return Response({
@@ -214,6 +197,8 @@ class TeacherCheckOutView(APIView):
             "teacher_name": teacher.username,
             "data": attendance_data(attendance)
         }, status=status.HTTP_200_OK)
+
+
 # ============================
 # 3. TODAY ATTENDANCE
 # ============================
@@ -237,7 +222,7 @@ class TodayAttendanceView(APIView):
                 "message": f"Teacher with id={teacher_id} not found."
             }, status=status.HTTP_404_NOT_FOUND)
 
-        today = timezone.now().date()
+        today = timezone.localtime(timezone.now()).date()  # FIXED
 
         try:
             attendance = TeacherAttendance.objects.get(
@@ -358,7 +343,6 @@ class AttendanceUpdateView(APIView):
 
         data = request.data
 
-        # Update only provided fields
         if 'remarks' in data:
             attendance.remarks = data['remarks']
 
@@ -370,7 +354,6 @@ class AttendanceUpdateView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
             attendance.status = data['status']
 
-        # Optional: update check-in / check-out time manually
         if 'check_in_time' in data and data['check_in_time']:
             try:
                 attendance.check_in_time = datetime.strptime(
@@ -404,7 +387,6 @@ class AttendanceUpdateView(APIView):
         }, status=status.HTTP_200_OK)
 
     def patch(self, request, pk):
-        # PATCH = partial update (same as PUT here)
         return self.put(request, pk)
 
 
