@@ -32,7 +32,7 @@ def attendance_data(rec):
 
 
 # ============================
-# HELPER — Get or Create Teacher
+# HELPER — Get or Create Teacher (Strict)
 # ============================
 def get_or_create_teacher(request):
     teacher_id = request.data.get('teacher_id')
@@ -44,24 +44,33 @@ def get_or_create_teacher(request):
             "message": "teacher_id is required."
         }, status=status.HTTP_400_BAD_REQUEST)
 
+    # 1. Pehle ID se dhundhne ki koshish karein
     try:
         teacher = User.objects.get(id=teacher_id)
         return teacher, None
     except User.DoesNotExist:
         pass
 
+    # 2. Agar ID na mile, toh Name check karein (naya teacher create karne ke liye)
     if not teacher_name:
         return None, Response({
             "status": False,
             "message": f"Teacher with id={teacher_id} not found. Send teacher_name to create a new one."
         }, status=status.HTTP_404_NOT_FOUND)
 
-    teacher, created = User.objects.get_or_create(
+    # 3. Check karein ki username pehle se exist karta hai ya nahi
+    if User.objects.filter(username=teacher_name).exists():
+        existing_user = User.objects.get(username=teacher_name)
+        return None, Response({
+            "status": False,
+            "message": f"Username '{teacher_name}' already exists with ID {existing_user.id}. Please use a different teacher_name or correct teacher_id."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # 4. Naya user create karein
+    teacher = User.objects.create(
         username=teacher_name,
-        defaults={
-            'first_name': teacher_name,
-            'is_staff': False,
-        }
+        first_name=teacher_name,
+        is_staff=False,
     )
 
     return teacher, None
