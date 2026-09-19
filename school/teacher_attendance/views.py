@@ -126,7 +126,8 @@ class TeacherCheckInView(APIView):
 
 # ============================
 # 2. CHECK OUT
-# ============================
+from datetime import timedelta
+
 class TeacherCheckOutView(APIView):
     permission_classes = [AllowAny]
 
@@ -147,18 +148,41 @@ class TeacherCheckOutView(APIView):
                 "message": f"Teacher with id={teacher_id} not found. Please check-in first."
             }, status=status.HTTP_404_NOT_FOUND)
 
+        # --- TIMEZONE FIX START ---
+        # Server ka aaj ka date nikalte hain
         today = timezone.now().date()
+        
+        # Debugging ke liye print karte hain (Render logs mein dikhega)
+        print(f"DEBUG: Today's date is {today}")
+        print(f"DEBUG: Trying to find attendance for Teacher ID: {teacher.id}")
 
         try:
+            # Pehle aaj ki date ka record dhundhte hain
             attendance = TeacherAttendance.objects.get(
                 teacher=teacher,
                 date=today
             )
         except TeacherAttendance.DoesNotExist:
-            return Response({
-                "status": False,
-                "message": "No attendance record found for today. Please check-in first."
-            }, status=status.HTTP_404_NOT_FOUND)
+            # Agar aaj ka nahi mila, toh check karte hain ki kal ka record toh nahi hai
+            # (Ye timezone ke issue ko pakadne ke liye hai)
+            yesterday = today - timedelta(days=1)
+            try:
+                attendance = TeacherAttendance.objects.get(
+                    teacher=teacher,
+                    date=yesterday
+                )
+                print(f"DEBUG: Found attendance for yesterday ({yesterday}) instead of today.")
+                return Response({
+                    "status": False,
+                    "message": f"Attendance record found for {yesterday}, but not for today ({today}). Please check your Timezone settings."
+                }, status=status.HTTP_400_BAD_REQUEST)
+            except TeacherAttendance.DoesNotExist:
+                # Agar kal ka bhi nahi mila, toh confirm 404
+                return Response({
+                    "status": False,
+                    "message": f"No attendance record found for today ({today}). Please check-in first."
+                }, status=status.HTTP_404_NOT_FOUND)
+        # --- TIMEZONE FIX END ---
 
         if not attendance.check_in_time:
             return Response({
@@ -177,6 +201,7 @@ class TeacherCheckOutView(APIView):
 
         attendance.check_out_time = timezone.now()
 
+        # Working hours calculate karke status update karein
         if attendance.working_hours < 4:
             attendance.status = 'HALF_DAY'
 
@@ -189,8 +214,6 @@ class TeacherCheckOutView(APIView):
             "teacher_name": teacher.username,
             "data": attendance_data(attendance)
         }, status=status.HTTP_200_OK)
-
-
 # ============================
 # 3. TODAY ATTENDANCE
 # ============================
