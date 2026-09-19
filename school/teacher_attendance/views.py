@@ -7,7 +7,6 @@ from django.contrib.auth import get_user_model
 from datetime import datetime, timedelta
 
 from .models import TeacherAttendance
-from .serializers import TeacherAttendanceSerializer
 
 User = get_user_model()
 
@@ -31,6 +30,41 @@ def attendance_data(rec):
 
 
 # ============================
+# HELPER — Get or Create Teacher by teacher_id (string)
+# ============================
+def get_or_create_teacher(teacher_id):
+    """
+    teacher_id ek string hai (jaise 'St-Teacher01').
+    - Agar exist karta hai (username se match) → wahi return karo.
+    - Agar nahi karta → naya user create karo usi teacher_id se.
+    - Django ka default 'id' (auto-increment) bilkul nahi chherege.
+    """
+    if not teacher_id:
+        return None, "teacher_id is required."
+
+    teacher_id = str(teacher_id).strip()
+
+    # 1. Pehle dhundho username se
+    try:
+        teacher = User.objects.get(username=teacher_id)
+        return teacher, None
+    except User.DoesNotExist:
+        pass
+
+    # 2. Nahi mila → naya user create karo
+    #    Username = teacher_id (unique hai already)
+    #    Password random set kar rahe hain (login ke liye nahi, sirf attendance ke liye)
+    teacher = User.objects.create_user(
+        username=teacher_id,
+        first_name=teacher_id,
+        password=None,   # unusable password
+        is_staff=False,
+    )
+
+    return teacher, None
+
+
+# ============================
 # 1. CHECK IN
 # ============================
 class TeacherCheckInView(APIView):
@@ -39,19 +73,12 @@ class TeacherCheckInView(APIView):
     def post(self, request):
         teacher_id = request.data.get('teacher_id')
 
-        if not teacher_id:
+        teacher, error = get_or_create_teacher(teacher_id)
+        if error:
             return Response({
                 "status": False,
-                "message": "teacher_id is required."
+                "message": error
             }, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            teacher = User.objects.get(id=teacher_id)
-        except User.DoesNotExist:
-            return Response({
-                "status": False,
-                "message": f"Teacher with id={teacher_id} not found."
-            }, status=status.HTTP_404_NOT_FOUND)
 
         today = timezone.localtime(timezone.now()).date()
 
@@ -64,7 +91,7 @@ class TeacherCheckInView(APIView):
             return Response({
                 "status": False,
                 "message": "You have already checked in today.",
-                "teacher_id": teacher.id,
+                "teacher_id": teacher.username,
                 "data": attendance_data(attendance)
             }, status=status.HTTP_400_BAD_REQUEST)
 
@@ -83,7 +110,7 @@ class TeacherCheckInView(APIView):
         return Response({
             "status": True,
             "message": "Check-in successful.",
-            "teacher_id": teacher.id,
+            "teacher_id": teacher.username,
             "data": attendance_data(attendance)
         }, status=status.HTTP_201_CREATED)
 
@@ -103,12 +130,14 @@ class TeacherCheckOutView(APIView):
                 "message": "teacher_id is required."
             }, status=status.HTTP_400_BAD_REQUEST)
 
+        teacher_id = str(teacher_id).strip()
+
         try:
-            teacher = User.objects.get(id=teacher_id)
+            teacher = User.objects.get(username=teacher_id)
         except User.DoesNotExist:
             return Response({
                 "status": False,
-                "message": f"Teacher with id={teacher_id} not found. Please check-in first."
+                "message": f"Teacher with id='{teacher_id}' not found. Please check-in first."
             }, status=status.HTTP_404_NOT_FOUND)
 
         today = timezone.localtime(timezone.now()).date()
@@ -145,7 +174,7 @@ class TeacherCheckOutView(APIView):
             return Response({
                 "status": False,
                 "message": "You have already checked out today.",
-                "teacher_id": teacher.id,
+                "teacher_id": teacher.username,
                 "data": attendance_data(attendance)
             }, status=status.HTTP_400_BAD_REQUEST)
 
@@ -159,7 +188,7 @@ class TeacherCheckOutView(APIView):
         return Response({
             "status": True,
             "message": "Check-out successful.",
-            "teacher_id": teacher.id,
+            "teacher_id": teacher.username,
             "data": attendance_data(attendance)
         }, status=status.HTTP_200_OK)
 
@@ -179,12 +208,14 @@ class TodayAttendanceView(APIView):
                 "message": "teacher_id query param is required."
             }, status=status.HTTP_400_BAD_REQUEST)
 
+        teacher_id = str(teacher_id).strip()
+
         try:
-            teacher = User.objects.get(id=teacher_id)
+            teacher = User.objects.get(username=teacher_id)
         except User.DoesNotExist:
             return Response({
                 "status": False,
-                "message": f"Teacher with id={teacher_id} not found."
+                "message": f"Teacher with id='{teacher_id}' not found."
             }, status=status.HTTP_404_NOT_FOUND)
 
         today = timezone.localtime(timezone.now()).date()
@@ -197,7 +228,7 @@ class TodayAttendanceView(APIView):
             return Response({
                 "status": True,
                 "message": "Today's attendance record found.",
-                "teacher_id": teacher.id,
+                "teacher_id": teacher.username,
                 "data": attendance_data(attendance)
             }, status=status.HTTP_200_OK)
 
@@ -205,7 +236,7 @@ class TodayAttendanceView(APIView):
             return Response({
                 "status": False,
                 "message": "No attendance record found for today.",
-                "teacher_id": teacher.id,
+                "teacher_id": teacher.username,
                 "data": None
             }, status=status.HTTP_200_OK)
 
@@ -225,12 +256,14 @@ class MyAttendanceHistoryView(APIView):
                 "message": "teacher_id query param is required."
             }, status=status.HTTP_400_BAD_REQUEST)
 
+        teacher_id = str(teacher_id).strip()
+
         try:
-            teacher = User.objects.get(id=teacher_id)
+            teacher = User.objects.get(username=teacher_id)
         except User.DoesNotExist:
             return Response({
                 "status": False,
-                "message": f"Teacher with id={teacher_id} not found."
+                "message": f"Teacher with id='{teacher_id}' not found."
             }, status=status.HTTP_404_NOT_FOUND)
 
         records = TeacherAttendance.objects.filter(teacher=teacher).order_by('-date')
@@ -258,7 +291,7 @@ class MyAttendanceHistoryView(APIView):
 
         return Response({
             "status": True,
-            "teacher_id": teacher.id,
+            "teacher_id": teacher.username,
             "total_records": records.count(),
             "history": grouped,
         }, status=status.HTTP_200_OK)
@@ -282,7 +315,7 @@ class AttendanceDetailView(APIView):
         return Response({
             "status": True,
             "message": "Attendance record found.",
-            "teacher_id": attendance.teacher.id,
+            "teacher_id": attendance.teacher.username,
             "data": attendance_data(attendance)
         }, status=status.HTTP_200_OK)
 
@@ -342,7 +375,7 @@ class AttendanceUpdateView(APIView):
         return Response({
             "status": True,
             "message": "Attendance updated successfully.",
-            "teacher_id": attendance.teacher.id,
+            "teacher_id": attendance.teacher.username,
             "data": attendance_data(attendance)
         }, status=status.HTTP_200_OK)
 
@@ -365,7 +398,7 @@ class AttendanceDeleteView(APIView):
                 "message": f"Attendance with id={pk} not found."
             }, status=status.HTTP_404_NOT_FOUND)
 
-        teacher_id = attendance.teacher.id
+        teacher_id = attendance.teacher.username
         attendance.delete()
 
         return Response({
