@@ -204,3 +204,64 @@ class TeacherSalarySummaryView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+# =====================================================================
+# DELETE SALARY BY MONTH + YEAR (teacher-specific)
+# =====================================================================
+class TeacherSalaryDeleteMonthView(APIView):
+    """
+    DELETE /api/v1/school/teacher/salary/summary/<teacher_id_card>/<year>/<month>/
+
+    Deletes all salary records of a given teacher
+    for a specific month + year.
+
+    Example:
+        DELETE /api/v1/school/teacher/salary/summary/St-Teacher01/2026/October/
+    """
+
+    def delete(self, request, teacher_id_card, year, month):
+        teacher = _get_teacher_by_card(teacher_id_card)
+        if not teacher:
+            return Response(
+                {"success": False, "message": "Teacher not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # normalize month (case insensitive match)
+        month_key = (month or "").strip().title()
+        year_key = str(year).strip()
+
+        qs = TeacherSalary.objects.filter(
+            teacher=teacher,
+            year=year_key,
+            month__iexact=month_key,     # "october" or "OCTOBER" or "October" all match
+        )
+
+        count = qs.count()
+        if count == 0:
+            return Response(
+                {
+                    "success": False,
+                    "message": f"No salary records found for {month_key} {year_key}",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        deleted_ids = list(qs.values_list("id", flat=True))
+        qs.delete()
+
+        return Response(
+            {
+                "success": True,
+                "message": f"Deleted {count} salary record(s) for {month_key} {year_key}",
+                "data": {
+                    "teacher_id_card": teacher.teacher_id_card,
+                    "year": year_key,
+                    "month": month_key,
+                    "deleted_count": count,
+                    "deleted_ids": deleted_ids,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )    
