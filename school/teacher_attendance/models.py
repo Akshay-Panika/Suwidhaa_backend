@@ -9,6 +9,7 @@ class TeacherAttendance(models.Model):
         ('HALF_DAY', 'Half Day'),
         ('LEAVE', 'On Leave'),
         ('LATE', 'Late'),
+        ('WEEK_OFF', 'Week Off'),   # 👈 added so backend can emit week-off too
     ]
 
     teacher = models.ForeignKey(
