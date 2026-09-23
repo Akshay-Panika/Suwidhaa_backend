@@ -53,6 +53,17 @@ class TeacherCreateView(APIView):
                 teacher_pass.set_password(default_password)
                 teacher_pass.save()
                 
+                from school.teacher_salary.models import TeacherPendingSalary
+                from datetime import date
+
+                TeacherPendingSalary.objects.create(
+                    teacher=teacher,
+                    month=date.today().strftime("%B %Y"),
+                    amount=teacher.salary or 0,
+                    status="Pending",
+                    due_date=date.today(),
+                )
+                
                 whatsapp_response = None
                 if teacher.phone:
                     def send_whatsapp_async():
