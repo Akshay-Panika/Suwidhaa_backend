@@ -26,7 +26,7 @@ class TeacherSalary(models.Model):
         related_name="salaries",
     )
 
-    month = models.CharField(max_length=20)          # e.g. "September"
+    month = models.CharField(max_length=20)          # e.g. "October"
     year = models.CharField(max_length=4)            # e.g. "2025"
 
     payment_method = models.CharField(
@@ -53,6 +53,12 @@ class TeacherSalary(models.Model):
         return f"{self.teacher} - {self.month} {self.year}"
 
     def save(self, *args, **kwargs):
+        # ==== NORMALIZE MONTH & YEAR ====
+        if self.month:
+            self.month = self.month.strip().title()   # "october" -> "October"
+        if self.year:
+            self.year = str(self.year).strip()
+
         # ==== AUTO CALCULATE PENDING AMOUNT ====
         self.pending_amount = (self.amount or 0) - (self.paid_amount or 0)
         if self.pending_amount < 0:
@@ -61,9 +67,7 @@ class TeacherSalary(models.Model):
         # ==== AUTO SET STATUS ====
         if self.paid_amount and self.amount and self.paid_amount >= self.amount:
             self.status = "Paid"
-        elif self.paid_amount and self.paid_amount > 0:
-            self.status = "Pending"     # partial payment
         else:
-            self.status = "Pending"     # nothing paid
+            self.status = "Pending"
 
         super().save(*args, **kwargs)

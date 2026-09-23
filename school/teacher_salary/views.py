@@ -35,12 +35,12 @@ class TeacherSalarySummaryView(APIView):
     POST /api/v1/school/teacher/salary/summary/<teacher_id_card>/
          Create salary payment.
          Body: {
-             "month": "September",
+             "month": "October",
              "year": "2025",
              "payment_method": "Cash" | "Bank" | "UPI" | "Cheque" | "Bank Transfer",
              "amount": 43500,
              "paid_amount": 40000,
-             "paid_date": "2025-09-30",
+             "paid_date": "2025-10-30",
              "remark": "optional"
          }
     """
@@ -60,17 +60,22 @@ class TeacherSalarySummaryView(APIView):
 
         qs = TeacherSalary.objects.filter(teacher=teacher).order_by("-year", "-id")
 
-        # Group: year -> month -> records
+        # ==== Group: year -> month (normalized) -> records ====
         years_map = {}
         for s in qs:
-            year = s.year or "Unknown"
-            years_map.setdefault(year, {})
-            years_map[year].setdefault(s.month, [])
-            years_map[year][s.month].append(s)
+            year = (s.year or "Unknown").strip()
+            month_key = (s.month or "Unknown").strip().title()  # "october" -> "October"
 
+            years_map.setdefault(year, {})
+            years_map[year].setdefault(month_key, [])
+            years_map[year][month_key].append(s)
+
+        # ==== Build ordered year-wise response ====
         years_data = []
         for year in sorted(years_map.keys(), reverse=True):
             months_data = []
+
+            # First: standard months in Jan -> Dec order
             for month in MONTHS_ORDER:
                 if month in years_map[year]:
                     records = years_map[year][month]
@@ -86,6 +91,22 @@ class TeacherSalarySummaryView(APIView):
                         "records": TeacherSalarySerializer(records, many=True).data,
                     })
 
+            # Then: any leftover non-standard month keys
+            for month_key in years_map[year].keys():
+                if month_key not in MONTHS_ORDER:
+                    records = years_map[year][month_key]
+                    total = sum(float(r.amount or 0) for r in records)
+                    paid = sum(float(r.paid_amount or 0) for r in records)
+                    pending = sum(float(r.pending_amount or 0) for r in records)
+
+                    months_data.append({
+                        "month": month_key,
+                        "total_salary": total,
+                        "paid_amount": paid,
+                        "pending_amount": pending,
+                        "records": TeacherSalarySerializer(records, many=True).data,
+                    })
+
             years_data.append({
                 "year": year,
                 "total_salary": sum(m["total_salary"] for m in months_data),
@@ -94,9 +115,11 @@ class TeacherSalarySummaryView(APIView):
                 "months": months_data,
             })
 
+        # ==== Latest record for the top summary card ====
         latest = qs.first()
         latest_data = TeacherSalarySerializer(latest).data if latest else None
 
+        # ==== Grand totals ====
         all_total = sum(float(s.amount or 0) for s in qs)
         all_paid = sum(float(s.paid_amount or 0) for s in qs)
         all_pending = sum(float(s.pending_amount or 0) for s in qs)
@@ -136,12 +159,14 @@ class TeacherSalarySummaryView(APIView):
         paid_date = request.data.get("paid_date")
         remark = request.data.get("remark", "")
 
+        # ==== Validate required fields ====
         if not month or not year:
             return Response(
                 {"success": False, "message": "month and year are required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # ==== Validate payment method ====
         valid_methods = ["Cash", "Bank", "UPI", "Cheque", "Bank Transfer"]
         if payment_method not in valid_methods:
             return Response(
@@ -149,6 +174,7 @@ class TeacherSalarySummaryView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # ==== Validate numbers ====
         try:
             amount = float(amount)
             paid_amount = float(paid_amount)
@@ -158,6 +184,7 @@ class TeacherSalarySummaryView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # ==== Create salary (model auto-normalizes month/year, sets status, pending) ====
         salary = TeacherSalary.objects.create(
             teacher=teacher,
             month=month,

@@ -1,8 +1,6 @@
 from django.urls import path
 
-from .views import (
-    TeacherSalarySummaryView,
-)
+from .views import TeacherSalarySummaryView
 
 urlpatterns = [
     # GET + POST
