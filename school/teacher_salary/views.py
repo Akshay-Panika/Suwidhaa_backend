@@ -6,27 +6,17 @@ from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from school.teacher.models import Teacher
-from .models import (
-    TeacherSalary,
-    TeacherExtraSalary,
-    TeacherSalaryRequest,
-    TeacherPendingSalary,
-    TeacherBankDetail,
-)
-from .serializers import (
-    TeacherSalarySerializer,
-    TeacherExtraSalarySerializer,
-    TeacherSalaryRequestSerializer,
-    TeacherPendingSalarySerializer,
-    TeacherBankDetailSerializer,
-)
+from .models import TeacherSalary
+from .serializers import TeacherSalarySerializer
 
 logger = logging.getLogger(__name__)
 
+MONTHS_ORDER = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+]
 
-# =====================================================================
-# Helper: get teacher by teacher_id_card
-# =====================================================================
+
 def _get_teacher_by_card(teacher_id_card):
     try:
         return Teacher.objects.get(teacher_id_card=teacher_id_card)
@@ -35,157 +25,31 @@ def _get_teacher_by_card(teacher_id_card):
 
 
 # =====================================================================
-# MONTHLY SALARY
-# =====================================================================
-class TeacherSalaryListCreateView(APIView):
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-
-    def get(self, request):
-        """List salary records. Filter by ?teacher_id_card=...&year=...&month=..."""
-        qs = TeacherSalary.objects.all().order_by("-id")
-
-        teacher_id_card = request.query_params.get("teacher_id_card")
-        year = request.query_params.get("year")
-        month = request.query_params.get("month")
-        status_filter = request.query_params.get("status")
-
-        if teacher_id_card:
-            teacher = _get_teacher_by_card(teacher_id_card)
-            if not teacher:
-                return Response(
-                    {"success": False, "message": "Teacher not found"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-            qs = qs.filter(teacher=teacher)
-
-        if year:
-            qs = qs.filter(year=year)
-        if month and month != "All":
-            qs = qs.filter(month=month)
-        if status_filter and status_filter != "All":
-            qs = qs.filter(status=status_filter)
-
-        serializer = TeacherSalarySerializer(qs, many=True)
-        return Response(
-            {"success": True, "count": qs.count(), "data": serializer.data},
-            status=status.HTTP_200_OK,
-        )
-
-    def post(self, request):
-        """Create a salary record."""
-        teacher_id_card = request.data.get("teacher_id_card")
-        if not teacher_id_card:
-            return Response(
-                {"success": False, "message": "teacher_id_card is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        teacher = _get_teacher_by_card(teacher_id_card)
-        if not teacher:
-            return Response(
-                {"success": False, "message": "Teacher not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        data = request.data.copy()
-        data["teacher"] = teacher.id
-
-        serializer = TeacherSalarySerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {
-                    "success": True,
-                    "message": "Salary record created successfully",
-                    "data": serializer.data,
-                },
-                status=status.HTTP_201_CREATED,
-            )
-        return Response(
-            {"success": False, "errors": serializer.errors},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-
-class TeacherSalaryDetailView(APIView):
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-
-    def get_object(self, pk):
-        try:
-            return TeacherSalary.objects.get(pk=pk)
-        except TeacherSalary.DoesNotExist:
-            return None
-
-    def get(self, request, pk):
-        obj = self.get_object(pk)
-        if not obj:
-            return Response(
-                {"success": False, "message": "Salary not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        return Response(
-            {"success": True, "data": TeacherSalarySerializer(obj).data},
-            status=status.HTTP_200_OK,
-        )
-
-    def put(self, request, pk):
-        obj = self.get_object(pk)
-        if not obj:
-            return Response(
-                {"success": False, "message": "Salary not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        serializer = TeacherSalarySerializer(obj, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {"success": True, "message": "Salary updated", "data": serializer.data},
-                status=status.HTTP_200_OK,
-            )
-        return Response(
-            {"success": False, "errors": serializer.errors},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    def patch(self, request, pk):
-        obj = self.get_object(pk)
-        if not obj:
-            return Response(
-                {"success": False, "message": "Salary not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        serializer = TeacherSalarySerializer(obj, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {"success": True, "message": "Salary updated", "data": serializer.data},
-                status=status.HTTP_200_OK,
-            )
-        return Response(
-            {"success": False, "errors": serializer.errors},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    def delete(self, request, pk):
-        obj = self.get_object(pk)
-        if not obj:
-            return Response(
-                {"success": False, "message": "Salary not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        obj.delete()
-        return Response(
-            {"success": True, "message": "Salary deleted"},
-            status=status.HTTP_200_OK,
-        )
-
-
-# =====================================================================
-# SALARY SUMMARY (by teacher id card)
+# TEACHER SALARY SUMMARY (GET + POST)
 # =====================================================================
 class TeacherSalarySummaryView(APIView):
-    """Returns salary summary for a teacher: total, paid, pending, latest month."""
+    """
+    GET  /api/v1/school/teacher/salary/summary/<teacher_id_card>/
+         Returns year-wise + month-wise salary records + totals.
 
+    POST /api/v1/school/teacher/salary/summary/<teacher_id_card>/
+         Create salary payment.
+         Body: {
+             "month": "September",
+             "year": "2025",
+             "payment_method": "Cash" | "Bank" | "UPI" | "Cheque" | "Bank Transfer",
+             "amount": 43500,
+             "paid_amount": 40000,
+             "paid_date": "2025-09-30",
+             "remark": "optional"
+         }
+    """
+
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    # ----------------------------------------------------------------
+    # GET — year-wise + month-wise
+    # ----------------------------------------------------------------
     def get(self, request, teacher_id_card):
         teacher = _get_teacher_by_card(teacher_id_card)
         if not teacher:
@@ -194,16 +58,48 @@ class TeacherSalarySummaryView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        qs = TeacherSalary.objects.filter(teacher=teacher)
+        qs = TeacherSalary.objects.filter(teacher=teacher).order_by("-year", "-id")
 
-        total = sum(float(s.amount or 0) for s in qs)
-        paid = sum(float(s.paid_amount or 0) for s in qs)
-        pending = sum(float(s.pending_amount or 0) for s in qs)
+        # Group: year -> month -> records
+        years_map = {}
+        for s in qs:
+            year = s.year or "Unknown"
+            years_map.setdefault(year, {})
+            years_map[year].setdefault(s.month, [])
+            years_map[year][s.month].append(s)
 
-        latest = qs.order_by("-id").first()
-        latest_data = (
-            TeacherSalarySerializer(latest).data if latest else None
-        )
+        years_data = []
+        for year in sorted(years_map.keys(), reverse=True):
+            months_data = []
+            for month in MONTHS_ORDER:
+                if month in years_map[year]:
+                    records = years_map[year][month]
+                    total = sum(float(r.amount or 0) for r in records)
+                    paid = sum(float(r.paid_amount or 0) for r in records)
+                    pending = sum(float(r.pending_amount or 0) for r in records)
+
+                    months_data.append({
+                        "month": month,
+                        "total_salary": total,
+                        "paid_amount": paid,
+                        "pending_amount": pending,
+                        "records": TeacherSalarySerializer(records, many=True).data,
+                    })
+
+            years_data.append({
+                "year": year,
+                "total_salary": sum(m["total_salary"] for m in months_data),
+                "paid_amount": sum(m["paid_amount"] for m in months_data),
+                "pending_amount": sum(m["pending_amount"] for m in months_data),
+                "months": months_data,
+            })
+
+        latest = qs.first()
+        latest_data = TeacherSalarySerializer(latest).data if latest else None
+
+        all_total = sum(float(s.amount or 0) for s in qs)
+        all_paid = sum(float(s.paid_amount or 0) for s in qs)
+        all_pending = sum(float(s.pending_amount or 0) for s in qs)
 
         return Response(
             {
@@ -211,284 +107,19 @@ class TeacherSalarySummaryView(APIView):
                 "data": {
                     "teacher_id_card": teacher.teacher_id_card,
                     "teacher_name": f"{teacher.first_name} {teacher.last_name}",
-                    "total_salary": total,
-                    "paid_amount": paid,
-                    "pending_amount": pending,
+                    "total_salary": all_total,
+                    "paid_amount": all_paid,
+                    "pending_amount": all_pending,
                     "latest_salary": latest_data,
+                    "years": years_data,
                 },
             },
             status=status.HTTP_200_OK,
         )
 
-
-# =====================================================================
-# EXTRA SALARY
-# =====================================================================
-class TeacherExtraSalaryListCreateView(APIView):
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-
-    def get(self, request):
-        qs = TeacherExtraSalary.objects.all().order_by("-id")
-
-        teacher_id_card = request.query_params.get("teacher_id_card")
-        if teacher_id_card:
-            teacher = _get_teacher_by_card(teacher_id_card)
-            if not teacher:
-                return Response(
-                    {"success": False, "message": "Teacher not found"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-            qs = qs.filter(teacher=teacher)
-
-        serializer = TeacherExtraSalarySerializer(qs, many=True)
-        return Response(
-            {"success": True, "count": qs.count(), "data": serializer.data},
-            status=status.HTTP_200_OK,
-        )
-
-    def post(self, request):
-        teacher_id_card = request.data.get("teacher_id_card")
-        if not teacher_id_card:
-            return Response(
-                {"success": False, "message": "teacher_id_card is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        teacher = _get_teacher_by_card(teacher_id_card)
-        if not teacher:
-            return Response(
-                {"success": False, "message": "Teacher not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        data = request.data.copy()
-        data["teacher"] = teacher.id
-
-        serializer = TeacherExtraSalarySerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {
-                    "success": True,
-                    "message": "Extra salary added",
-                    "data": serializer.data,
-                },
-                status=status.HTTP_201_CREATED,
-            )
-        return Response(
-            {"success": False, "errors": serializer.errors},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-
-class TeacherExtraSalaryDetailView(APIView):
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-
-    def get_object(self, pk):
-        try:
-            return TeacherExtraSalary.objects.get(pk=pk)
-        except TeacherExtraSalary.DoesNotExist:
-            return None
-
-    def get(self, request, pk):
-        obj = self.get_object(pk)
-        if not obj:
-            return Response(
-                {"success": False, "message": "Extra salary not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        return Response(
-            {"success": True, "data": TeacherExtraSalarySerializer(obj).data},
-            status=status.HTTP_200_OK,
-        )
-
-    def put(self, request, pk):
-        obj = self.get_object(pk)
-        if not obj:
-            return Response(
-                {"success": False, "message": "Extra salary not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        serializer = TeacherExtraSalarySerializer(obj, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {"success": True, "data": serializer.data},
-                status=status.HTTP_200_OK,
-            )
-        return Response(
-            {"success": False, "errors": serializer.errors},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    def delete(self, request, pk):
-        obj = self.get_object(pk)
-        if not obj:
-            return Response(
-                {"success": False, "message": "Extra salary not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        obj.delete()
-        return Response(
-            {"success": True, "message": "Extra salary deleted"},
-            status=status.HTTP_200_OK,
-        )
-
-
-# =====================================================================
-# SALARY REQUESTS
-# =====================================================================
-class TeacherSalaryRequestListCreateView(APIView):
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-
-    def get(self, request):
-        qs = TeacherSalaryRequest.objects.all().order_by("-id")
-
-        teacher_id_card = request.query_params.get("teacher_id_card")
-        if teacher_id_card:
-            teacher = _get_teacher_by_card(teacher_id_card)
-            if not teacher:
-                return Response(
-                    {"success": False, "message": "Teacher not found"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-            qs = qs.filter(teacher=teacher)
-
-        serializer = TeacherSalaryRequestSerializer(qs, many=True)
-        return Response(
-            {"success": True, "count": qs.count(), "data": serializer.data},
-            status=status.HTTP_200_OK,
-        )
-
-    def post(self, request):
-        teacher_id_card = request.data.get("teacher_id_card")
-        if not teacher_id_card:
-            return Response(
-                {"success": False, "message": "teacher_id_card is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        teacher = _get_teacher_by_card(teacher_id_card)
-        if not teacher:
-            return Response(
-                {"success": False, "message": "Teacher not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        data = request.data.copy()
-        data["teacher"] = teacher.id
-
-        serializer = TeacherSalaryRequestSerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {
-                    "success": True,
-                    "message": "Request submitted",
-                    "data": serializer.data,
-                },
-                status=status.HTTP_201_CREATED,
-            )
-        return Response(
-            {"success": False, "errors": serializer.errors},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-
-class TeacherSalaryRequestDetailView(APIView):
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-
-    def get_object(self, pk):
-        try:
-            return TeacherSalaryRequest.objects.get(pk=pk)
-        except TeacherSalaryRequest.DoesNotExist:
-            return None
-
-    def patch(self, request, pk):
-        """Update request status (approve / reject)."""
-        obj = self.get_object(pk)
-        if not obj:
-            return Response(
-                {"success": False, "message": "Request not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        serializer = TeacherSalaryRequestSerializer(
-            obj, data=request.data, partial=True
-        )
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {"success": True, "message": "Request updated", "data": serializer.data},
-                status=status.HTTP_200_OK,
-            )
-        return Response(
-            {"success": False, "errors": serializer.errors},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    def delete(self, request, pk):
-        obj = self.get_object(pk)
-        if not obj:
-            return Response(
-                {"success": False, "message": "Request not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        obj.delete()
-        return Response(
-            {"success": True, "message": "Request deleted"},
-            status=status.HTTP_200_OK,
-        )
-
-
-# =====================================================================
-# PENDING SALARY
-# =====================================================================
-class TeacherPendingSalaryListView(APIView):
-    def get(self, request):
-        qs = TeacherPendingSalary.objects.all().order_by("-id")
-
-        teacher_id_card = request.query_params.get("teacher_id_card")
-        if teacher_id_card:
-            teacher = _get_teacher_by_card(teacher_id_card)
-            if not teacher:
-                return Response(
-                    {"success": False, "message": "Teacher not found"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-            qs = qs.filter(teacher=teacher)
-
-        serializer = TeacherPendingSalarySerializer(qs, many=True)
-        return Response(
-            {"success": True, "count": qs.count(), "data": serializer.data},
-            status=status.HTTP_200_OK,
-        )
-
-
-# =====================================================================
-# BANK DETAILS
-# =====================================================================
-class TeacherBankDetailView(APIView):
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-
-    def get(self, request, teacher_id_card):
-        teacher = _get_teacher_by_card(teacher_id_card)
-        if not teacher:
-            return Response(
-                {"success": False, "message": "Teacher not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        try:
-            bank = TeacherBankDetail.objects.get(teacher=teacher)
-        except TeacherBankDetail.DoesNotExist:
-            return Response(
-                {"success": False, "message": "Bank details not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        return Response(
-            {"success": True, "data": TeacherBankDetailSerializer(bank).data},
-            status=status.HTTP_200_OK,
-        )
-
+    # ----------------------------------------------------------------
+    # POST — create salary payment
+    # ----------------------------------------------------------------
     def post(self, request, teacher_id_card):
         teacher = _get_teacher_by_card(teacher_id_card)
         if not teacher:
@@ -497,27 +128,52 @@ class TeacherBankDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        bank = TeacherBankDetail.objects.filter(teacher=teacher).first()
-        if bank:
-            serializer = TeacherBankDetailSerializer(
-                bank, data=request.data, partial=True
-            )
-        else:
-            data = request.data.copy()
-            data["teacher"] = teacher.id
-            serializer = TeacherBankDetailSerializer(data=data)
+        month = request.data.get("month")
+        year = request.data.get("year")
+        payment_method = request.data.get("payment_method", "Cash")
+        amount = request.data.get("amount", 0)
+        paid_amount = request.data.get("paid_amount", 0)
+        paid_date = request.data.get("paid_date")
+        remark = request.data.get("remark", "")
 
-        if serializer.is_valid():
-            serializer.save()
+        if not month or not year:
             return Response(
-                {
-                    "success": True,
-                    "message": "Bank details saved",
-                    "data": serializer.data,
-                },
-                status=status.HTTP_200_OK,
+                {"success": False, "message": "month and year are required"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
+
+        valid_methods = ["Cash", "Bank", "UPI", "Cheque", "Bank Transfer"]
+        if payment_method not in valid_methods:
+            return Response(
+                {"success": False, "message": f"payment_method must be one of {valid_methods}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            amount = float(amount)
+            paid_amount = float(paid_amount)
+        except (TypeError, ValueError):
+            return Response(
+                {"success": False, "message": "amount and paid_amount must be numbers"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        salary = TeacherSalary.objects.create(
+            teacher=teacher,
+            month=month,
+            year=str(year),
+            payment_method=payment_method,
+            amount=amount,
+            paid_amount=paid_amount,
+            paid_date=paid_date,
+            remark=remark,
+        )
+
         return Response(
-            {"success": False, "errors": serializer.errors},
-            status=status.HTTP_400_BAD_REQUEST,
+            {
+                "success": True,
+                "message": "Salary payment saved successfully",
+                "data": TeacherSalarySerializer(salary).data,
+            },
+            status=status.HTTP_201_CREATED,
         )
