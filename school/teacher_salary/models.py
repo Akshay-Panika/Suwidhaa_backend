@@ -53,8 +53,17 @@ class TeacherSalary(models.Model):
         return f"{self.teacher} - {self.month} {self.year}"
 
     def save(self, *args, **kwargs):
-        # auto calculate pending
+        # ==== AUTO CALCULATE PENDING AMOUNT ====
         self.pending_amount = (self.amount or 0) - (self.paid_amount or 0)
         if self.pending_amount < 0:
             self.pending_amount = 0
+
+        # ==== AUTO SET STATUS ====
+        if self.paid_amount and self.amount and self.paid_amount >= self.amount:
+            self.status = "Paid"
+        elif self.paid_amount and self.paid_amount > 0:
+            self.status = "Pending"     # partial payment
+        else:
+            self.status = "Pending"     # nothing paid
+
         super().save(*args, **kwargs)
