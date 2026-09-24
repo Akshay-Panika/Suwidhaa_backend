@@ -189,7 +189,6 @@ class StudentAttendanceListView(APIView):
         )
 
 
-# =========================================================
 #  SINGLE STUDENT — full history
 # =========================================================
 class StudentAttendanceDetailView(APIView):
@@ -244,3 +243,75 @@ class StudentAttendanceDetailView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+
+# =========================================================
+#  DELETE — Single attendance by student_card_id + date
+# =========================================================
+class StudentAttendanceDeleteView(APIView):
+    """
+    DELETE /api/v1/school/student-attendance/list/<student_card_id>/<date>/
+
+    Example:
+        DELETE /api/v1/school/student-attendance/list/St-Student03/2026-09-24/
+    """
+
+    def delete(self, request, student_card_id, date):
+        # ---- 1. Student ढूंढो ----
+        try:
+            student = Student.objects.get(student_card_id=student_card_id)
+        except Student.DoesNotExist:
+            return Response(
+                {
+                    "status": False,
+                    "error": f"Student with card_id '{student_card_id}' not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # ---- 2. Date validate करो (YYYY-MM-DD format) ----
+        try:
+            date_obj = datetime.strptime(date, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {
+                    "status": False,
+                    "error": f"Invalid date format '{date}'. Use YYYY-MM-DD."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ---- 3. Attendance ढूंढो ----
+        try:
+            att = StudentAttendance.objects.get(student=student, date=date_obj)
+        except StudentAttendance.DoesNotExist:
+            return Response(
+                {
+                    "status": False,
+                    "error": f"No attendance found for '{student_card_id}' on {date}."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # ---- 4. Delete info save करो (response के लिए) ----
+        deleted_info = {
+            "id": att.id,
+            "student_card_id": student.student_card_id,
+            "student_name": student.student_name,
+            "student_class": student.student_class,
+            "date": att.date.strftime('%Y-%m-%d'),
+            "attendance_status": att.attendance_status,
+            "remarks": att.remarks or '',
+        }
+
+        # ---- 5. Delete करो ----
+        att.delete()
+
+        return Response(
+            {
+                "status": True,
+                "message": "Attendance deleted successfully",
+                "deleted": deleted_info,
+            },
+            status=status.HTTP_200_OK
+        )    
