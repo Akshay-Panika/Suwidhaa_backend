@@ -2,11 +2,13 @@
 from rest_framework import serializers
 from .models import Transport, TransportStudent
 
+
 class TransportStudentSerializer(serializers.ModelSerializer):
     class Meta:
         model = TransportStudent
         fields = [
-            'id', 'student_name', 'student_id', 
+            'id', 'student_name', 'student_id',
+            'address',                                   # ✅ ADDED
             'pickup_time', 'drop_time',
             'created_at', 'updated_at'
         ]
@@ -41,7 +43,6 @@ class TransportSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         
-        # Get driver image URL
         if instance.driver_image:
             data['driver_image'] = instance.driver_image.url if hasattr(instance.driver_image, 'url') else None
         
@@ -57,9 +58,9 @@ class TransportListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transport
         fields = [
-            'id', 'transport_type', 'school_type', 'vehicle_number', 
+            'id', 'transport_type', 'school_type', 'vehicle_number',
             'driver_name', 'driver_number', 'driver_image_url',
-            'capacity', 'route_name', 
+            'capacity', 'route_name',
             'students', 'student_count'
         ]
     

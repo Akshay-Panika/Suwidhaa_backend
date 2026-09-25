@@ -43,6 +43,7 @@ class TransportStudent(models.Model):
     )
     student_name = models.CharField(max_length=200)
     student_id = models.CharField(max_length=50)
+    address = models.TextField(blank=True, null=True)          # ✅ ADDED
     pickup_time = models.CharField(max_length=50, blank=True, null=True)
     drop_time = models.CharField(max_length=50, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -52,7 +53,7 @@ class TransportStudent(models.Model):
         ordering = ['student_name']
         verbose_name = 'Transport Student'
         verbose_name_plural = 'Transport Students'
-        unique_together = [['transport', 'student_id']]  # Prevent duplicate student in same transport
+        unique_together = [['transport', 'student_id']]
     
     def __str__(self):
         return f"{self.transport.vehicle_number} - {self.student_name}"

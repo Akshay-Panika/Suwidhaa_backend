@@ -8,8 +8,8 @@ import logging
 
 from .models import Transport, TransportStudent
 from .serializers import (
-    TransportSerializer, 
-    TransportListSerializer, 
+    TransportSerializer,
+    TransportListSerializer,
     TransportDetailSerializer,
     TransportStudentSerializer
 )
@@ -52,12 +52,10 @@ class TransportListView(APIView):
     def get(self, request):
         queryset = Transport.objects.all()
         
-        # Apply filters
         transport_type = request.query_params.get('transport_type')
         if transport_type:
             queryset = queryset.filter(transport_type__icontains=transport_type)
         
-        # Search by vehicle number or driver name
         search = request.query_params.get('search')
         if search:
             queryset = queryset.filter(
@@ -66,11 +64,9 @@ class TransportListView(APIView):
                 models.Q(transport_type__icontains=search)
             )
         
-        # Ordering
         order_by = request.query_params.get('order_by', '-created_at')
         queryset = queryset.order_by(order_by)
         
-        # Prefetch students for performance
         queryset = queryset.prefetch_related('students')
         
         serializer = TransportListSerializer(queryset, many=True)
@@ -114,7 +110,6 @@ class TransportDetailView(APIView):
                 "message": "Transport not found"
             }, status=status.HTTP_404_NOT_FOUND)
         
-        # Check for duplicate vehicle number
         if 'vehicle_number' in request.data:
             new_vehicle = request.data.get('vehicle_number')
             if Transport.objects.filter(
@@ -155,8 +150,8 @@ class TransportDetailView(APIView):
             }, status=status.HTTP_404_NOT_FOUND)
         
         serializer = TransportSerializer(
-            transport, 
-            data=request.data, 
+            transport,
+            data=request.data,
             partial=True
         )
         if serializer.is_valid():
@@ -216,7 +211,6 @@ class TransportStudentAddView(APIView):
                 "message": "Transport not found"
             }, status=status.HTTP_404_NOT_FOUND)
         
-        # Validate required fields
         student_name = request.data.get('student_name')
         student_id = request.data.get('student_id')
         
@@ -226,18 +220,17 @@ class TransportStudentAddView(APIView):
                 "message": "student_name and student_id are required"
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Check for duplicate
         if TransportStudent.objects.filter(transport=transport, student_id=student_id).exists():
             return Response({
                 "success": False,
                 "message": f"Student with ID '{student_id}' already exists in this transport"
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Create student
         student = TransportStudent.objects.create(
             transport=transport,
             student_name=student_name,
             student_id=student_id,
+            address=request.data.get('address'),                  # ✅ ADDED
             pickup_time=request.data.get('pickup_time'),
             drop_time=request.data.get('drop_time')
         )
@@ -282,16 +275,15 @@ class TransportStudentBulkAddView(APIView):
                 errors.append(f"Missing student_name or student_id for: {student_data}")
                 continue
             
-            # Check for duplicate
             if TransportStudent.objects.filter(transport=transport, student_id=student_id).exists():
                 errors.append(f"Student with ID '{student_id}' already exists")
                 continue
             
-            # Create student
             student = TransportStudent.objects.create(
                 transport=transport,
                 student_name=student_name,
                 student_id=student_id,
+                address=student_data.get('address'),              # ✅ ADDED
                 pickup_time=student_data.get('pickup_time'),
                 drop_time=student_data.get('drop_time')
             )
@@ -326,8 +318,8 @@ class TransportStudentUpdateView(APIView):
                 "message": f"Student with ID '{student_id}' not found"
             }, status=status.HTTP_404_NOT_FOUND)
         
-        # Update fields
         student.student_name = request.data.get('student_name', student.student_name)
+        student.address = request.data.get('address', student.address)              # ✅ ADDED
         student.pickup_time = request.data.get('pickup_time', student.pickup_time)
         student.drop_time = request.data.get('drop_time', student.drop_time)
         student.save()
