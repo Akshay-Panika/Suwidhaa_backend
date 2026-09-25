@@ -35,7 +35,7 @@ urlpatterns = [
     ),
     path(
         "api/v1/school/",
-        include("school.teacher_leave.urls"),
+        include("school.teacher_salary.urls"),
     ),
     path(
         "api/v1/school/",
