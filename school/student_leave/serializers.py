@@ -35,15 +35,15 @@ class StudentLeaveSerializer(serializers.ModelSerializer):
 
 
 class StudentLeaveApprovalSerializer(serializers.ModelSerializer):
-    """Used only for teacher approval/rejection."""
+    """Used for teacher approval / rejection / reset to pending."""
 
     class Meta:
         model = StudentLeave
         fields = ["leave_status", "teacher_card_id", "teacher_name"]
 
     def validate_leave_status(self, value):
-        if value not in ["approved", "rejected"]:
+        if value not in ["pending", "approved", "rejected"]:
             raise serializers.ValidationError(
-                "leave_status must be either 'approved' or 'rejected'."
+                "leave_status must be one of: 'pending', 'approved', 'rejected'."
             )
         return value
