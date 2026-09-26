@@ -17,7 +17,7 @@ class ReportCard(models.Model):
 
     admin_id = models.CharField(max_length=100)
     student_id = models.CharField(max_length=100)
-    school_type = models.CharField(max_length=50, choices=SCHOOL_TYPE_CHOICES)
+    school_type = models.CharField(max_length=50,)
     class_name = models.CharField(max_length=100)
     subject_name = models.CharField(max_length=100)
     exam_name = models.CharField(max_length=100)
