@@ -1,18 +1,19 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.parsers import JSONParser
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 
 from .models import Subject
 from .serializers import SubjectSerializer
 
 
 class SubjectCreateView(APIView):
-    parser_classes = [JSONParser]
-    
+    # ✅ Ab JSON, form-data, aur urlencoded teeno accept karega
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+
     def post(self, request):
         serializer = SubjectSerializer(data=request.data)
-        
+
         if serializer.is_valid():
             subject_instance = serializer.save()
             return Response(
@@ -23,7 +24,7 @@ class SubjectCreateView(APIView):
                 },
                 status=status.HTTP_201_CREATED,
             )
-        
+
         return Response(
             {
                 "success": False,
@@ -37,7 +38,7 @@ class SubjectListView(APIView):
     def get(self, request):
         subjects = Subject.objects.all().order_by('-id')
         serializer = SubjectSerializer(subjects, many=True)
-        
+
         return Response(
             {
                 "success": True,
@@ -49,26 +50,23 @@ class SubjectListView(APIView):
 
 
 class SubjectDetailView(APIView):
-    parser_classes = [JSONParser]
-    
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+
     def get_object(self, pk):
         try:
             return Subject.objects.get(pk=pk)
         except Subject.DoesNotExist:
             return None
-    
+
     def get(self, request, pk):
         subject_instance = self.get_object(pk)
-        
+
         if not subject_instance:
             return Response(
-                {
-                    "success": False,
-                    "message": "Subject not found",
-                },
+                {"success": False, "message": "Subject not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        
+
         return Response(
             {
                 "success": True,
@@ -76,21 +74,18 @@ class SubjectDetailView(APIView):
             },
             status=status.HTTP_200_OK,
         )
-    
+
     def put(self, request, pk):
         subject_instance = self.get_object(pk)
-        
+
         if not subject_instance:
             return Response(
-                {
-                    "success": False,
-                    "message": "Subject not found",
-                },
+                {"success": False, "message": "Subject not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        
+
         serializer = SubjectSerializer(subject_instance, data=request.data)
-        
+
         if serializer.is_valid():
             subject_instance = serializer.save()
             return Response(
@@ -101,29 +96,23 @@ class SubjectDetailView(APIView):
                 },
                 status=status.HTTP_200_OK,
             )
-        
+
         return Response(
-            {
-                "success": False,
-                "errors": serializer.errors,
-            },
+            {"success": False, "errors": serializer.errors},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     def patch(self, request, pk):
         subject_instance = self.get_object(pk)
-        
+
         if not subject_instance:
             return Response(
-                {
-                    "success": False,
-                    "message": "Subject not found",
-                },
+                {"success": False, "message": "Subject not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        
+
         serializer = SubjectSerializer(subject_instance, data=request.data, partial=True)
-        
+
         if serializer.is_valid():
             subject_instance = serializer.save()
             return Response(
@@ -134,33 +123,24 @@ class SubjectDetailView(APIView):
                 },
                 status=status.HTTP_200_OK,
             )
-        
+
         return Response(
-            {
-                "success": False,
-                "errors": serializer.errors,
-            },
+            {"success": False, "errors": serializer.errors},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     def delete(self, request, pk):
         subject_instance = self.get_object(pk)
-        
+
         if not subject_instance:
             return Response(
-                {
-                    "success": False,
-                    "message": "Subject not found",
-                },
+                {"success": False, "message": "Subject not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        
+
         subject_instance.delete()
-        
+
         return Response(
-            {
-                "success": True,
-                "message": "Subject deleted successfully",
-            },
+            {"success": True, "message": "Subject deleted successfully"},
             status=status.HTTP_200_OK,
         )
