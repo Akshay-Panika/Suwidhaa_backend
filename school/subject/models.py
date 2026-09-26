@@ -2,7 +2,7 @@ from django.db import models
 
 
 class Subject(models.Model):
-    subject_name = models.CharField(max_length=100)
+    subject_name = models.CharField(max_length=100, unique=True)  # ✅ unique add
     school_type = models.CharField(max_length=20, blank=True, null=True)
     asign = models.JSONField(default=list, blank=True)
     check_box = models.BooleanField(default=False)
