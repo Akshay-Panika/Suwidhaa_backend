@@ -125,6 +125,10 @@ urlpatterns = [
         "api/v1/ott/",
         include("ott.webseries.urls"),
     ),
+    path(
+        "api/v1/school/",
+        include("school.report_card.urls"),
+    ),
     
     
 ]

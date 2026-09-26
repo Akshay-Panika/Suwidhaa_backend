@@ -61,7 +61,8 @@ INSTALLED_APPS = [
     "ott.sci_fi",
     "ott.banner",
     "ott.reels",
-    "ott.webseries"
+    "ott.webseries",
+    "school.report_card",
 ]
 
 MIDDLEWARE = [
