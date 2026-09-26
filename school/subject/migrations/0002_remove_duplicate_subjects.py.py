@@ -1,4 +1,4 @@
-from django.db import migrations
+from django.db import migrations, models
 
 
 def remove_duplicates(apps, schema_editor):
@@ -25,9 +25,17 @@ def reverse_func(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('subject', '0002_alter_subject_subject_name'),   # ✅ yahi fix hai
+        ('subject', '0001_initial'),
     ]
 
     operations = [
+        # ✅ PEHLE duplicates delete karo
         migrations.RunPython(remove_duplicates, reverse_func),
+
+        # ✅ PHIR unique constraint lagao
+        migrations.AlterField(
+            model_name='subject',
+            name='subject_name',
+            field=models.CharField(max_length=100, unique=True),
+        ),
     ]
