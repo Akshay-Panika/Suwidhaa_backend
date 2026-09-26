@@ -45,10 +45,10 @@ urlpatterns = [
          "api/v1/school/",
          include("school.classes.urls"),
     ),
-    path(
-         "api/v1/school/",
-         include("school.subject.urls"),
-    ),
+    # path(
+    #      "api/v1/school/",
+    #      include("school.subject.urls"),
+    # ),
     path(
          "api/v1/school/",
          include("school.schedule.urls"),
