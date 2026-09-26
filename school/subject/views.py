@@ -8,7 +8,6 @@ from .serializers import SubjectSerializer
 
 
 class SubjectCreateView(APIView):
-    # ✅ Ab JSON, form-data, aur urlencoded teeno accept karega
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def post(self, request):
