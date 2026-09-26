@@ -129,6 +129,10 @@ urlpatterns = [
         "api/v1/school/",
         include("school.report_card.urls"),
     ),
+    path(
+        "api/v1/school/",
+        include("school.meeting.urls"),
+    ),
     
     
 ]

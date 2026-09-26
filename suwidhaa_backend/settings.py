@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     "ott.reels",
     "ott.webseries",
     "school.report_card",
+    "school.meeting",
 ]
 
 MIDDLEWARE = [
