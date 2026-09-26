@@ -13,7 +13,7 @@ class ReportCardCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReportCard
         fields = [
-            'admin_id', 'admin_name', 'school_type', 'class_name',
-            'exam_name', 'subject_name', 'total_marks',
-            'student_marks', 'result', 'remark'
+            'admin_id', 'student_id', 'school_type', 'class_name',
+            'subject_name', 'exam_name', 'sujectmaks_marks',
+            'pasingmaks_marks', 'student_marks', 'result', 'description',
         ]

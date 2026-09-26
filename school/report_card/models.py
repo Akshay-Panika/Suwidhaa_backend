@@ -16,15 +16,16 @@ class ReportCard(models.Model):
     )
 
     admin_id = models.CharField(max_length=100)
-    admin_name = models.CharField(max_length=255)
+    student_id = models.CharField(max_length=100)
     school_type = models.CharField(max_length=50, choices=SCHOOL_TYPE_CHOICES)
     class_name = models.CharField(max_length=100)
-    exam_name = models.CharField(max_length=100)
     subject_name = models.CharField(max_length=100)
-    total_marks = models.IntegerField()
+    exam_name = models.CharField(max_length=100)
+    sujectmaks_marks = models.IntegerField()   # total marks
+    pasingmaks_marks = models.IntegerField()   # passing marks
     student_marks = models.IntegerField()
     result = models.CharField(max_length=10, choices=RESULT_CHOICES)
-    remark = models.BooleanField(default=False)  # checkbox
+    description = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -32,4 +33,4 @@ class ReportCard(models.Model):
         db_table = 'report_card'
 
     def __str__(self):
-        return f"{self.admin_name} - {self.subject_name} ({self.exam_name})"
+        return f"{self.admin_id} - {self.subject_name} ({self.exam_name})"
