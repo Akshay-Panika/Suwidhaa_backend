@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     "ott.webseries",
     "school.report_card",
     "school.meeting",
+    "school.notice",
 ]
 
 MIDDLEWARE = [

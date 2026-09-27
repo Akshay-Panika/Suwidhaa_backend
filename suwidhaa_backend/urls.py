@@ -133,6 +133,10 @@ urlpatterns = [
         "api/v1/school/",
         include("school.meeting.urls"),
     ),
+    path(
+        "api/v1/school/",
+        include("school.notice.urls"),
+    ),
     
     
 ]
