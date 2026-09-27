@@ -137,6 +137,10 @@ urlpatterns = [
         "api/v1/school/",
         include("school.notice.urls"),
     ),
+    path(
+        "api/v1/school/",
+        include("school.event.urls"),
+    ),
     
     
 ]

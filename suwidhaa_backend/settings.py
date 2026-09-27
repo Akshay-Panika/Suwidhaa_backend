@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "school.report_card",
     "school.meeting",
     "school.notice",
+    "school.event",
 ]
 
 MIDDLEWARE = [
