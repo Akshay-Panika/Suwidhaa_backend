@@ -59,3 +59,22 @@ class LibraryBookCreateUpdateSerializer(serializers.ModelSerializer):
         if value is not None and value < 1:
             raise serializers.ValidationError("Quantity must be at least 1.")
         return value
+
+    # ---------- NORMALIZE INPUT (before save) ----------
+    def validate_subject(self, value):
+        if value:
+            return value.strip().capitalize()
+        return value
+
+    def validate_book_class(self, value):
+        if value:
+            bc = str(value).strip()
+            if bc.lower().startswith("class "):
+                bc = bc[6:].strip()
+            return bc
+        return value
+
+    def validate_author(self, value):
+        if value:
+            return value.strip()
+        return value

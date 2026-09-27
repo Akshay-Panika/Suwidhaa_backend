@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -38,13 +39,7 @@ class LibraryCreateView(APIView):
 
 # ==================== LIST ====================
 class LibraryListView(APIView):
-    """
-    GET /api/v1/school/library/list/
-    Optional filters:
-      ?class=Class 10
-      ?subject=Maths
-      ?search=sharma
-    """
+
     def get(self, request):
         qs = LibraryBook.objects.all()
 
@@ -52,13 +47,24 @@ class LibraryListView(APIView):
         subject = request.query_params.get("subject")
         search = request.query_params.get("search")
 
+        # ---------- CLASS filter ----------
         if book_class and book_class != "All":
-            qs = qs.filter(book_class=book_class)
+            bc = book_class.strip()
+            if bc.lower().startswith("class "):
+                bc = bc[6:].strip()
+            qs = qs.filter(book_class__iexact=bc)
+
+        # ---------- SUBJECT filter ----------
         if subject and subject != "All":
-            qs = qs.filter(subject=subject)
-        if search:
-            qs = qs.filter(author__icontains=search) | qs.filter(
-                book_id__icontains=search
+            qs = qs.filter(subject__iexact=subject.strip())
+
+        # ---------- SEARCH (author / subject / class) ----------
+        if search and search.strip():
+            s = search.strip()
+            qs = qs.filter(
+                Q(author__icontains=s)
+                | Q(subject__icontains=s)
+                | Q(book_class__icontains=s)
             )
 
         serializer = LibraryBookSerializer(qs, many=True)
