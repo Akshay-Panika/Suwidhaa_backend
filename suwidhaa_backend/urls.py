@@ -145,6 +145,10 @@ urlpatterns = [
         "api/v1/school/",
         include("school.library.urls"),
     ),
+    path(
+        "api/v1/school/",
+        include("school.exams.urls"),
+    ),
     
     
 ]
