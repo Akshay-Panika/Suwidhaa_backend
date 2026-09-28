@@ -45,14 +45,15 @@ class ClassExamTimetableSerializer(serializers.ModelSerializer):
             'from_date',
             'to_date',
             'schedules',
-            'created_by_id',      # optional int
-            'created_by_name',    # optional string
+            'created_by_id',      # 👈 now a string like "St-Teacher01"
+            'created_by_name',    # string like "Akshay"
             'created_at',
             'updated_at',
         ]
         extra_kwargs = {
-            'created_by_id': {'required': False, 'allow_null': True},
-            'created_by_name': {'required': False, 'allow_blank': True},
+            # 👇 updated: string field => allow_blank + allow_null
+            'created_by_id': {'required': False, 'allow_null': True, 'allow_blank': True},
+            'created_by_name': {'required': False, 'allow_null': True, 'allow_blank': True},
         }
 
     def validate(self, attrs):

@@ -25,8 +25,14 @@ class ClassExamTimetable(models.Model):
     from_date = models.DateField()
     to_date = models.DateField()
 
-    # audit — simple fields, both optional
-    created_by_id = models.IntegerField(null=True, blank=True)
+    # audit — both optional
+    # 👇 CHANGED: now stores the teacher ID-card string (e.g. "St-Teacher01")
+    created_by_id = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        db_index=True,
+    )
     created_by_name = models.CharField(max_length=120, blank=True, default='')
 
     created_at = models.DateTimeField(auto_now_add=True)
