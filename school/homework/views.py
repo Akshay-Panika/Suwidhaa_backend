@@ -86,7 +86,6 @@ class HomeworkListView(APIView):
 # ═══════════════════════════════════════════════════════════
 # 📌 LIST BY SCHOOL TYPE + CLASS NAME
 #    GET /api/v1/school/homework/list/<school_type>/<class_name>/
-#    Example: /homework/list/School/Class%206/
 # ═══════════════════════════════════════════════════════════
 class HomeworkListSchoolWithClassView(APIView):
 
@@ -94,11 +93,9 @@ class HomeworkListSchoolWithClassView(APIView):
         try:
             qs = Homework.objects.all()
 
-            # ✅ URL path params → filter
             qs = qs.filter(school_type__iexact=school_type.strip())
             qs = qs.filter(class_name__iexact=class_name.strip())
 
-            # Optional extra filters (still available via query string)
             subject = request.GET.get("subject")
             teacher_id = request.GET.get("teacher_id")
 
@@ -126,7 +123,10 @@ class HomeworkListSchoolWithClassView(APIView):
             )
 
 
-
+# ═══════════════════════════════════════════════════════════
+# ✅ NEW: LIST HOMEWORK BY TEACHER ID
+#    GET /api/v1/school/homework/list/teacher-id/<teacher_id>/
+# ═══════════════════════════════════════════════════════════
 class HomeworkListByTeacherView(APIView):
 
     def get(self, request, teacher_id):
@@ -161,7 +161,11 @@ class HomeworkListByTeacherView(APIView):
                 {"success": False, "message": f"Server error: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        
+
+
+# ═══════════════════════════════════════════════════════════
+# 📌 GET ONE + UPDATE + DELETE HOMEWORK
+# ═══════════════════════════════════════════════════════════
 class HomeworkDetailView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
