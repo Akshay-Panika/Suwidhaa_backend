@@ -88,6 +88,25 @@ class StudentCreateView(APIView):
         return Response({"success": False, "message": "Validation failed", "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class StudentBySchoolTypeView(APIView):
+    def get(self, request, school_type):
+        students = Student.objects.filter(school_type__iexact=school_type).order_by("-id")
+        
+        if not students.exists():
+            return Response({
+                "success": False,
+                "message": f"No students found for school type '{school_type}'"
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = StudentSerializer(students, many=True)
+        return Response({
+            "success": True,
+            "school_type": school_type,
+            "count": students.count(),
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
+
 class StudentListView(APIView):
     def get(self, request):
         students = Student.objects.all().order_by("-id")
