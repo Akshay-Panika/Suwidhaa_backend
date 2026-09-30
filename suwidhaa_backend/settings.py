@@ -46,7 +46,7 @@ INSTALLED_APPS = [
     "school.teacher_leave",
     "school.student_leave",
     "school.teacher_salary",
-    "school.homework",
+    # "school.homework",
     "school.transport",
     "college.college_banner",
     "college.colleges",

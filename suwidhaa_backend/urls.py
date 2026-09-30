@@ -61,10 +61,10 @@ urlpatterns = [
         "api/v1/school/",
         include("school.teacher_pass.urls"),
     ),
-    path(
-        "api/v1/school/",
-        include("school.homework.urls"),
-    ),
+    # path(
+    #     "api/v1/school/",
+    #     include("school.homework.urls"),
+    # ),
     path(
         "api/v1/school/",
         include("school.transport.urls"),
