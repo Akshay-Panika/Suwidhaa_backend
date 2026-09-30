@@ -23,7 +23,7 @@ urlpatterns = [
     ),
 
     path(
-        'report-cards/list/<str:student_id>/',
+        'report-cards/student-list/<str:student_id>/',
         ReportCardByStudentIdView.as_view(),
         name='report-card-by-student',
     ),

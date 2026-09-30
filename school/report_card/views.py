@@ -129,7 +129,7 @@ class ReportCardDetailView(APIView):
 
 
 # ---------------------------------------------------------
-# FILTER BY STUDENT ID  ->  GET /report-cards/list/<student_id>/
+# FILTER BY STUDENT ID  ->  GET /report-cards/student-list/<student_id>/
 # ---------------------------------------------------------
 class ReportCardByStudentIdView(APIView):
     def get(self, request, student_id):
@@ -156,8 +156,7 @@ class ReportCardByStudentIdView(APIView):
                 'data': serializer.data,
             },
             status=status.HTTP_200_OK,
-        )    
-
+        )
 
 # ---------------------------------------------------------
 # FILTER BY ADMIN ID  ->  GET /report-cards/adminid/<admin_id>/
