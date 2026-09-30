@@ -129,6 +129,37 @@ class ReportCardDetailView(APIView):
 
 
 # ---------------------------------------------------------
+# FILTER BY STUDENT ID  ->  GET /report-cards/list/<student_id>/
+# ---------------------------------------------------------
+class ReportCardByStudentIdView(APIView):
+    def get(self, request, student_id):
+        report_cards = ReportCard.objects.filter(
+            student_id=student_id
+        ).order_by('-created_at')
+
+        if not report_cards.exists():
+            return Response(
+                {
+                    'status': False,
+                    'message': f'No report cards found for student_id: {student_id}',
+                    'data': [],
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = ReportCardSerializer(report_cards, many=True)
+        return Response(
+            {
+                'status': True,
+                'message': f'Report cards fetched for student_id: {student_id}',
+                'count': report_cards.count(),
+                'data': serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )    
+
+
+# ---------------------------------------------------------
 # FILTER BY ADMIN ID  ->  GET /report-cards/adminid/<admin_id>/
 # ---------------------------------------------------------
 class ReportCardByAdminIdView(APIView):

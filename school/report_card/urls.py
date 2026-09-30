@@ -4,6 +4,7 @@ from .views import (
     ReportCardListView,
     ReportCardDetailView,
     ReportCardByAdminIdView,
+    ReportCardByStudentIdView,
 )
 
 urlpatterns = [
@@ -19,6 +20,12 @@ urlpatterns = [
         'report-cards/list/',
         ReportCardListView.as_view(),
         name='report-card-list',
+    ),
+
+    path(
+        'report-cards/list/<str:student_id>/',
+        ReportCardByStudentIdView.as_view(),
+        name='report-card-by-student',
     ),
 
     # Detail by id (GET / PUT / PATCH / DELETE)
