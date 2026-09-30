@@ -3,7 +3,7 @@ from .views import (
     HomeworkCreateView,
     HomeworkListView,
     HomeworkListSchoolWithClassView,
-    HomeworkListByTeacherView,          # ✅ NEW
+    HomeworkListByTeacherView,
     HomeworkDetailView,
 )
 
@@ -22,18 +22,20 @@ urlpatterns = [
         name="homework_list",
     ),
 
+    # ✅ SPECIFIC: teacher-id pattern MUST be before generic <str:> pattern
+    # GET /api/v1/school/homework/list/teacher-id/<teacher_id>/
+    path(
+        "homework/list/teacher-id/<str:teacher_id>/",
+        HomeworkListByTeacherView.as_view(),
+        name="homework_list_by_teacher",
+    ),
+
+    # ✅ GENERIC: school_type + class_name
     # GET /api/v1/school/homework/list/<school_type>/<class_name>/
     path(
         "homework/list/<str:school_type>/<str:class_name>/",
         HomeworkListSchoolWithClassView.as_view(),
         name="homework_list_by_type_class",
-    ),
-
-    # ✅ NEW: GET /api/v1/school/homework/list/teacher-id/<teacher_id>/
-    path(
-        "homework/list/teacher-id/<str:teacher_id>/",
-        HomeworkListByTeacherView.as_view(),
-        name="homework_list_by_teacher",
     ),
 
     # GET / PUT / PATCH / DELETE /api/v1/school/homework/<id>/
