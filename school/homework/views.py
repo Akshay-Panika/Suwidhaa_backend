@@ -3,11 +3,28 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 import logging
+import json
 
 from .models import Homework, HomeworkStudent
 from .serializers import HomeworkSerializer, HomeworkStudentSerializer
 
 logger = logging.getLogger(__name__)
+
+
+# ⬇️ HELPER FUNCTION — form-data ke 'students' JSON string ko parse karta hai
+def _parse_students(data):
+    """
+    form-data mein 'students' ek JSON string ke roop mein aata hai.
+    Usko Python list of dicts mein convert karta hai.
+    Agar already list hai (JSON request se), toh waise hi return karta hai.
+    """
+    students = data.get('students')
+    if isinstance(students, str):
+        try:
+            data['students'] = json.loads(students)
+        except json.JSONDecodeError:
+            raise ValueError("Invalid JSON format for 'students' field.")
+    return data
 
 
 class HomeworkCreateView(APIView):
@@ -17,18 +34,28 @@ class HomeworkCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request):
+        # ✅ FIX: Parse students JSON string (form-data ke liye)
+        data = request.data.copy()
+        try:
+            data = _parse_students(data)
+        except ValueError as e:
+            return Response({
+                "success": False,
+                "message": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         required_fields = [
             'subject_name', 'subject_topic', 'issue_date', 'end_date',
             'class_name', 'teacher_name', 'teacher_id', 'school_type'
         ]
-        missing = [f for f in required_fields if not request.data.get(f)]
+        missing = [f for f in required_fields if not data.get(f)]
         if missing:
             return Response({
                 "success": False,
                 "message": f"Required fields missing: {', '.join(missing)}"
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = HomeworkSerializer(data=request.data)
+        serializer = HomeworkSerializer(data=data)
         if serializer.is_valid():
             try:
                 homework = serializer.save()
@@ -54,8 +81,6 @@ class HomeworkCreateView(APIView):
 class HomeworkListView(APIView):
     """
     GET: List all homework (each with nested students + status)
-    Filters: ?class_name=11th&school_type=A&teacher_id=St-Teacher01
-             ?student_id=STU001&student_status=true
     """
     def get(self, request):
         queryset = Homework.objects.all().prefetch_related('students')
@@ -65,7 +90,7 @@ class HomeworkListView(APIView):
         teacher_id     = request.query_params.get('teacher_id')
         student_id     = request.query_params.get('student_id')
         student_class  = request.query_params.get('student_class')
-        student_status = request.query_params.get('student_status')  # "true"/"false"
+        student_status = request.query_params.get('student_status')
 
         if class_name:
             queryset = queryset.filter(class_name__iexact=class_name)
@@ -102,7 +127,6 @@ class HomeworkListView(APIView):
 class HomeworkByTeacherView(APIView):
     """
     GET: List homework for a specific teacher_id
-    URL: /homework/list/<teacher_id>/
     """
     def get(self, request, teacher_id):
         homework = Homework.objects.filter(
@@ -145,16 +169,24 @@ class HomeworkDetailView(APIView):
             return Response({"success": False, "message": "Homework not found"},
                             status=status.HTTP_404_NOT_FOUND)
 
+        # ✅ FIX: Parse students JSON string
+        data = request.data.copy()
+        try:
+            data = _parse_students(data)
+        except ValueError as e:
+            return Response({"success": False, "message": str(e)},
+                            status=status.HTTP_400_BAD_REQUEST)
+
         required = ['subject_name', 'subject_topic', 'issue_date', 'end_date',
                     'class_name', 'teacher_name', 'teacher_id', 'school_type']
-        missing = [f for f in required if not request.data.get(f)]
+        missing = [f for f in required if not data.get(f)]
         if missing:
             return Response({
                 "success": False,
                 "message": f"Required fields missing: {', '.join(missing)}"
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = HomeworkSerializer(hw, data=request.data)
+        serializer = HomeworkSerializer(hw, data=data)
         if serializer.is_valid():
             try:
                 hw = serializer.save()
@@ -178,7 +210,16 @@ class HomeworkDetailView(APIView):
             return Response({"success": False, "message": "Homework not found"},
                             status=status.HTTP_404_NOT_FOUND)
 
-        serializer = HomeworkSerializer(hw, data=request.data, partial=True)
+        # ✅ FIX: Parse students JSON string (agar bheja gaya ho)
+        data = request.data.copy()
+        if 'students' in data:
+            try:
+                data = _parse_students(data)
+            except ValueError as e:
+                return Response({"success": False, "message": str(e)},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = HomeworkSerializer(hw, data=data, partial=True)
         if serializer.is_valid():
             try:
                 hw = serializer.save()
@@ -212,7 +253,7 @@ class HomeworkDetailView(APIView):
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# ⬇️⬇️ NEW — TOGGLE endpoint (per student)
+# ⬇️ TOGGLE endpoint (per student)
 class HomeworkStudentToggleView(APIView):
     """
     PATCH: Toggle a single student's status (true <-> false)
@@ -229,7 +270,6 @@ class HomeworkStudentToggleView(APIView):
                 "message": "Student record not found for this homework"
             }, status=status.HTTP_404_NOT_FOUND)
 
-        # Flip the status
         student.status = not student.status
         student.save()
 
