@@ -10,7 +10,7 @@ class HomeworkStudentSerializer(serializers.ModelSerializer):
             'student_id',
             'student_name',
             'student_class',
-            'status',          # ⬅️ true / false
+            'status',
         ]
         read_only_fields = ['id']
 
@@ -18,8 +18,16 @@ class HomeworkStudentSerializer(serializers.ModelSerializer):
 class HomeworkSerializer(serializers.ModelSerializer):
     image = serializers.FileField(required=False, allow_null=True)
 
-    # ⬇️ REQUIRED students list — at least one student must be present
-    students = HomeworkStudentSerializer(many=True, required=True, allow_empty=False)
+    # ✅ FIX: students ab OPTIONAL hai
+    # required=False → bhejna zaroori nahi
+    # allow_empty=True → khaali list [] bhi chalegi
+    # allow_null=True → null bhi chalega
+    students = HomeworkStudentSerializer(
+        many=True,
+        required=False,
+        allow_empty=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = Homework
@@ -54,7 +62,8 @@ class HomeworkSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        students_data = validated_data.pop('students', [])
+        # ✅ FIX: students None ho sakta hai, isliye safely handle karo
+        students_data = validated_data.pop('students', None) or []
         homework = Homework.objects.create(**validated_data)
         for s in students_data:
             HomeworkStudent.objects.create(homework=homework, **s)
@@ -67,8 +76,8 @@ class HomeworkSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
 
+        # ✅ FIX: students None ho sakta hai
         if students_data is not None:
-            # Replace entire student list
             instance.students.all().delete()
             for s in students_data:
                 HomeworkStudent.objects.create(homework=instance, **s)

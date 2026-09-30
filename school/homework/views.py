@@ -11,21 +11,25 @@ from .serializers import HomeworkSerializer, HomeworkStudentSerializer
 logger = logging.getLogger(__name__)
 
 
-# ⬇️ HELPER FUNCTION — form-data ke 'students' JSON string ko parse karta hai
 def _parse_students(data):
-    """
-    form-data mein 'students' ek JSON string ke roop mein aata hai.
-    Usko Python list of dicts mein convert karta hai.
-    Agar already list hai (JSON request se), toh waise hi return karta hai.
-    """
+ 
     students = data.get('students')
+    
+    # ✅ FIX: agar students field hai hi nahi, toh kuch mat karo
+    if students is None:
+        return data
+    
+    # ✅ FIX: agar string hai toh JSON parse karo
     if isinstance(students, str):
+        # Khaali string ho toh skip karo
+        if students.strip() == "":
+            return data
         try:
             data['students'] = json.loads(students)
         except json.JSONDecodeError:
             raise ValueError("Invalid JSON format for 'students' field.")
+    
     return data
-
 
 class HomeworkCreateView(APIView):
     """
