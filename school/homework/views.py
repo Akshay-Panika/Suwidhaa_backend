@@ -17,28 +17,27 @@ class HomeworkCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request):
-        # Check required fields
         required_fields = [
-            'subject_name', 
-            'subject_topic', 
-            'issue_date', 
+            'subject_name',
+            'subject_topic',
+            'issue_date',
             'end_date',
             'class_name',
             'teacher_name',
             'teacher_id',
             'school_type'
         ]
-        
+
         missing_fields = [field for field in required_fields if not request.data.get(field)]
-        
+
         if missing_fields:
             return Response({
                 "success": False,
                 "message": f"Required fields missing: {', '.join(missing_fields)}"
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         serializer = HomeworkSerializer(data=request.data)
-        
+
         if serializer.is_valid():
             try:
                 homework = serializer.save()
@@ -53,7 +52,7 @@ class HomeworkCreateView(APIView):
                     "success": False,
                     "message": f"Failed to create homework: {str(e)}"
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+
         return Response({
             "success": False,
             "message": "Validation failed",
@@ -70,6 +69,27 @@ class HomeworkListView(APIView):
         serializer = HomeworkSerializer(homework, many=True)
         return Response({
             "success": True,
+            "count": homework.count(),
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
+
+# ⬇️ NEW VIEW — Filter homework by teacher_id (path parameter)
+class HomeworkByTeacherView(APIView):
+    """
+    GET: List all homework for a specific teacher_id
+    URL: /homework/list/<teacher_id>/
+    """
+    def get(self, request, teacher_id):
+        homework = Homework.objects.filter(
+            teacher_id=teacher_id
+        ).order_by("-id")
+
+        serializer = HomeworkSerializer(homework, many=True)
+
+        return Response({
+            "success": True,
+            "teacher_id": teacher_id,
             "count": homework.count(),
             "data": serializer.data
         }, status=status.HTTP_200_OK)
@@ -97,7 +117,7 @@ class HomeworkDetailView(APIView):
                 "success": False,
                 "message": "Homework not found"
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
         return Response({
             "success": True,
             "data": HomeworkSerializer(homework).data
@@ -111,20 +131,19 @@ class HomeworkDetailView(APIView):
                 "message": "Homework not found"
             }, status=status.HTTP_404_NOT_FOUND)
 
-        # Check required fields for full update
         required_fields = [
-            'subject_name', 
-            'subject_topic', 
-            'issue_date', 
+            'subject_name',
+            'subject_topic',
+            'issue_date',
             'end_date',
             'class_name',
             'teacher_name',
             'teacher_id',
             'school_type'
         ]
-        
+
         missing_fields = [field for field in required_fields if not request.data.get(field)]
-        
+
         if missing_fields:
             return Response({
                 "success": False,
@@ -146,7 +165,7 @@ class HomeworkDetailView(APIView):
                     "success": False,
                     "message": f"Failed to update homework: {str(e)}"
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+
         return Response({
             "success": False,
             "errors": serializer.errors
@@ -175,7 +194,7 @@ class HomeworkDetailView(APIView):
                     "success": False,
                     "message": f"Failed to update homework: {str(e)}"
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+
         return Response({
             "success": False,
             "errors": serializer.errors
@@ -188,7 +207,7 @@ class HomeworkDetailView(APIView):
                 "success": False,
                 "message": "Homework not found"
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
         try:
             homework.delete()
             return Response({
