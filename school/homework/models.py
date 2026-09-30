@@ -5,7 +5,11 @@ from cloudinary.models import CloudinaryField
 class Homework(models.Model):
     """
     Homework assigned by teacher to students.
-    Stores student IDs as a JSON list directly.
+    Stores student list as JSON:
+      [
+        {"studentIdcard": "STU001", "status": false},
+        {"studentIdcard": "STU002", "status": true},
+      ]
     """
     school_type = models.CharField(max_length=100, blank=True, null=True)
     class_name = models.CharField(max_length=50, blank=True, null=True)
@@ -15,7 +19,7 @@ class Homework(models.Model):
     issue_date = models.CharField(max_length=50, blank=True, null=True)
     end_date = models.CharField(max_length=50, blank=True, null=True)
 
-    # ✅ Store student IDs as JSON list, e.g. ["1", "2", "3"]
+    # ✅ JSON list of {studentIdcard, status}
     student_ids_list = models.JSONField(default=list, blank=True)
 
     # ✅ Cloudinary image field with folder
@@ -26,7 +30,6 @@ class Homework(models.Model):
         null=True,
     )
 
-    # Teacher who assigned (optional)
     teacher_id = models.CharField(max_length=50, blank=True, null=True)
     teacher_name = models.CharField(max_length=200, blank=True, null=True)
 
