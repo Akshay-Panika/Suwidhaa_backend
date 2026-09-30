@@ -4,40 +4,31 @@ from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 import logging
 
-from .models import Homework
-from .serializers import HomeworkSerializer
+from .models import Homework, HomeworkStudent
+from .serializers import HomeworkSerializer, HomeworkStudentSerializer
 
 logger = logging.getLogger(__name__)
 
 
 class HomeworkCreateView(APIView):
     """
-    POST: Create new homework
+    POST: Create new homework (with required students list)
     """
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request):
         required_fields = [
-            'subject_name',
-            'subject_topic',
-            'issue_date',
-            'end_date',
-            'class_name',
-            'teacher_name',
-            'teacher_id',
-            'school_type'
+            'subject_name', 'subject_topic', 'issue_date', 'end_date',
+            'class_name', 'teacher_name', 'teacher_id', 'school_type'
         ]
-
-        missing_fields = [field for field in required_fields if not request.data.get(field)]
-
-        if missing_fields:
+        missing = [f for f in required_fields if not request.data.get(f)]
+        if missing:
             return Response({
                 "success": False,
-                "message": f"Required fields missing: {', '.join(missing_fields)}"
+                "message": f"Required fields missing: {', '.join(missing)}"
             }, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = HomeworkSerializer(data=request.data)
-
         if serializer.is_valid():
             try:
                 homework = serializer.save()
@@ -60,23 +51,21 @@ class HomeworkCreateView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 
-# ⬇️ UPDATED — supports ?class_name=11th&school_type=A&teacher_id=St-Teacher01
 class HomeworkListView(APIView):
     """
-    GET: List all homework
-    Optional query params:
-      - class_name   : filter by class (e.g. 11th, 12th)
-      - school_type  : filter by school type (e.g. A, B)
-      - teacher_id   : filter by teacher (e.g. St-Teacher01)
-    URL: /homework/list/?class_name=11th&school_type=A
+    GET: List all homework (each with nested students + status)
+    Filters: ?class_name=11th&school_type=A&teacher_id=St-Teacher01
+             ?student_id=STU001&student_status=true
     """
     def get(self, request):
-        queryset = Homework.objects.all()
+        queryset = Homework.objects.all().prefetch_related('students')
 
-        # Read optional filters from query string
-        class_name = request.query_params.get('class_name')
-        school_type = request.query_params.get('school_type')
-        teacher_id = request.query_params.get('teacher_id')
+        class_name     = request.query_params.get('class_name')
+        school_type    = request.query_params.get('school_type')
+        teacher_id     = request.query_params.get('teacher_id')
+        student_id     = request.query_params.get('student_id')
+        student_class  = request.query_params.get('student_class')
+        student_status = request.query_params.get('student_status')  # "true"/"false"
 
         if class_name:
             queryset = queryset.filter(class_name__iexact=class_name)
@@ -84,6 +73,13 @@ class HomeworkListView(APIView):
             queryset = queryset.filter(school_type__iexact=school_type)
         if teacher_id:
             queryset = queryset.filter(teacher_id__iexact=teacher_id)
+        if student_id:
+            queryset = queryset.filter(students__student_id__iexact=student_id).distinct()
+        if student_class:
+            queryset = queryset.filter(students__student_class__iexact=student_class).distinct()
+        if student_status is not None:
+            is_true = student_status.lower() in ('true', '1', 'yes')
+            queryset = queryset.filter(students__status=is_true).distinct()
 
         queryset = queryset.order_by("-id")
         serializer = HomeworkSerializer(queryset, many=True)
@@ -95,21 +91,23 @@ class HomeworkListView(APIView):
                 "class_name": class_name,
                 "school_type": school_type,
                 "teacher_id": teacher_id,
+                "student_id": student_id,
+                "student_class": student_class,
+                "student_status": student_status,
             },
             "data": serializer.data
         }, status=status.HTTP_200_OK)
 
 
-# Teacher-only endpoint (path param) — kept as you already have it
 class HomeworkByTeacherView(APIView):
     """
-    GET: List all homework for a specific teacher_id
+    GET: List homework for a specific teacher_id
     URL: /homework/list/<teacher_id>/
     """
     def get(self, request, teacher_id):
         homework = Homework.objects.filter(
             teacher_id__iexact=teacher_id
-        ).order_by("-id")
+        ).prefetch_related('students').order_by("-id")
 
         serializer = HomeworkSerializer(homework, many=True)
 
@@ -123,118 +121,120 @@ class HomeworkByTeacherView(APIView):
 
 class HomeworkDetailView(APIView):
     """
-    GET: Retrieve specific homework
-    PUT: Update specific homework (full update)
-    PATCH: Partial update specific homework
-    DELETE: Delete specific homework
+    GET / PUT / PATCH / DELETE
     """
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_object(self, pk):
         try:
-            return Homework.objects.get(pk=pk)
+            return Homework.objects.prefetch_related('students').get(pk=pk)
         except Homework.DoesNotExist:
             return None
 
     def get(self, request, pk):
-        homework = self.get_object(pk)
-        if not homework:
+        hw = self.get_object(pk)
+        if not hw:
+            return Response({"success": False, "message": "Homework not found"},
+                            status=status.HTTP_404_NOT_FOUND)
+        return Response({"success": True, "data": HomeworkSerializer(hw).data},
+                        status=status.HTTP_200_OK)
+
+    def put(self, request, pk):
+        hw = self.get_object(pk)
+        if not hw:
+            return Response({"success": False, "message": "Homework not found"},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        required = ['subject_name', 'subject_topic', 'issue_date', 'end_date',
+                    'class_name', 'teacher_name', 'teacher_id', 'school_type']
+        missing = [f for f in required if not request.data.get(f)]
+        if missing:
             return Response({
                 "success": False,
-                "message": "Homework not found"
+                "message": f"Required fields missing: {', '.join(missing)}"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = HomeworkSerializer(hw, data=request.data)
+        if serializer.is_valid():
+            try:
+                hw = serializer.save()
+                return Response({
+                    "success": True,
+                    "message": "Homework updated successfully",
+                    "data": HomeworkSerializer(hw).data
+                }, status=status.HTTP_200_OK)
+            except Exception as e:
+                logger.error(f"Failed to update homework: {str(e)}")
+                return Response({"success": False,
+                                 "message": f"Failed to update homework: {str(e)}"},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({"success": False, "errors": serializer.errors},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk):
+        hw = self.get_object(pk)
+        if not hw:
+            return Response({"success": False, "message": "Homework not found"},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        serializer = HomeworkSerializer(hw, data=request.data, partial=True)
+        if serializer.is_valid():
+            try:
+                hw = serializer.save()
+                return Response({
+                    "success": True,
+                    "message": "Homework updated successfully",
+                    "data": HomeworkSerializer(hw).data
+                }, status=status.HTTP_200_OK)
+            except Exception as e:
+                logger.error(f"Failed to update homework: {str(e)}")
+                return Response({"success": False,
+                                 "message": f"Failed to update homework: {str(e)}"},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({"success": False, "errors": serializer.errors},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        hw = self.get_object(pk)
+        if not hw:
+            return Response({"success": False, "message": "Homework not found"},
+                            status=status.HTTP_404_NOT_FOUND)
+        try:
+            hw.delete()
+            return Response({"success": True, "message": "Homework deleted successfully"},
+                            status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Failed to delete homework: {str(e)}")
+            return Response({"success": False,
+                             "message": f"Failed to delete homework: {str(e)}"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ⬇️⬇️ NEW — TOGGLE endpoint (per student)
+class HomeworkStudentToggleView(APIView):
+    """
+    PATCH: Toggle a single student's status (true <-> false)
+    URL: /homework/<homework_id>/students/<student_pk>/toggle/
+    """
+    def patch(self, request, homework_id, student_pk):
+        try:
+            student = HomeworkStudent.objects.get(
+                pk=student_pk, homework_id=homework_id
+            )
+        except HomeworkStudent.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Student record not found for this homework"
             }, status=status.HTTP_404_NOT_FOUND)
+
+        # Flip the status
+        student.status = not student.status
+        student.save()
 
         return Response({
             "success": True,
-            "data": HomeworkSerializer(homework).data
+            "message": f"Status toggled to {student.status}",
+            "data": HomeworkStudentSerializer(student).data
         }, status=status.HTTP_200_OK)
-
-    def put(self, request, pk):
-        homework = self.get_object(pk)
-        if not homework:
-            return Response({
-                "success": False,
-                "message": "Homework not found"
-            }, status=status.HTTP_404_NOT_FOUND)
-
-        required_fields = [
-            'subject_name', 'subject_topic', 'issue_date', 'end_date',
-            'class_name', 'teacher_name', 'teacher_id', 'school_type'
-        ]
-        missing_fields = [f for f in required_fields if not request.data.get(f)]
-        if missing_fields:
-            return Response({
-                "success": False,
-                "message": f"Required fields missing: {', '.join(missing_fields)}"
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        serializer = HomeworkSerializer(homework, data=request.data)
-        if serializer.is_valid():
-            try:
-                homework = serializer.save()
-                return Response({
-                    "success": True,
-                    "message": "Homework updated successfully",
-                    "data": HomeworkSerializer(homework).data
-                }, status=status.HTTP_200_OK)
-            except Exception as e:
-                logger.error(f"Failed to update homework: {str(e)}")
-                return Response({
-                    "success": False,
-                    "message": f"Failed to update homework: {str(e)}"
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        return Response({
-            "success": False,
-            "errors": serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    def patch(self, request, pk):
-        homework = self.get_object(pk)
-        if not homework:
-            return Response({
-                "success": False,
-                "message": "Homework not found"
-            }, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = HomeworkSerializer(homework, data=request.data, partial=True)
-        if serializer.is_valid():
-            try:
-                homework = serializer.save()
-                return Response({
-                    "success": True,
-                    "message": "Homework updated successfully",
-                    "data": HomeworkSerializer(homework).data
-                }, status=status.HTTP_200_OK)
-            except Exception as e:
-                logger.error(f"Failed to update homework: {str(e)}")
-                return Response({
-                    "success": False,
-                    "message": f"Failed to update homework: {str(e)}"
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        return Response({
-            "success": False,
-            "errors": serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-        homework = self.get_object(pk)
-        if not homework:
-            return Response({
-                "success": False,
-                "message": "Homework not found"
-            }, status=status.HTTP_404_NOT_FOUND)
-
-        try:
-            homework.delete()
-            return Response({
-                "success": True,
-                "message": "Homework deleted successfully"
-            }, status=status.HTTP_200_OK)
-        except Exception as e:
-            logger.error(f"Failed to delete homework: {str(e)}")
-            return Response({
-                "success": False,
-                "message": f"Failed to delete homework: {str(e)}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
