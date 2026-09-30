@@ -126,13 +126,42 @@ class HomeworkListSchoolWithClassView(APIView):
             )
 
 
-# ═══════════════════════════════════════════════════════════
-# 📌 GET ONE + UPDATE + DELETE HOMEWORK
-#    GET    /api/v1/school/homework/<id>/
-#    PUT    /api/v1/school/homework/<id>/
-#    PATCH  /api/v1/school/homework/<id>/
-#    DELETE /api/v1/school/homework/<id>/
-# ═══════════════════════════════════════════════════════════
+
+class HomeworkListByTeacherView(APIView):
+
+    def get(self, request, teacher_id):
+        try:
+            qs = Homework.objects.filter(teacher_id=teacher_id.strip())
+
+            # Optional extra filters via query string
+            school_type = request.GET.get("school_type")
+            class_name = request.GET.get("class_name")
+            subject = request.GET.get("subject")
+
+            if school_type:
+                qs = qs.filter(school_type__iexact=school_type.strip())
+            if class_name:
+                qs = qs.filter(class_name__iexact=class_name.strip())
+            if subject:
+                qs = qs.filter(subject__iexact=subject.strip())
+
+            serializer = HomeworkSerializer(qs, many=True)
+            return Response(
+                {
+                    "success": True,
+                    "message": "Homework list fetched successfully",
+                    "teacher_id": teacher_id,
+                    "count": len(serializer.data),
+                    "data": serializer.data,
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                {"success": False, "message": f"Server error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        
 class HomeworkDetailView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 

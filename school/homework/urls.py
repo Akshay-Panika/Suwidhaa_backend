@@ -3,6 +3,7 @@ from .views import (
     HomeworkCreateView,
     HomeworkListView,
     HomeworkListSchoolWithClassView,
+    HomeworkListByTeacherView,          # ✅ NEW
     HomeworkDetailView,
 )
 
@@ -26,6 +27,13 @@ urlpatterns = [
         "homework/list/<str:school_type>/<str:class_name>/",
         HomeworkListSchoolWithClassView.as_view(),
         name="homework_list_by_type_class",
+    ),
+
+    # ✅ NEW: GET /api/v1/school/homework/list/teacher-id/<teacher_id>/
+    path(
+        "homework/list/teacher-id/<str:teacher_id>/",
+        HomeworkListByTeacherView.as_view(),
+        name="homework_list_by_teacher",
     ),
 
     # GET / PUT / PATCH / DELETE /api/v1/school/homework/<id>/
