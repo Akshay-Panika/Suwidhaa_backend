@@ -4,7 +4,7 @@ from .views import (
     HomeworkListView,
     HomeworkByTeacherView,
     HomeworkDetailView,
-    HomeworkStudentToggleView,   # ⬅️ NEW
+    HomeworkStudentToggleView,  
 )
 
 urlpatterns = [
