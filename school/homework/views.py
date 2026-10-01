@@ -162,6 +162,79 @@ class HomeworkListByTeacherView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+# ═══════════════════════════════════════════════════════════
+# 📌 TOGGLE / SET STUDENT STATUS IN HOMEWORK
+# ═══════════════════════════════════════════════════════════
+class HomeworkToggleStudentStatusView(APIView):
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
+
+    def post(self, request, pk, student_idcard):
+        try:
+            try:
+                hw = Homework.objects.get(pk=pk)
+            except Homework.DoesNotExist:
+                return Response(
+                    {"success": False, "message": "Homework not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            if not isinstance(hw.student_ids_list, list):
+                hw.student_ids_list = []
+
+            body = request.data or {}
+            explicit = "status" in body
+            found = False
+            new_status = None
+
+            for entry in hw.student_ids_list:
+                if not isinstance(entry, dict):
+                    continue
+
+                card = (
+                    entry.get("studentIdcard")
+                    or entry.get("student_id_card")
+                    or entry.get("studentId")
+                    or ""
+                )
+
+                if str(card).strip() == str(student_idcard).strip():
+                    current = bool(entry.get("status", False))
+                    new_status = bool(body["status"]) if explicit else not current
+                    entry["status"] = new_status
+                    entry["studentIdcard"] = str(card).strip()
+                    found = True
+                    break
+
+            if not found:
+                return Response(
+                    {
+                        "success": False,
+                        "message": f"Student {student_idcard} not assigned to this homework",
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            hw.student_ids_list = hw.student_ids_list
+            hw.save(update_fields=["student_ids_list", "updated_at"])
+
+            return Response(
+                {
+                    "success": True,
+                    "message": "Status updated",
+                    "data": {
+                        "homework_id": hw.id,
+                        "studentIdcard": student_idcard,
+                        "status": new_status,
+                    },
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response(
+                {"success": False, "message": f"Server error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 # ═══════════════════════════════════════════════════════════
 # 📌 GET ONE + UPDATE + DELETE HOMEWORK

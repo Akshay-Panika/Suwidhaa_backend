@@ -5,6 +5,7 @@ from .views import (
     HomeworkListSchoolWithClassView,
     HomeworkListByTeacherView,
     HomeworkDetailView,
+     HomeworkToggleStudentStatusView,  
 )
 
 urlpatterns = [
@@ -20,6 +21,12 @@ urlpatterns = [
         "homework/list/",
         HomeworkListView.as_view(),
         name="homework_list",
+    ),
+
+    path(
+        "homework/<int:pk>/toggle-status/<str:student_idcard>/",
+        HomeworkToggleStudentStatusView.as_view(),
+        name="homework_toggle_student_status",
     ),
 
     # ✅ SPECIFIC: teacher-id pattern MUST be before generic <str:> pattern
