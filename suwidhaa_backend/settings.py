@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     "school.exams",
     "ngo.banner",
     "ngo.category",
+    "ngo.service",
 ]
 
 MIDDLEWARE = [
