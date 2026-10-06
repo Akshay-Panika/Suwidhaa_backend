@@ -149,6 +149,10 @@ urlpatterns = [
         "api/v1/school/",
         include("school.exams.urls"),
     ),
+    path(
+        "api/v1/ngo/",
+        include("ngo.banner.urls"),
+    ),
     
     
 ]

@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "school.event",
     "school.library",
     "school.exams",
+    "ngo.banner",
 ]
 
 MIDDLEWARE = [
