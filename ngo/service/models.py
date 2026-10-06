@@ -1,9 +1,16 @@
 from django.db import models
 from django.db.models.functions import Lower
 from cloudinary.models import CloudinaryField
-
+from ngo.category.models import NgoCategory 
 
 class NgoService(models.Model):
+    category = models.ForeignKey(
+        NgoCategory,
+        on_delete=models.CASCADE,  
+        related_name="services",  
+         null=True,      
+        blank=True,   
+    )
     name = models.CharField(max_length=255)
     image = CloudinaryField(
         "image",

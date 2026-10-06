@@ -1,11 +1,17 @@
 from rest_framework import serializers
 from .models import NgoService
+from ngo.category.models import NgoCategory
 
 
 class NgoServiceSerializer(serializers.ModelSerializer):
     image = serializers.FileField(
         required=True,
         allow_null=False,
+    )
+
+    category = serializers.PrimaryKeyRelatedField(
+        queryset=NgoCategory.objects.all(),
+        required=True,
     )
 
     class Meta:
