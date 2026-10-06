@@ -3,7 +3,10 @@ from cloudinary.models import CloudinaryField
 
 
 class NgoCategory(models.Model):
-    name = models.CharField(max_length=255)
+    name = models.CharField(
+        max_length=255,
+        unique=True,   # 👈 DB-level duplicate prevention
+    )
     image = CloudinaryField(
         "image",
         folder="suwidhaa/ngo/category",
