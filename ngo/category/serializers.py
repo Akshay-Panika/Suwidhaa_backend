@@ -18,7 +18,6 @@ class NgoCategorySerializer(serializers.ModelSerializer):
         if not value:
             raise serializers.ValidationError("Category name cannot be empty.")
 
-        # Exclude current instance (during update) from duplicate check
         qs = NgoCategory.objects.filter(name__iexact=value)
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
