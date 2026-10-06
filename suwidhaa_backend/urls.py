@@ -153,6 +153,10 @@ urlpatterns = [
         "api/v1/ngo/",
         include("ngo.banner.urls"),
     ),
+    path(
+        "api/v1/ngo/",
+        include("ngo.category.urls"),  
+    ),
     
     
 ]
