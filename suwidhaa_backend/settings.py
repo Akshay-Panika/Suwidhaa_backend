@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     "ngo.staff",
     "ngo.history",
     "it_service.banner",
+    "it_service.category",
 ]
 
 MIDDLEWARE = [

@@ -175,6 +175,9 @@ urlpatterns = [
         "api/v1/it_service/",
         include("it_service.banner.urls"),
         ),  
-    
+    path(
+        "api/v1/it_service/",
+        include("it_service.category.urls"),
+        ),
     
 ]
