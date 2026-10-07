@@ -172,7 +172,7 @@ urlpatterns = [
         include("ngo.history.urls"),
     ),    
     path(
-        "api/v1/it_service/",
+        "api/v1/it-service/",
         include("it_service.banner.urls"),
         ),  
     
