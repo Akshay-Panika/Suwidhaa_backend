@@ -161,6 +161,11 @@ urlpatterns = [
         "api/v1/ngo/",
         include("ngo.service.urls"),   
         ),
+
+    path(
+        "api/v1/ngo/",
+        include("ngo.staff.urls"),
+        ),    
     
     
 ]
