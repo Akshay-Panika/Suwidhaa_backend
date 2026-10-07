@@ -36,7 +36,6 @@ class NgoHistorySerializer(serializers.ModelSerializer):
             "donor_name",
             "donor_contact",
             "donate_amount",
-            "note",
             "created_at",
             "updated_at",
         ]

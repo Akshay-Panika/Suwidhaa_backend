@@ -12,7 +12,7 @@ class NgoHistory(models.Model):
         related_name="history",
     )
 
-    # 👤 Donor ID (simple integer — no FK needed, works with external user IDs)
+    # 👤 Donor ID
     donor_id = models.IntegerField(
         null=True,
         blank=True,
@@ -34,9 +34,6 @@ class NgoHistory(models.Model):
     # 👤 Donor info
     donor_name = models.CharField(max_length=255, blank=True, null=True)
     donor_contact = models.CharField(max_length=15, blank=True, null=True)
-
-    # 📝 Notes
-    note = models.TextField(blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
