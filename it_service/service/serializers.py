@@ -9,15 +9,28 @@ class ItServiceServiceSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
-    category_name = serializers.CharField(
-        source="category.name",
-        read_only=True,
-    )
 
     class Meta:
         model = ItServiceService
-        fields = "__all__"
+        # ✅ Explicitly list fields — exclude `category` and `category_name`
+        fields = (
+            "id",
+            "image",
+            "title",
+            "description",
+            "price",
+            "old_price",
+            "tech_stack",
+            "created_at",
+            "updated_at",
+            "category",           # keep this so POST can still assign category
+        )
         read_only_fields = ("id", "created_at", "updated_at")
+        extra_kwargs = {
+            # ✅ Make `category` write-only → accepted on POST/PUT/PATCH,
+            # but NOT shown in GET response
+            "category": {"write_only": True},
+        }
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -29,7 +42,7 @@ class ItServiceServiceSerializer(serializers.ModelSerializer):
             else None
         )
 
-        # Nested category object
+        # ✅ Nested category — replaces both `category` & `category_name`
         data["category_detail"] = (
             ItServiceCategorySerializer(instance.category).data
             if instance.category
