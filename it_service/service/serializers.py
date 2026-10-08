@@ -22,14 +22,12 @@ class ItServiceServiceSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
 
-        # Full Cloudinary URL
+        # ✅ Only `image` — full Cloudinary URL
         data["image"] = (
             instance.image.url
             if instance.image
             else None
         )
-        # Flutter alias
-        data["imageUrl"] = data["image"]
 
         # Nested category object
         data["category_detail"] = (
