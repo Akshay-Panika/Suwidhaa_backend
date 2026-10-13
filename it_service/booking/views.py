@@ -9,35 +9,51 @@ from .serializers import BookingSerializer, BookingCreateSerializer
 class BookingCreateView(APIView):
     """
     POST /booking/create/
-    Body: { user_id, service, full_name, email, phone, budget, timeline, message }
+    Body: { user_id, service, full_name }
     """
 
     def post(self, request):
         serializer = BookingCreateSerializer(data=request.data)
 
-        if serializer.is_valid():
-            booking = serializer.save()
-
-            # 🔒 Prevent duplicate active bookings by same user for same service
-            # (Optional — remove if you allow multiple)
-            # ...
-
+        if not serializer.is_valid():
             return Response(
                 {
-                    "success": True,
-                    "message": "Booking created successfully",
-                    "data": BookingSerializer(booking).data,
+                    "success": False,
+                    "message": "Validation failed",
+                    "errors": serializer.errors,
                 },
-                status=status.HTTP_201_CREATED,
+                status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # 🔒 Prevent duplicate active bookings (same user + same service)
+        user_id = serializer.validated_data.get("user_id")
+        service = serializer.validated_data.get("service")
+
+        existing = Booking.objects.filter(
+            user_id=user_id,
+            service=service,
+        ).exclude(status="cancelled").first()
+
+        if existing:
+            return Response(
+                {
+                    "success": False,
+                    "message": "You have already booked this service",
+                    "data": BookingSerializer(existing).data,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # ✅ Create
+        booking = serializer.save()
 
         return Response(
             {
-                "success": False,
-                "message": "Validation failed",
-                "errors": serializer.errors,
+                "success": True,
+                "message": "Booking created successfully",
+                "data": BookingSerializer(booking).data,
             },
-            status=status.HTTP_400_BAD_REQUEST,
+            status=status.HTTP_201_CREATED,
         )
 
 

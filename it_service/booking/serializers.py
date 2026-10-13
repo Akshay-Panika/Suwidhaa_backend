@@ -15,11 +15,6 @@ class BookingSerializer(serializers.ModelSerializer):
             "service",
             "service_detail",
             "full_name",
-            "email",
-            "phone",
-            "budget",
-            "timeline",
-            "message",
             "status",
             "created_at",
             "updated_at",
@@ -62,11 +57,6 @@ class BookingCreateSerializer(serializers.ModelSerializer):
             "user_id",
             "service",
             "full_name",
-            "email",
-            "phone",
-            "budget",
-            "timeline",
-            "message",
         )
 
     def validate_user_id(self, value):

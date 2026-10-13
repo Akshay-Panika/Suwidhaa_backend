@@ -12,7 +12,7 @@ def get_booked_service_ids(user_id):
     if not user_id:
         return set()
     
-    from it_service.booking.models import Booking   # ✅ correct path
+    from it_service.booking.models import Booking  
 
     return set(
         Booking.objects

@@ -1,5 +1,4 @@
 from django.db import models
-from cloudinary.models import CloudinaryField
 
 from it_service.service.models import ItServiceService
 
@@ -25,11 +24,6 @@ class Booking(models.Model):
 
     # ----- Booking info -----
     full_name = models.CharField(max_length=255)
-    email = models.EmailField()
-    phone = models.CharField(max_length=20)
-    budget = models.CharField(max_length=100, blank=True, default="")
-    timeline = models.CharField(max_length=100, blank=True, default="")
-    message = models.TextField(blank=True, default="")
 
     status = models.CharField(
         max_length=20,
