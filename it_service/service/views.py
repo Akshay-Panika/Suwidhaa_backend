@@ -20,6 +20,73 @@ def get_booked_service_ids(user_id):
         .values_list("service_id", flat=True)
     )
 
+class BookedServiceListView(APIView):
+    """
+    GET /service/booked/list/?user_id=<id>
+
+    Returns all services booked by the given user,
+    each with service detail + booking info + is_booked=True.
+
+    Optional:
+        ?status=pending|confirmed|completed|cancelled
+    """
+
+    def get(self, request):
+        user_id = request.query_params.get("user_id")
+
+        if not user_id:
+            return Response(
+                {
+                    "success": False,
+                    "message": "user_id is required",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Lazy import to avoid circular imports
+        from it_service.booking.models import Booking
+
+        bookings = (
+            Booking.objects
+            .select_related("service", "service__category")
+            .filter(user_id=user_id)
+            .order_by("-id")
+        )
+
+        # Optional status filter
+        status_filter = request.query_params.get("status")
+        if status_filter:
+            bookings = bookings.filter(status=status_filter)
+
+        data = []
+        for booking in bookings:
+            service = booking.service
+            if not service:
+                continue
+
+            item = ItServiceServiceSerializer(service).data
+
+            # 🎯 Attach booking info
+            item["is_booked"] = True
+            item["booking"] = {
+                "id": booking.id,
+                "status": booking.status,
+                "full_name": booking.full_name,
+                "created_at": booking.created_at,
+                "updated_at": booking.updated_at,
+            }
+
+            data.append(item)
+
+        return Response(
+            {
+                "success": True,
+                "count": len(data),
+                "user_id": int(user_id),
+                "data": data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 class ItServiceServiceCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
