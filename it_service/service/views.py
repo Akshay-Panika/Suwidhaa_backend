@@ -7,6 +7,18 @@ from .models import ItServiceService
 from .serializers import ItServiceServiceSerializer
 
 
+def get_booked_service_ids(user_id):
+    """Return set of service IDs booked by this user."""
+    if not user_id:
+        return set()
+    from booking.models import Booking  # import inside to avoid circular import
+    return set(
+        Booking.objects
+        .filter(user_id=user_id)
+        .values_list("service_id", flat=True)
+    )
+
+
 class ItServiceServiceCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
@@ -35,22 +47,35 @@ class ItServiceServiceCreateView(APIView):
 
 
 class ItServiceServiceListView(APIView):
+    """
+    GET /service/list/
+    Optional: ?category=<id>
+    Optional: ?user_id=<id>   → adds is_booked flag per service
+    """
 
     def get(self, request):
         services = ItServiceService.objects.all().order_by("-id")
 
-        # Optional filter: ?category=<id>
         category_id = request.query_params.get("category")
         if category_id:
             services = services.filter(category_id=category_id)
 
+        user_id = request.query_params.get("user_id")
+        booked_ids = get_booked_service_ids(user_id)
+
         serializer = ItServiceServiceSerializer(services, many=True)
+        data = serializer.data
+
+        # 🎯 Attach is_booked flag per service
+        for item in data:
+            item["is_booked"] = item["id"] in booked_ids
 
         return Response(
             {
                 "success": True,
                 "count": services.count(),
-                "data": serializer.data,
+                "user_id": int(user_id) if user_id else None,
+                "data": data,
             },
             status=status.HTTP_200_OK,
         )
@@ -73,8 +98,14 @@ class ItServiceServiceDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        user_id = request.query_params.get("user_id")
+        booked_ids = get_booked_service_ids(user_id)
+
+        data = ItServiceServiceSerializer(service).data
+        data["is_booked"] = service.id in booked_ids
+
         return Response(
-            {"success": True, "data": ItServiceServiceSerializer(service).data},
+            {"success": True, "data": data},
             status=status.HTTP_200_OK,
         )
 

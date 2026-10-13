@@ -184,5 +184,8 @@ urlpatterns = [
         "api/v1/it_service/",
         include("it_service.service.urls"),  
     ),    
-    
+    path(
+        "api/v1/it_service/",
+        include("it_service.booking.urls"),  
+    ),
 ]
