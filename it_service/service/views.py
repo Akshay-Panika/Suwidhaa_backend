@@ -11,7 +11,9 @@ def get_booked_service_ids(user_id):
     """Return set of service IDs booked by this user."""
     if not user_id:
         return set()
-    from booking.models import Booking  # import inside to avoid circular import
+    
+    from it_service.booking.models import Booking   # ✅ correct path
+
     return set(
         Booking.objects
         .filter(user_id=user_id)
