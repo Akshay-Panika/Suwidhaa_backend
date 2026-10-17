@@ -47,6 +47,7 @@ class EcommerceProductSerializer(serializers.ModelSerializer):
             "price",
             "old_price",
             "stock",
+            "is_favorite",
             "created_at",
             "updated_at",
             "images",

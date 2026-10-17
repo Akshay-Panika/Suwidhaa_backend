@@ -25,6 +25,7 @@ class EcommerceProduct(models.Model):
         max_digits=10, decimal_places=2, blank=True, null=True
     )
     stock = models.PositiveIntegerField(default=0)
+    is_favorite = models.BooleanField(default=False)   # <-- NEW
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -38,7 +39,6 @@ class EcommerceProduct(models.Model):
 
     @property
     def primary_image(self):
-        """Pehli image ko primary maano."""
         first = self.images.first()
         return first.image.url if first and first.image else None
 

@@ -6,6 +6,7 @@ from django.db import IntegrityError, transaction
 
 from .models import EcommerceProduct
 from .serializers import EcommerceProductSerializer
+from auth.app_auth.models import User
 
 
 class EcommerceProductCreateView(APIView):
@@ -203,3 +204,85 @@ class EcommerceProductDetailView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+class EcommerceFavoriteToggleView(APIView):
+    """
+    Product ke is_favorite ko toggle karta hai.
+    PATCH /api/v1/ecommerce/product/<pk>/favorite/toggle/?user=<user_id>
+    """
+
+    def patch(self, request, pk):
+        try:
+            product = EcommerceProduct.objects.get(pk=pk)
+        except EcommerceProduct.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Product not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        product.is_favorite = not product.is_favorite
+        product.save(update_fields=["is_favorite", "updated_at"])
+
+        return Response(
+            {
+                "success": True,
+                "message": (
+                    "Product marked as favorite"
+                    if product.is_favorite
+                    else "Product removed from favorites"
+                ),
+                "data": {
+                    "id": product.id,
+                    "is_favorite": product.is_favorite,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class EcommerceFavoriteListView(APIView):
+    """
+    Favorite products list — user-wise.
+    GET /api/v1/ecommerce/product/list/favorite/?user=<user_id>
+    """
+
+    def get(self, request):
+        user_id = request.query_params.get("user")
+        if not user_id:
+            return Response(
+                {"success": False, "message": "user query param is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # User exist karta hai check
+        try:
+            user_obj = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"success": False, "message": f"User {user_id} not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        products = (
+            EcommerceProduct.objects
+            .select_related("subcategory", "subcategory__category", "user")
+            .prefetch_related("images")
+            .filter(user_id=user_id, is_favorite=True)
+            .order_by("-id")
+        )
+
+        serializer = EcommerceProductSerializer(products, many=True)
+
+        return Response(
+            {
+                "success": True,
+                "user": {
+                    "id": user_obj.id,
+                    "name": user_obj.name,
+                    "phone_number": user_obj.phone_number,
+                },
+                "count": products.count(),
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )    
