@@ -8,7 +8,6 @@ from .models import EcommerceStore
 from .serializers import EcommerceStoreSerializer
 from auth.app_auth.models import User
 
-
 class EcommerceStoreCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
@@ -41,7 +40,6 @@ class EcommerceStoreCreateView(APIView):
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
-
 
 class EcommerceStoreDetailByUserView(APIView):
     """
