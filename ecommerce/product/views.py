@@ -203,69 +203,6 @@ class EcommerceProductFeedView(APIView):
         )
 
 
-class EcommerceProductFeedBySubcategoryView(APIView):
-    """
-    GET /api/v1/ecommerce/product/feed/<user_id>/subcategory/<subcategory_id>/
-    Subcategory wise products, user ke perspective se is_favorite true/false.
-    """
-
-    def get(self, request, user_id, subcategory_id):
-        try:
-            user_obj = User.objects.get(pk=user_id)
-        except User.DoesNotExist:
-            return Response(
-                {"success": False, "message": f"User {user_id} not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        # Check karo subcategory exist karti hai ya nahi
-        try:
-            subcategory = EcommerceSubcategory.objects.get(pk=subcategory_id)
-        except EcommerceSubcategory.DoesNotExist:
-            return Response(
-                {"success": False, "message": f"Subcategory {subcategory_id} not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        products = (
-            EcommerceProduct.objects
-            .select_related("subcategory", "subcategory__category", "user")
-            .prefetch_related("images")
-            .filter(subcategory_id=subcategory_id)  # 👈 Subcategory filter
-            .order_by("-id")
-        )
-
-        # Optional Search filter
-        search = request.query_params.get("search")
-        if search:
-            products = products.filter(title__icontains=search)
-
-        # user_id serializer ko pass karo (is_favorite ke liye)
-        request.query_params._mutable = True
-        request.query_params["user"] = str(user_id)
-
-        serializer = EcommerceProductSerializer(
-            products, many=True, context={"request": request}
-        )
-
-        return Response(
-            {
-                "success": True,
-                "user": {
-                    "id": user_obj.id,
-                    "name": user_obj.name,
-                    "phone_number": user_obj.phone_number,
-                },
-                "subcategory": {
-                    "id": subcategory.id,
-                    "title": subcategory.title,
-                },
-                "count": products.count(),
-                "data": serializer.data,
-            },
-            status=status.HTTP_200_OK,
-        )
-    
 
 class EcommerceFavoriteListView(APIView):
     """
