@@ -25,8 +25,6 @@ class EcommerceProduct(models.Model):
         max_digits=10, decimal_places=2, blank=True, null=True
     )
     stock = models.PositiveIntegerField(default=0)
-    badge = models.CharField(max_length=50, blank=True, null=True)
-    is_active = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -48,7 +46,7 @@ class EcommerceProduct(models.Model):
 class EcommerceProductImage(models.Model):
     product = models.ForeignKey(
         EcommerceProduct,
-        on_delete=models.CASCADE,        # product delete → images auto delete
+        on_delete=models.CASCADE,
         related_name="images",
         db_index=True,
     )
@@ -58,13 +56,10 @@ class EcommerceProductImage(models.Model):
         blank=False,
         null=False,
     )
-    is_primary = models.BooleanField(default=False)
-    sort_order = models.PositiveIntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "ecommerce_product_image"
-        ordering = ["sort_order", "id"]
+        ordering = ["id"]
 
     def __str__(self):
         return f"Image {self.id} for Product {self.product_id}"

@@ -9,8 +9,8 @@ class EcommerceProductImageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = EcommerceProductImage
-        fields = ["id", "image", "is_primary", "sort_order", "created_at"]
-        read_only_fields = ["id", "created_at"]
+        fields = ["id", "image"]
+        read_only_fields = ["id"]
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -19,7 +19,7 @@ class EcommerceProductImageSerializer(serializers.ModelSerializer):
 
 
 class EcommerceProductSerializer(serializers.ModelSerializer):
-    # Multiple images
+    # Multiple images (write-only)
     images = serializers.ListField(
         child=serializers.FileField(allow_empty_file=False),
         write_only=True,
@@ -38,7 +38,19 @@ class EcommerceProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = EcommerceProduct
-        fields = "__all__"
+        fields = [
+            "id",
+            "subcategory",
+            "user",
+            "title",
+            "description",
+            "price",
+            "old_price",
+            "stock",
+            "created_at",
+            "updated_at",
+            "images",
+        ]
         read_only_fields = ("id", "created_at", "updated_at")
 
     def validate_title(self, value):
@@ -76,12 +88,10 @@ class EcommerceProductSerializer(serializers.ModelSerializer):
         images_data = validated_data.pop("images", [])
         product = EcommerceProduct.objects.create(**validated_data)
 
-        for idx, img in enumerate(images_data):
+        for img in images_data:
             EcommerceProductImage.objects.create(
                 product=product,
                 image=img,
-                is_primary=(idx == 0),     # pehli image primary
-                sort_order=idx,
             )
 
         return product
@@ -89,20 +99,17 @@ class EcommerceProductSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         images_data = validated_data.pop("images", None)
 
-        # Basic fields update
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
-        # Agar nayi images aayi hain → purani replace karo
+        # Nayi images aayi hain → purani replace karo
         if images_data is not None:
             instance.images.all().delete()
-            for idx, img in enumerate(images_data):
+            for img in images_data:
                 EcommerceProductImage.objects.create(
                     product=instance,
                     image=img,
-                    is_primary=(idx == 0),
-                    sort_order=idx,
                 )
 
         return instance
@@ -110,12 +117,12 @@ class EcommerceProductSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
 
-        # Nested images
+        # Nested images (only id + image)
         data["images"] = EcommerceProductImageSerializer(
             instance.images.all(), many=True
         ).data
 
-        # Primary image URL (frontend convenience)
+        # Primary image URL
         data["primary_image"] = instance.primary_image
 
         # Nested details

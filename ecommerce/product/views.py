@@ -66,10 +66,6 @@ class EcommerceProductListView(APIView):
         if user_id:
             products = products.filter(user_id=user_id)
 
-        is_active = request.query_params.get("active")
-        if is_active is not None:
-            products = products.filter(is_active=is_active.lower() == "true")
-
         search = request.query_params.get("search")
         if search:
             products = products.filter(title__icontains=search)
