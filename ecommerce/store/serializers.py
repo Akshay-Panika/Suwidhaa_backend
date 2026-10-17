@@ -4,9 +4,10 @@ from auth.app_auth.models import User
 
 
 class EcommerceStoreSerializer(serializers.ModelSerializer):
+    # Update ke time logo compulsory nahi hoga
     store_logo = serializers.FileField(
-        required=True,
-        allow_null=False,
+        required=False, 
+        allow_null=True
     )
     user = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.all(),
@@ -20,7 +21,13 @@ class EcommerceStoreSerializer(serializers.ModelSerializer):
 
     def validate_user(self, value):
         # Check if user already has a store
-        if EcommerceStore.objects.filter(user=value).exists():
+        qs = EcommerceStore.objects.filter(user=value)
+        
+        # Agar update ho raha hai, toh apne aap ko exclude karo
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+            
+        if qs.exists():
             raise serializers.ValidationError("This user already has a store.")
         return value
 
@@ -31,8 +38,11 @@ class EcommerceStoreSerializer(serializers.ModelSerializer):
         
         # Case-insensitive duplicate check
         qs = EcommerceStore.objects.filter(store_name__iexact=value)
+        
+        # Update ke time apne aap ko exclude karo
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
+            
         if qs.exists():
             raise serializers.ValidationError("This store name is already taken.")
         return value
