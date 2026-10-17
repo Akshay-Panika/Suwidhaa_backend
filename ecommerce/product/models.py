@@ -25,7 +25,6 @@ class EcommerceProduct(models.Model):
         max_digits=10, decimal_places=2, blank=True, null=True
     )
     stock = models.PositiveIntegerField(default=0)
-    is_favorite = models.BooleanField(default=False)   # <-- NEW
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -63,3 +62,33 @@ class EcommerceProductImage(models.Model):
 
     def __str__(self):
         return f"Image {self.id} for Product {self.product_id}"
+
+
+class EcommerceFavorite(models.Model):
+    """Per-user favorites table."""
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="favorites",
+        db_index=True,
+    )
+    product = models.ForeignKey(
+        EcommerceProduct,
+        on_delete=models.CASCADE,
+        related_name="favorites",
+        db_index=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "ecommerce_favorite"
+        ordering = ["-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "product"],
+                name="unique_user_product_favorite",
+            )
+        ]
+
+    def __str__(self):
+        return f"User {self.user_id} ♥ Product {self.product_id}"

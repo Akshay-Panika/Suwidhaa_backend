@@ -19,7 +19,6 @@ class EcommerceProductImageSerializer(serializers.ModelSerializer):
 
 
 class EcommerceProductSerializer(serializers.ModelSerializer):
-    # Multiple images (write-only)
     images = serializers.ListField(
         child=serializers.FileField(allow_empty_file=False),
         write_only=True,
@@ -47,7 +46,6 @@ class EcommerceProductSerializer(serializers.ModelSerializer):
             "price",
             "old_price",
             "stock",
-            "is_favorite",
             "created_at",
             "updated_at",
             "images",
@@ -68,65 +66,59 @@ class EcommerceProductSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         price = attrs.get("price")
         old_price = attrs.get("old_price")
-
         if price is not None and old_price is not None:
             if old_price < price:
                 raise serializers.ValidationError(
                     {"old_price": "Old price should be >= price."}
                 )
-
-        # Create pe kam se kam 1 image zaroori
         if not self.instance:
             images = attrs.get("images") or []
             if not images:
                 raise serializers.ValidationError(
                     {"images": "Kam se kam 1 image required hai."}
                 )
-
         return attrs
 
     def create(self, validated_data):
         images_data = validated_data.pop("images", [])
         product = EcommerceProduct.objects.create(**validated_data)
-
         for img in images_data:
-            EcommerceProductImage.objects.create(
-                product=product,
-                image=img,
-            )
-
+            EcommerceProductImage.objects.create(product=product, image=img)
         return product
 
     def update(self, instance, validated_data):
         images_data = validated_data.pop("images", None)
-
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
-
-        # Nayi images aayi hain → purani replace karo
         if images_data is not None:
             instance.images.all().delete()
             for img in images_data:
-                EcommerceProductImage.objects.create(
-                    product=instance,
-                    image=img,
-                )
-
+                EcommerceProductImage.objects.create(product=instance, image=img)
         return instance
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
 
-        # Nested images (only id + image)
         data["images"] = EcommerceProductImageSerializer(
             instance.images.all(), many=True
         ).data
-
-        # Primary image URL
         data["primary_image"] = instance.primary_image
 
-        # Nested details
+        # ---- per-user is_favorite ----
+        request = self.context.get("request")
+        is_favorite = False
+        if request:
+            uid = request.query_params.get("user")
+            if uid:
+                try:
+                    uid = int(uid)
+                    is_favorite = instance.favorites.filter(user_id=uid).exists()
+                except (ValueError, TypeError):
+                    pass
+        data["is_favorite"] = is_favorite
+        # ------------------------------------
+
         data["subcategory_detail"] = {
             "id": instance.subcategory.id,
             "title": instance.subcategory.title,
@@ -140,5 +132,4 @@ class EcommerceProductSerializer(serializers.ModelSerializer):
             "name": instance.user.name,
             "phone_number": instance.user.phone_number,
         }
-
         return data
