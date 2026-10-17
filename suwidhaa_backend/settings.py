@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     "it_service.service",
     "it_service.booking",
     "ecommerce.banner",
+    "ecommerce.category",
 ]
 
 MIDDLEWARE = [
