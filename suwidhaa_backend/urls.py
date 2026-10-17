@@ -206,4 +206,9 @@ urlpatterns = [
     "api/v1/ecommerce/",
     include("ecommerce.product.urls"),
     ),
+    path(
+    "api/v1/ecommerce/",
+    include("ecommerce.store.urls"),
+    ),
+    
 ]
