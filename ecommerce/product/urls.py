@@ -12,7 +12,6 @@ from .views import (
 
 urlpatterns = [
     path("product/create/", EcommerceProductCreateView.as_view()),
-
     path("product/all/", EcommerceProductAllView.as_view()),
     path("product/owner/<int:user_id>/", EcommerceProductOwnerView.as_view()),
     path("product/feed/<int:user_id>/", EcommerceProductFeedView.as_view()),
