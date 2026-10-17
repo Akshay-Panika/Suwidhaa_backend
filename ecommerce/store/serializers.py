@@ -1,10 +1,10 @@
 from rest_framework import serializers
 from .models import EcommerceStore
 from auth.app_auth.models import User
+from ecommerce.category.models import EcommerceCategory  # <-- Import
 
 
 class EcommerceStoreSerializer(serializers.ModelSerializer):
-    # Update ke time logo compulsory nahi hoga
     store_logo = serializers.FileField(
         required=False, 
         allow_null=True
@@ -13,6 +13,13 @@ class EcommerceStoreSerializer(serializers.ModelSerializer):
         queryset=User.objects.all(),
         required=True,
     )
+    
+    # Category ID pass karne ke liye
+    store_category = serializers.PrimaryKeyRelatedField(
+        queryset=EcommerceCategory.objects.all(),
+        required=False,
+        allow_null=True
+    )
 
     class Meta:
         model = EcommerceStore
@@ -20,13 +27,9 @@ class EcommerceStoreSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "created_at", "updated_at")
 
     def validate_user(self, value):
-        # Check if user already has a store
         qs = EcommerceStore.objects.filter(user=value)
-        
-        # Agar update ho raha hai, toh apne aap ko exclude karo
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
-            
         if qs.exists():
             raise serializers.ValidationError("This user already has a store.")
         return value
@@ -36,13 +39,9 @@ class EcommerceStoreSerializer(serializers.ModelSerializer):
         if not value:
             raise serializers.ValidationError("Store name cannot be empty.")
         
-        # Case-insensitive duplicate check
         qs = EcommerceStore.objects.filter(store_name__iexact=value)
-        
-        # Update ke time apne aap ko exclude karo
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
-            
         if qs.exists():
             raise serializers.ValidationError("This store name is already taken.")
         return value
@@ -57,7 +56,17 @@ class EcommerceStoreSerializer(serializers.ModelSerializer):
             else None
         )
 
-        # Nested user detail
+        # Category Detail (Jab ID dalenge to ye data aayega)
+        if instance.store_category:
+            data["store_category_detail"] = {
+                "id": instance.store_category.id,
+                "title": instance.store_category.title,
+                "image": instance.store_category.image.url if instance.store_category.image else None
+            }
+        else:
+            data["store_category_detail"] = None
+
+        # User Detail
         data["user_detail"] = {
             "id": instance.user.id,
             "name": instance.user.name,

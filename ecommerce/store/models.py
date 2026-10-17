@@ -1,6 +1,7 @@
 from django.db import models
 from cloudinary.models import CloudinaryField
 from auth.app_auth.models import User
+from ecommerce.category.models import EcommerceCategory  # <-- Category import kiya
 
 
 class EcommerceStore(models.Model):
@@ -12,7 +13,16 @@ class EcommerceStore(models.Model):
         help_text="Har user ka sirf ek store ho sakta hai."
     )
     store_name = models.CharField(max_length=255, unique=True)
-    store_category = models.CharField(max_length=100, blank=True, null=True) # <-- simple text
+    
+    # Text ki jagah ForeignKey
+    store_category = models.ForeignKey(
+        EcommerceCategory,
+        on_delete=models.SET_NULL,
+        related_name="stores",
+        blank=True,
+        null=True,
+    )
+    
     store_address = models.TextField()
     store_phone = models.CharField(max_length=15)
     store_logo = CloudinaryField(
