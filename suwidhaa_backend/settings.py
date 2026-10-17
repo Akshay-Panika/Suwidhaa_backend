@@ -80,6 +80,7 @@ INSTALLED_APPS = [
     "ecommerce.banner",
     "ecommerce.category",
     "ecommerce.subcategory",
+    "ecommerce.product",
 ]
 
 MIDDLEWARE = [
