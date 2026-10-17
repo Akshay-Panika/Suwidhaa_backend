@@ -3,7 +3,7 @@ from cloudinary.models import CloudinaryField
 
 
 class EcommerceCategory(models.Model):
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=255, unique=True)
     image = CloudinaryField(
         "image",
         folder="suwidhaa/ecommerce/category",
