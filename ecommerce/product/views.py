@@ -9,6 +9,10 @@ from .serializers import EcommerceProductSerializer
 from auth.app_auth.models import User
 
 
+# ══════════════════════════════════════════════
+# CREATE
+# ══════════════════════════════════════════════
+
 class EcommerceProductCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
@@ -45,7 +49,16 @@ class EcommerceProductCreateView(APIView):
         )
 
 
-class EcommerceProductListView(APIView):
+# ══════════════════════════════════════════════
+# LISTS
+# ══════════════════════════════════════════════
+
+class EcommerceProductAllView(APIView):
+    """
+    GET /api/v1/ecommerce/product/all/
+    Saare products — koi user context nahi.
+    Filters: ?category=<id>&subcategory=<id>&search=<text>
+    """
 
     def get(self, request):
         products = (
@@ -56,7 +69,6 @@ class EcommerceProductListView(APIView):
             .order_by("-id")
         )
 
-        # Filters
         subcategory_id = request.query_params.get("subcategory")
         if subcategory_id:
             products = products.filter(subcategory_id=subcategory_id)
@@ -64,10 +76,6 @@ class EcommerceProductListView(APIView):
         category_id = request.query_params.get("category")
         if category_id:
             products = products.filter(subcategory__category_id=category_id)
-
-        user_id = request.query_params.get("user")
-        if user_id:
-            products = products.filter(user_id=user_id)
 
         search = request.query_params.get("search")
         if search:
@@ -87,10 +95,66 @@ class EcommerceProductListView(APIView):
         )
 
 
-class EcommerceProductListByUserView(APIView):
+class EcommerceProductOwnerView(APIView):
     """
-    GET /api/v1/ecommerce/product/list/user/<user_id>/
-    Saare products, user ke perspective se is_favorite true/false.
+    GET /api/v1/ecommerce/product/owner/<user_id>/
+    Us user ne jo products upload kiye hain.
+    Filters: ?category=<id>&subcategory=<id>&search=<text>
+    """
+
+    def get(self, request, user_id):
+        try:
+            user_obj = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"success": False, "message": f"User {user_id} not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        products = (
+            EcommerceProduct.objects
+            .select_related("subcategory", "subcategory__category", "user")
+            .prefetch_related("images")
+            .filter(user_id=user_id)
+            .order_by("-id")
+        )
+
+        subcategory_id = request.query_params.get("subcategory")
+        if subcategory_id:
+            products = products.filter(subcategory_id=subcategory_id)
+
+        category_id = request.query_params.get("category")
+        if category_id:
+            products = products.filter(subcategory__category_id=category_id)
+
+        search = request.query_params.get("search")
+        if search:
+            products = products.filter(title__icontains=search)
+
+        serializer = EcommerceProductSerializer(
+            products, many=True, context={"request": request}
+        )
+
+        return Response(
+            {
+                "success": True,
+                "user": {
+                    "id": user_obj.id,
+                    "name": user_obj.name,
+                    "phone_number": user_obj.phone_number,
+                },
+                "count": products.count(),
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class EcommerceProductFeedView(APIView):
+    """
+    GET /api/v1/ecommerce/product/feed/<user_id>/
+    Saare products, is user ke perspective se is_favorite true/false.
+    Filters: ?category=<id>&subcategory=<id>&search=<text>
     """
 
     def get(self, request, user_id):
@@ -110,21 +174,19 @@ class EcommerceProductListByUserView(APIView):
             .order_by("-id")
         )
 
-        # Optional filters
-        category_id = request.query_params.get("category")
-        if category_id:
-            products = products.filter(subcategory__category_id=category_id)
-
         subcategory_id = request.query_params.get("subcategory")
         if subcategory_id:
             products = products.filter(subcategory_id=subcategory_id)
+
+        category_id = request.query_params.get("category")
+        if category_id:
+            products = products.filter(subcategory__category_id=category_id)
 
         search = request.query_params.get("search")
         if search:
             products = products.filter(title__icontains=search)
 
-        # IMPORTANT: user_id ko query param mein inject karo
-        # taaki serializer is_favorite compute kar sake
+        # user_id serializer ko pass karo (is_favorite ke liye)
         request.query_params._mutable = True
         request.query_params["user"] = str(user_id)
 
@@ -146,6 +208,116 @@ class EcommerceProductListByUserView(APIView):
             status=status.HTTP_200_OK,
         )
 
+
+# ══════════════════════════════════════════════
+# FAVORITES
+# ══════════════════════════════════════════════
+
+class EcommerceFavoriteListView(APIView):
+    """
+    GET /api/v1/ecommerce/product/favorites/<user_id>/
+    User ke favorite products.
+    """
+
+    def get(self, request, user_id):
+        try:
+            user_obj = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"success": False, "message": f"User {user_id} not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        products = (
+            EcommerceProduct.objects
+            .select_related("subcategory", "subcategory__category", "user")
+            .prefetch_related("images")
+            .filter(favorites__user=user_obj)
+            .order_by("-id")
+        )
+
+        # is_favorite ke liye user_id query param mein daalo
+        request.query_params._mutable = True
+        request.query_params["user"] = str(user_id)
+
+        serializer = EcommerceProductSerializer(
+            products, many=True, context={"request": request}
+        )
+
+        return Response(
+            {
+                "success": True,
+                "user": {
+                    "id": user_obj.id,
+                    "name": user_obj.name,
+                    "phone_number": user_obj.phone_number,
+                },
+                "count": products.count(),
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class EcommerceFavoriteToggleView(APIView):
+    """
+    PATCH /api/v1/ecommerce/product/<pk>/favorite/toggle/?user=<user_id>
+    Favorite add/remove toggle.
+    """
+
+    def patch(self, request, pk):
+        user_id = request.query_params.get("user")
+        if not user_id:
+            return Response(
+                {"success": False, "message": "user query param is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user_obj = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"success": False, "message": f"User {user_id} not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            product = EcommerceProduct.objects.get(pk=pk)
+        except EcommerceProduct.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Product not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        fav = EcommerceFavorite.objects.filter(
+            user=user_obj, product=product
+        ).first()
+
+        if fav:
+            fav.delete()
+            return Response(
+                {
+                    "success": True,
+                    "message": "Removed from favorites",
+                    "data": {"product_id": product.id, "is_favorite": False},
+                },
+                status=status.HTTP_200_OK,
+            )
+        else:
+            EcommerceFavorite.objects.create(user=user_obj, product=product)
+            return Response(
+                {
+                    "success": True,
+                    "message": "Added to favorites",
+                    "data": {"product_id": product.id, "is_favorite": True},
+                },
+                status=status.HTTP_200_OK,
+            )
+
+
+# ══════════════════════════════════════════════
+# DETAIL / UPDATE / DELETE
+# ══════════════════════════════════════════════
 
 class EcommerceProductDetailView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -266,108 +438,5 @@ class EcommerceProductDetailView(APIView):
         product.delete()
         return Response(
             {"success": True, "message": "Product deleted successfully"},
-            status=status.HTTP_200_OK,
-        )
-
-
-class EcommerceFavoriteToggleView(APIView):
-    """
-    PATCH /api/v1/ecommerce/product/<pk>/favorite/toggle/?user=<user_id>
-    """
-
-    def patch(self, request, pk):
-        user_id = request.query_params.get("user")
-        if not user_id:
-            return Response(
-                {"success": False, "message": "user query param is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            user_obj = User.objects.get(pk=user_id)
-        except User.DoesNotExist:
-            return Response(
-                {"success": False, "message": f"User {user_id} not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        try:
-            product = EcommerceProduct.objects.get(pk=pk)
-        except EcommerceProduct.DoesNotExist:
-            return Response(
-                {"success": False, "message": "Product not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        fav = EcommerceFavorite.objects.filter(
-            user=user_obj, product=product
-        ).first()
-
-        if fav:
-            fav.delete()
-            return Response(
-                {
-                    "success": True,
-                    "message": "Removed from favorites",
-                    "data": {"product_id": product.id, "is_favorite": False},
-                },
-                status=status.HTTP_200_OK,
-            )
-        else:
-            EcommerceFavorite.objects.create(user=user_obj, product=product)
-            return Response(
-                {
-                    "success": True,
-                    "message": "Added to favorites",
-                    "data": {"product_id": product.id, "is_favorite": True},
-                },
-                status=status.HTTP_200_OK,
-            )
-
-
-class EcommerceFavoriteListView(APIView):
-    """
-    GET /api/v1/ecommerce/product/list/favorite/?user=<user_id>
-    """
-
-    def get(self, request):
-        user_id = request.query_params.get("user")
-        if not user_id:
-            return Response(
-                {"success": False, "message": "user query param is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            user_obj = User.objects.get(pk=user_id)
-        except User.DoesNotExist:
-            return Response(
-                {"success": False, "message": f"User {user_id} not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        products = (
-            EcommerceProduct.objects
-            .select_related("subcategory", "subcategory__category", "user")
-            .prefetch_related("images")
-            .filter(favorites__user=user_obj)
-            .order_by("-id")
-        )
-
-        serializer = EcommerceProductSerializer(
-            products, many=True, context={"request": request}
-        )
-
-        return Response(
-            {
-                "success": True,
-                "user": {
-                    "id": user_obj.id,
-                    "name": user_obj.name,
-                    "phone_number": user_obj.phone_number,
-                },
-                "count": products.count(),
-                "data": serializer.data,
-            },
             status=status.HTTP_200_OK,
         )
