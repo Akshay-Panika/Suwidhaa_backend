@@ -92,3 +92,35 @@ class EcommerceFavorite(models.Model):
 
     def __str__(self):
         return f"User {self.user_id} ♥ Product {self.product_id}"
+
+
+class EcommerceCart(models.Model):
+    """Per-user cart table. Each row = one product in a user's cart."""
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="cart_items",
+        db_index=True,
+    )
+    product = models.ForeignKey(
+        EcommerceProduct,
+        on_delete=models.CASCADE,
+        related_name="cart_items",
+        db_index=True,
+    )
+    quantity = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "ecommerce_cart"
+        ordering = ["-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "product"],
+                name="unique_user_product_cart",
+            )
+        ]
+
+    def __str__(self):
+        return f"User {self.user_id} 🛒 Product {self.product_id} x{self.quantity}"

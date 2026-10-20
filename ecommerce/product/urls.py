@@ -8,6 +8,10 @@ from .views import (
     EcommerceProductDetailView,
     EcommerceFavoriteToggleView,
     EcommerceFavoriteListView,
+    # CART
+    EcommerceCartAddView,
+    EcommerceCartListView,
+    EcommerceCartRemoveView,
 )
 
 urlpatterns = [
@@ -17,5 +21,11 @@ urlpatterns = [
     path("product/feed/<int:user_id>/", EcommerceProductFeedView.as_view()),
     path("product/favorites/<int:user_id>/", EcommerceFavoriteListView.as_view()),
     path("product/<int:pk>/favorite/toggle/", EcommerceFavoriteToggleView.as_view()),
+
+    # CART
+    path("product/cart/<int:user_id>/", EcommerceCartListView.as_view()),
+    path("product/<int:pk>/cart/add/", EcommerceCartAddView.as_view()),
+    path("product/<int:pk>/cart/remove/", EcommerceCartRemoveView.as_view()),
+
     path("product/<int:pk>/", EcommerceProductDetailView.as_view()),
 ]

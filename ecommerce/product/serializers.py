@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import EcommerceProduct, EcommerceProductImage
+from .models import EcommerceProduct, EcommerceProductImage, EcommerceCart
 from ecommerce.subcategory.models import EcommerceSubcategory
 from auth.app_auth.models import User
 
@@ -105,19 +105,22 @@ class EcommerceProductSerializer(serializers.ModelSerializer):
         ).data
         data["primary_image"] = instance.primary_image
 
-        # ---- per-user is_favorite ----
+        # ---- per-user is_favorite + is_cart ----
         request = self.context.get("request")
         is_favorite = False
+        is_cart = False
         if request:
             uid = request.query_params.get("user")
             if uid:
                 try:
                     uid = int(uid)
                     is_favorite = instance.favorites.filter(user_id=uid).exists()
+                    is_cart = instance.cart_items.filter(user_id=uid).exists()
                 except (ValueError, TypeError):
                     pass
         data["is_favorite"] = is_favorite
-        # ------------------------------------
+        data["is_cart"] = is_cart
+        # ----------------------------------------
 
         data["subcategory_detail"] = {
             "id": instance.subcategory.id,
@@ -133,3 +136,25 @@ class EcommerceProductSerializer(serializers.ModelSerializer):
             "phone_number": instance.user.phone_number,
         }
         return data
+
+
+class EcommerceCartItemSerializer(serializers.ModelSerializer):
+    """Cart list item — product snapshot + quantity + line total."""
+    product_detail = serializers.SerializerMethodField()
+    price = serializers.SerializerMethodField()
+    total = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EcommerceCart
+        fields = ["id", "product", "quantity", "price", "total", "product_detail"]
+
+    def get_product_detail(self, obj):
+        return EcommerceProductSerializer(
+            obj.product, context=self.context
+        ).data
+
+    def get_price(self, obj):
+        return str(obj.product.price)
+
+    def get_total(self, obj):
+        return str(obj.product.price * obj.quantity)
