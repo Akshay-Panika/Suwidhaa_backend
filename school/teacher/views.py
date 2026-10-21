@@ -6,7 +6,7 @@ import logging
 from datetime import date
 import threading
 
-from .models import Teacher
+from .models import Teacher, TeacherPendingSalary
 from .serializers import TeacherSerializer
 from school.teacher_pass.models import TeacherPass
 from services.whatsapp_service import WhatsAppService
@@ -56,8 +56,7 @@ class TeacherCreateView(APIView):
                 teacher_pass.set_password(default_password)
                 teacher_pass.save()
 
-                from school.teacher_salary.models import TeacherPendingSalary
-
+                # ✅ Create pending salary for current month
                 TeacherPendingSalary.objects.create(
                     teacher=teacher,
                     month=date.today().strftime("%B %Y"),
