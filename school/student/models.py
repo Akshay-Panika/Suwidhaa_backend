@@ -30,7 +30,7 @@ class Student(models.Model):
     paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     check_box = models.BooleanField(default=False)
 
-    # ✅ NEW: FK to SchoolType
+    # ✅ Only FK, no more school_type string
     school = models.ForeignKey(
         SchoolType,
         on_delete=models.SET_NULL,
@@ -38,8 +38,6 @@ class Student(models.Model):
         blank=True,
         related_name="students",
     )
-    # ✅ Keep old string field for backward compatibility
-    school_type = models.CharField(max_length=20, blank=True, null=True)
 
     student_id_card = models.CharField(
         max_length=50,

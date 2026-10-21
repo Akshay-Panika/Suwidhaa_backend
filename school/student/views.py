@@ -111,24 +111,16 @@ class StudentCreateView(APIView):
         )
 
 
-class StudentBySchoolTypeView(APIView):
-    """
-    Filter students by school_type string (e.g. 'Nursery to 8', '8 to 12').
-    Now also matches via the linked school's school_type.
-    """
-    def get(self, request, school_type):
-        from django.db.models import Q
-
-        students = Student.objects.filter(
-            Q(school_type__iexact=school_type) |
-            Q(school__school_type__iexact=school_type)
-        ).distinct().order_by("-id")
+class StudentBySchoolView(APIView):
+    """Filter students by school id"""
+    def get(self, request, school_id):
+        students = Student.objects.filter(school_id=school_id).order_by("-id")
 
         if not students.exists():
             return Response(
                 {
                     "success": False,
-                    "message": f"No students found for school type '{school_type}'",
+                    "message": f"No students found for school id '{school_id}'",
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
@@ -137,7 +129,7 @@ class StudentBySchoolTypeView(APIView):
         return Response(
             {
                 "success": True,
-                "school_type": school_type,
+                "school_id": school_id,
                 "count": students.count(),
                 "data": serializer.data,
             },
@@ -147,7 +139,7 @@ class StudentBySchoolTypeView(APIView):
 
 class StudentListView(APIView):
     def get(self, request):
-        students = Student.objects.all().order_by("-id")
+        students = Student.objects.select_related("school").all().order_by("-id")
         serializer = StudentSerializer(students, many=True)
         return Response(
             {"success": True, "count": students.count(), "data": serializer.data},

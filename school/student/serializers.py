@@ -7,7 +7,7 @@ from school.school_type.serializers import SchoolTypeSerializer
 class StudentSerializer(serializers.ModelSerializer):
     student_profile = serializers.FileField(required=False, allow_null=True)
 
-    # ✅ Accept school_id on create/update
+    # ✅ Write: pass school_id
     school_id = serializers.PrimaryKeyRelatedField(
         queryset=SchoolType.objects.all(),
         source="school",
@@ -15,7 +15,7 @@ class StudentSerializer(serializers.ModelSerializer):
         allow_null=True,
         write_only=True,
     )
-    # ✅ Return full school details on read
+    # ✅ Read: full school details
     school = SchoolTypeSerializer(read_only=True)
 
     class Meta:
@@ -28,10 +28,3 @@ class StudentSerializer(serializers.ModelSerializer):
             instance.student_profile.url if instance.student_profile else None
         )
         return data
-
-    def validate(self, attrs):
-        # Auto-fill school_type string from selected school (if provided)
-        school = attrs.get("school") or getattr(self.instance, "school", None)
-        if school and not attrs.get("school_type"):
-            attrs["school_type"] = school.school_type
-        return attrs
