@@ -26,6 +26,5 @@ urlpatterns = [
     path("product/cart/<int:user_id>/", EcommerceCartListView.as_view()),
     path("product/<int:pk>/cart/add/", EcommerceCartAddView.as_view()),
     path("product/<int:pk>/cart/remove/", EcommerceCartRemoveView.as_view()),
-
     path("product/<int:pk>/", EcommerceProductDetailView.as_view()),
 ]

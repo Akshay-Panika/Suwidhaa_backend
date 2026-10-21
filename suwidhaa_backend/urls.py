@@ -15,6 +15,10 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path(
         "api/v1/school/",
+        include("school.school_type.urls"),
+    ),
+    path(
+        "api/v1/school/",
         include("school.student.urls"),
     ),
     path(
