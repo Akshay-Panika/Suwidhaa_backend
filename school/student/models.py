@@ -1,8 +1,15 @@
 from django.db import models
 from cloudinary.models import CloudinaryField
+from school.school_type.models import SchoolType
+
 
 class Student(models.Model):
-    student_profile = CloudinaryField("student_profile", folder="suwidhaa/school/student", blank=True, null=True)
+    student_profile = CloudinaryField(
+        "student_profile",
+        folder="suwidhaa/school/student",
+        blank=True,
+        null=True,
+    )
     first_name = models.CharField(max_length=100)
     middle_name = models.CharField(max_length=100, blank=True, null=True)
     last_name = models.CharField(max_length=100)
@@ -22,8 +29,25 @@ class Student(models.Model):
     fee_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     check_box = models.BooleanField(default=False)
+
+    # ✅ NEW: FK to SchoolType
+    school = models.ForeignKey(
+        SchoolType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="students",
+    )
+    # ✅ Keep old string field for backward compatibility
     school_type = models.CharField(max_length=20, blank=True, null=True)
-    student_id_card = models.CharField(max_length=50, blank=True, null=True, unique=True, db_index=True)
+
+    student_id_card = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        unique=True,
+        db_index=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
