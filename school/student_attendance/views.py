@@ -4,13 +4,16 @@ from rest_framework import status
 from django.db import transaction
 from datetime import datetime
 
-from .models import Student, StudentAttendance
+from .models import StudentAttendance
 from .serializers import BulkAttendanceSerializer
+from school.student.models import Student
+from school.student.serializers import StudentSerializer
 
 
-# =========================================================
-#  HELPER — History grouping (year -> month -> days[])
-# =========================================================
+def _student_info(student):
+    return StudentSerializer(student).data
+
+
 def build_history(attendance_qs):
     history = {}
 
@@ -37,55 +40,29 @@ def build_history(attendance_qs):
     return history
 
 
-# =========================================================
-#  CREATE / UPDATE  — Bulk (1 ya N) — date-wise
-# =========================================================
 class StudentAttendanceCreateView(APIView):
-    """
-    POST /api/v1/school/student-attendance/create/
-
-    Body:
-    {
-        "students": [
-            {
-                "student_card_id": "A004",
-                "student_name": "Ram Kumar",
-                "student_class": "5A",
-                "school_type": "Primary",
-                "date": "2026-09-24",
-                "attendance_status": "present",
-                "remarks": "on time"
-            }
-        ]
-    }
-
-    - (student_card_id + date) exist karta hai → UPDATE
-    - Nahi hai → CREATE
-    - Student master bhi create/update hota hai
-    """
-
     def post(self, request):
         serializer = BulkAttendanceSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         result = []
+        errors = []
 
         with transaction.atomic():
-            for item in serializer.validated_data['students']:
-                card_id = item['student_card_id']
+            for idx, item in enumerate(serializer.validated_data['students']):
+                student_id = item['student_id']
 
-                # ---- 1. Student master create/update ----
-                student, _ = Student.objects.update_or_create(
-                    student_card_id=card_id,
-                    defaults={
-                        'student_name': item.get('student_name') or '',
-                        'student_class': item.get('student_class') or '',
-                        'school_type': item.get('school_type') or '',
-                    }
-                )
+                try:
+                    student = Student.objects.select_related('school').get(pk=student_id)
+                except Student.DoesNotExist:
+                    errors.append({
+                        "index": idx,
+                        "student_id": student_id,
+                        "error": f"Student with id '{student_id}' not found."
+                    })
+                    continue
 
-                # ---- 2. Attendance create/update (date-wise) ----
-                att, is_created = StudentAttendance.objects.update_or_create(
+                att, _ = StudentAttendance.objects.update_or_create(
                     student=student,
                     date=item['date'],
                     defaults={
@@ -95,58 +72,69 @@ class StudentAttendanceCreateView(APIView):
                 )
 
                 result.append({
-                    "id": att.id,
-                    "student_card_id": student.student_card_id,
-                    "student_name": student.student_name,
-                    "student_class": student.student_class,
-                    "school_type": student.school_type,
-                    "date": att.date.strftime('%Y-%m-%d'),
-                    "day_name": att.date.strftime('%A'),
-                    "attendance_status": att.attendance_status,
-                    "remarks": att.remarks or '',
-                    "created_at": att.created_at,
-                    "updated_at": att.updated_at,
+                    "student": _student_info(student),
+                    "attendance": {
+                        "id": att.id,
+                        "date": att.date.strftime('%Y-%m-%d'),
+                        "day_name": att.date.strftime('%A'),
+                        "attendance_status": att.attendance_status,
+                        "remarks": att.remarks or '',
+                        "created_at": att.created_at,
+                        "updated_at": att.updated_at,
+                    }
                 })
+
+        if result and not errors:
+            return Response(
+                {
+                    "status": True,
+                    "message": "Attendance saved successfully.",
+                    "total": len(result),
+                    "data": result,
+                },
+                status=status.HTTP_200_OK
+            )
+
+        if result and errors:
+            return Response(
+                {
+                    "status": True,
+                    "message": "Partial success. Some records were saved and some failed.",
+                    "saved_count": len(result),
+                    "failed_count": len(errors),
+                    "data": result,
+                    "errors": errors,
+                },
+                status=status.HTTP_207_MULTI_STATUS
+            )
 
         return Response(
             {
-                "status": True,
-                "message": "Attendance saved successfully",
-                "total": len(result),
-                "data": result,
+                "status": False,
+                "message": "No records were saved.",
+                "errors": errors,
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_400_BAD_REQUEST
         )
 
 
-# =========================================================
-#  LIST ALL STUDENTS (year -> month -> days)
-# =========================================================
 class StudentAttendanceListView(APIView):
-    """
-    GET /api/v1/school/student-attendance/list/
-    Optional filters:
-        ?student_card_id=A004
-        ?class=5A
-        ?school_type=Primary
-        ?year=2026
-        ?month=September
-        ?attendance_status=present
-    """
-
     def get(self, request):
-        student_qs = Student.objects.all()
+        student_qs = Student.objects.select_related('school').all()
 
-        card_id = request.query_params.get('student_card_id')
+        student_id = request.query_params.get('student_id')
+        card_id = request.query_params.get('student_id_card')
         cls = request.query_params.get('class')
-        school_type = request.query_params.get('school_type')
+        school_id = request.query_params.get('school_id')
 
+        if student_id:
+            student_qs = student_qs.filter(id=student_id)
         if card_id:
-            student_qs = student_qs.filter(student_card_id__icontains=card_id)
+            student_qs = student_qs.filter(student_id_card__icontains=card_id)
         if cls:
             student_qs = student_qs.filter(student_class__icontains=cls)
-        if school_type:
-            student_qs = student_qs.filter(school_type__icontains=school_type)
+        if school_id:
+            student_qs = student_qs.filter(school_id=school_id)
 
         year_filter = request.query_params.get('year')
         month_filter = request.query_params.get('month')
@@ -171,10 +159,7 @@ class StudentAttendanceListView(APIView):
             att_qs = att_qs.order_by('-date')
 
             result.append({
-                "student_card_id": student.student_card_id,
-                "student_name": student.student_name,
-                "student_class": student.student_class,
-                "school_type": student.school_type,
+                "student": _student_info(student),
                 "total_records": att_qs.count(),
                 "history": build_history(att_qs),
             })
@@ -189,25 +174,15 @@ class StudentAttendanceListView(APIView):
         )
 
 
-#  SINGLE STUDENT — full history
-# =========================================================
 class StudentAttendanceDetailView(APIView):
-    """
-    GET /api/v1/school/student-attendance/list/<student_card_id>/
-    Optional:
-        ?year=2026
-        ?month=September
-        ?attendance_status=present
-    """
-
-    def get(self, request, student_card_id):
+    def get(self, request, student_id):
         try:
-            student = Student.objects.get(student_card_id=student_card_id)
+            student = Student.objects.select_related('school').get(pk=student_id)
         except Student.DoesNotExist:
             return Response(
                 {
                     "status": False,
-                    "error": f"Student with card_id '{student_card_id}' not found."
+                    "error": f"Student with id '{student_id}' not found."
                 },
                 status=status.HTTP_404_NOT_FOUND
             )
@@ -234,10 +209,7 @@ class StudentAttendanceDetailView(APIView):
         return Response(
             {
                 "status": True,
-                "student_card_id": student.student_card_id,
-                "student_name": student.student_name,
-                "student_class": student.student_class,
-                "school_type": student.school_type,
+                "student": _student_info(student),
                 "total_records": att_qs.count(),
                 "history": build_history(att_qs),
             },
@@ -245,31 +217,19 @@ class StudentAttendanceDetailView(APIView):
         )
 
 
-# =========================================================
-#  DELETE — Single attendance by student_card_id + date
-# =========================================================
 class StudentAttendanceDeleteView(APIView):
-    """
-    DELETE /api/v1/school/student-attendance/list/<student_card_id>/<date>/
-
-    Example:
-        DELETE /api/v1/school/student-attendance/list/St-Student03/2026-09-24/
-    """
-
-    def delete(self, request, student_card_id, date):
-        # ---- 1. Student ढूंढो ----
+    def delete(self, request, student_id, date):
         try:
-            student = Student.objects.get(student_card_id=student_card_id)
+            student = Student.objects.select_related('school').get(pk=student_id)
         except Student.DoesNotExist:
             return Response(
                 {
                     "status": False,
-                    "error": f"Student with card_id '{student_card_id}' not found."
+                    "error": f"Student with id '{student_id}' not found."
                 },
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # ---- 2. Date validate करो (YYYY-MM-DD format) ----
         try:
             date_obj = datetime.strptime(date, '%Y-%m-%d').date()
         except ValueError:
@@ -281,37 +241,34 @@ class StudentAttendanceDeleteView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # ---- 3. Attendance ढूंढो ----
         try:
             att = StudentAttendance.objects.get(student=student, date=date_obj)
         except StudentAttendance.DoesNotExist:
             return Response(
                 {
                     "status": False,
-                    "error": f"No attendance found for '{student_card_id}' on {date}."
+                    "error": f"No attendance found for student id '{student_id}' on {date}."
                 },
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # ---- 4. Delete info save करो (response के लिए) ----
-        deleted_info = {
+        deleted_attendance = {
             "id": att.id,
-            "student_card_id": student.student_card_id,
-            "student_name": student.student_name,
-            "student_class": student.student_class,
             "date": att.date.strftime('%Y-%m-%d'),
             "attendance_status": att.attendance_status,
             "remarks": att.remarks or '',
         }
 
-        # ---- 5. Delete करो ----
         att.delete()
 
         return Response(
             {
                 "status": True,
-                "message": "Attendance deleted successfully",
-                "deleted": deleted_info,
+                "message": "Attendance deleted successfully.",
+                "deleted": {
+                    "student": _student_info(student),
+                    "attendance": deleted_attendance,
+                },
             },
             status=status.HTTP_200_OK
-        )    
+        )
