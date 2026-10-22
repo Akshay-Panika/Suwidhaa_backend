@@ -1,35 +1,42 @@
+# school/teacher_attendance/models.py
 from django.db import models
-from django.conf import settings
+from school.teacher.models import Teacher
 
 
 class TeacherAttendance(models.Model):
-    STATUS_CHOICES = [
-        ('PRESENT', 'Present'),
-        ('ABSENT', 'Absent'),
-        ('HALF_DAY', 'Half Day'),
-        ('LEAVE', 'On Leave'),
-        ('LATE', 'Late'),
-        ('WEEK_OFF', 'Week Off'),   # 👈 added so backend can emit week-off too
+    ATTENDANCE_STATUS_CHOICES = [
+        ('present', 'Present'),
+        ('absent', 'Absent'),
+        ('leave', 'Leave'),
     ]
 
     teacher = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        Teacher,
         on_delete=models.CASCADE,
-        related_name='attendance_logs'
+        related_name='attendances',
     )
-    date = models.DateField(auto_now_add=True)
+    date = models.DateField(db_index=True)
     check_in_time = models.DateTimeField(null=True, blank=True)
     check_out_time = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PRESENT')
+    attendance_status = models.CharField(
+        max_length=20,
+        choices=ATTENDANCE_STATUS_CHOICES,
+        default='present',
+    )
     ip_address = models.GenericIPAddressField(null=True, blank=True)
-    remarks = models.CharField(max_length=255, blank=True, null=True)
+    remarks = models.CharField(max_length=255, blank=True, null=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ('teacher', 'date')
         ordering = ['-date']
+        indexes = [
+            models.Index(fields=['date']),
+        ]
 
     def __str__(self):
-        return f"{self.teacher.username} - {self.date}"
+        return f"{self.teacher_id} | {self.date} | {self.attendance_status}"
 
     @property
     def working_hours(self):

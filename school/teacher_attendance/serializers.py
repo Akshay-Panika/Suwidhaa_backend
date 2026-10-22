@@ -1,38 +1,23 @@
+# school/teacher_attendance/serializers.py
 from rest_framework import serializers
-from .models import TeacherAttendance
 
 
-class TeacherAttendanceSerializer(serializers.ModelSerializer):
-    teacher_id = serializers.CharField(source='teacher.username', read_only=True)
-    working_hours = serializers.ReadOnlyField()
-    check_in_time = serializers.DateTimeField(format="%I:%M %p", read_only=True)
-    check_out_time = serializers.DateTimeField(format="%I:%M %p", read_only=True)
-    date = serializers.DateField(format="%Y-%m-%d", read_only=True)
-    day_name = serializers.SerializerMethodField()
-    month = serializers.SerializerMethodField()
-    year = serializers.SerializerMethodField()
+class AttendanceInputSerializer(serializers.Serializer):
+    teacher_id = serializers.IntegerField(required=True)
+    date = serializers.DateField(required=True)
+    attendance_status = serializers.ChoiceField(
+        choices=['present', 'absent', 'leave'],
+        default='present',
+    )
+    remarks = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, default=''
+    )
 
-    class Meta:
-        model = TeacherAttendance
-        fields = [
-            'id',
-            'teacher_id',
-            'date',
-            'day_name',
-            'month',
-            'year',
-            'check_in_time',
-            'check_out_time',
-            'status',
-            'working_hours',
-            'remarks',
-        ]
 
-    def get_day_name(self, obj):
-        return obj.date.strftime("%A")
+class BulkAttendanceSerializer(serializers.Serializer):
+    teachers = AttendanceInputSerializer(many=True)
 
-    def get_month(self, obj):
-        return obj.date.strftime("%B")
-
-    def get_year(self, obj):
-        return obj.date.year
+    def validate_teachers(self, value):
+        if not value:
+            raise serializers.ValidationError("Teachers list cannot be empty.")
+        return value
