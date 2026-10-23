@@ -1,11 +1,9 @@
 from django.db import models
 from django.utils import timezone
-
 from school.teacher.models import Teacher
 
 
 class TeacherAttendance(models.Model):
-    # ✅ Updated STATUS_CHOICES
     ATTENDANCE_STATUS_CHOICES = [
         ('present', 'Present'),
         ('absent', 'Absent'),
@@ -15,14 +13,11 @@ class TeacherAttendance(models.Model):
     teacher = models.ForeignKey(
         Teacher,
         on_delete=models.CASCADE,
-        related_name='attendance_logs'
+        related_name='attendance_logs',
     )
-
     date = models.DateField(default=timezone.localdate)
-
     check_in_time = models.DateTimeField(null=True, blank=True)
     check_out_time = models.DateTimeField(null=True, blank=True)
-
     status = models.CharField(
         max_length=20,
         choices=ATTENDANCE_STATUS_CHOICES,
