@@ -5,6 +5,14 @@ import django.utils.timezone
 from django.db import migrations, models
 
 
+def copy_data_forward(apps, schema_editor):
+    TeacherAttendance = apps.get_model('teacher_attendance', 'TeacherAttendance')
+    # Purane 'attendance_status' ke data ko naye 'status' me copy karo
+    TeacherAttendance.objects.filter(attendance_status='present').update(status='present')
+    TeacherAttendance.objects.filter(attendance_status='absent').update(status='absent')
+    TeacherAttendance.objects.filter(attendance_status='leave').update(status='leave')
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -17,11 +25,26 @@ class Migration(migrations.Migration):
             model_name='teacherattendance',
             name='teacher_att_date_5d9810_idx',
         ),
-        migrations.AddField(
-            model_name='teacherattendance',
-            name='status',
-            field=models.CharField(choices=[('present', 'Present'), ('absent', 'Absent'), ('leave', 'Leave')], default='absent', max_length=20),
+        # ✅ DB me column already hai, isliye AddField ko Separated rakha
+        # Taaki DB me error na aaye bas Django ke state me field update ho
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                # DB me column add karne ki zaroorat nahi hai, kyunki wo pehle se hai
+            ],
+            state_operations=[
+                migrations.AddField(
+                    model_name='teacherattendance',
+                    name='status',
+                    field=models.CharField(
+                        choices=[('present', 'Present'), ('absent', 'Absent'), ('leave', 'Leave')],
+                        default='absent',
+                        max_length=20,
+                    ),
+                ),
+            ],
         ),
+        # Data copy karo purane column se naye column me
+        migrations.RunPython(copy_data_forward, migrations.RunPython.noop),
         migrations.AlterField(
             model_name='teacherattendance',
             name='date',
