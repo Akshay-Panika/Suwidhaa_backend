@@ -12,16 +12,17 @@ from school.teacher.serializers import TeacherSerializer
 from .models import TeacherAttendance
 
 
-def get_teacher_by_card(teacher_id_card):
-    if not teacher_id_card:
-        return None, "teacher_id_card is required."
+# ==========================================
+# HELPER: Get Teacher by ID (Primary Key)
+# ==========================================
+def get_teacher_by_id(teacher_id):
+    if not teacher_id:
+        return None, "teacher_id is required."
     try:
-        teacher = Teacher.objects.select_related('school').get(
-            teacher_id_card=str(teacher_id_card).strip()
-        )
+        teacher = Teacher.objects.select_related('school').get(id=teacher_id)
         return teacher, None
     except Teacher.DoesNotExist:
-        return None, f"Teacher with id_card='{teacher_id_card}' not found."
+        return None, f"Teacher with id={teacher_id} not found."
 
 
 def attendance_to_dict(rec):
@@ -69,19 +70,22 @@ def fill_missing(records, start_date, end_date):
     return filled
 
 
+# ==========================================
+# 1. TEACHER ATTENDANCE LIST (GET)
+# ==========================================
 class TeacherAttendanceListView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
         school_id = request.query_params.get('school_id')
-        teacher_id_card = request.query_params.get('teacher_id_card')
+        teacher_id = request.query_params.get('teacher_id') # 🆔 Changed to ID
 
         qs = Teacher.objects.select_related('school').all().order_by('-id')
 
         if school_id:
             qs = qs.filter(school_id=school_id)
-        if teacher_id_card:
-            qs = qs.filter(teacher_id_card=teacher_id_card)
+        if teacher_id:
+            qs = qs.filter(id=teacher_id) # 🆔 Filter by ID
 
         if not qs.exists():
             return Response(
@@ -115,11 +119,14 @@ class TeacherAttendanceListView(APIView):
         )
 
 
+# ==========================================
+# 2. CHECK IN (POST)
+# ==========================================
 class TeacherCheckInView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        teacher, error = get_teacher_by_card(request.data.get('teacher_id_card'))
+        teacher, error = get_teacher_by_id(request.data.get('teacher_id')) # 🆔 Changed
         if error:
             return Response(
                 {"success": False, "message": error},
@@ -137,6 +144,7 @@ class TeacherCheckInView(APIView):
                 {
                     "success": False,
                     "message": "You have already checked in today.",
+                    "teacher_id": teacher.id, # 🆔 Return ID
                     "teacher_id_card": teacher.teacher_id_card,
                     "data": attendance_to_dict(attendance),
                 },
@@ -153,6 +161,7 @@ class TeacherCheckInView(APIView):
             {
                 "success": True,
                 "message": "Check-in successful.",
+                "teacher_id": teacher.id, # 🆔 Return ID
                 "teacher_id_card": teacher.teacher_id_card,
                 "data": attendance_to_dict(attendance),
             },
@@ -160,11 +169,14 @@ class TeacherCheckInView(APIView):
         )
 
 
+# ==========================================
+# 3. CHECK OUT (POST)
+# ==========================================
 class TeacherCheckOutView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        teacher, error = get_teacher_by_card(request.data.get('teacher_id_card'))
+        teacher, error = get_teacher_by_id(request.data.get('teacher_id')) # 🆔 Changed
         if error:
             return Response(
                 {"success": False, "message": error},
@@ -195,6 +207,7 @@ class TeacherCheckOutView(APIView):
                 {
                     "success": False,
                     "message": "You have already checked out today.",
+                    "teacher_id": teacher.id, # 🆔 Return ID
                     "teacher_id_card": teacher.teacher_id_card,
                     "data": attendance_to_dict(attendance),
                 },
@@ -209,6 +222,7 @@ class TeacherCheckOutView(APIView):
             {
                 "success": True,
                 "message": "Check-out successful.",
+                "teacher_id": teacher.id, # 🆔 Return ID
                 "teacher_id_card": teacher.teacher_id_card,
                 "data": attendance_to_dict(attendance),
             },
@@ -216,11 +230,14 @@ class TeacherCheckOutView(APIView):
         )
 
 
+# ==========================================
+# 4. HISTORY (GET) - Year -> Month wise
+# ==========================================
 class TeacherAttendanceHistoryView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        teacher, error = get_teacher_by_card(request.query_params.get('teacher_id_card'))
+        teacher, error = get_teacher_by_id(request.query_params.get('teacher_id')) # 🆔 Changed
         if error:
             return Response(
                 {"success": False, "message": error},
@@ -289,6 +306,7 @@ class TeacherAttendanceHistoryView(APIView):
         return Response(
             {
                 "success": True,
+                "teacher_id": teacher.id, # 🆔 Return ID
                 "teacher_id_card": teacher.teacher_id_card,
                 "teacher_name": f"{teacher.first_name} {teacher.last_name}",
                 "total_records": len(flat_records),
@@ -299,6 +317,9 @@ class TeacherAttendanceHistoryView(APIView):
         )
 
 
+# ==========================================
+# 5. UPDATE (PUT / PATCH)
+# ==========================================
 class AttendanceUpdateView(APIView):
     permission_classes = [AllowAny]
 
@@ -361,6 +382,7 @@ class AttendanceUpdateView(APIView):
             {
                 "success": True,
                 "message": "Attendance updated successfully.",
+                "teacher_id": attendance.teacher.id,
                 "teacher_id_card": attendance.teacher.teacher_id_card,
                 "data": attendance_to_dict(attendance),
             },
@@ -374,6 +396,9 @@ class AttendanceUpdateView(APIView):
         return self._update(request, pk)
 
 
+# ==========================================
+# 6. DELETE (DELETE)
+# ==========================================
 class AttendanceDeleteView(APIView):
     permission_classes = [AllowAny]
 
@@ -387,12 +412,14 @@ class AttendanceDeleteView(APIView):
             )
 
         card = attendance.teacher.teacher_id_card
+        teacher_id = attendance.teacher.id
         attendance.delete()
 
         return Response(
             {
                 "success": True,
                 "message": "Attendance deleted successfully.",
+                "teacher_id": teacher_id,
                 "teacher_id_card": card,
                 "deleted_id": pk,
             },
