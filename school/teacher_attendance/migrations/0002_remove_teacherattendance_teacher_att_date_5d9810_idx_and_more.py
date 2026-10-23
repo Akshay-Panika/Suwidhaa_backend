@@ -5,14 +5,6 @@ import django.utils.timezone
 from django.db import migrations, models
 
 
-def copy_data_forward(apps, schema_editor):
-    TeacherAttendance = apps.get_model('teacher_attendance', 'TeacherAttendance')
-    # Purane 'attendance_status' ke data ko naye 'status' me copy karo
-    TeacherAttendance.objects.filter(attendance_status='present').update(status='present')
-    TeacherAttendance.objects.filter(attendance_status='absent').update(status='absent')
-    TeacherAttendance.objects.filter(attendance_status='leave').update(status='leave')
-
-
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -21,17 +13,27 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveIndex(
-            model_name='teacherattendance',
-            name='teacher_att_date_5d9810_idx',
-        ),
-        # ✅ DB me column already hai, isliye AddField ko Separated rakha
-        # Taaki DB me error na aaye bas Django ke state me field update ho
+        # ✅ Database me kuch nahi badlega, sirf Django ka state update hoga
+        # Kyunki status column DB me pehle se maujood hai, aur attendance_status delete ho chuka hai
         migrations.SeparateDatabaseAndState(
-            database_operations=[
-                # DB me column add karne ki zaroorat nahi hai, kyunki wo pehle se hai
-            ],
+            database_operations=[], 
             state_operations=[
+                migrations.RemoveIndex(
+                    model_name='teacherattendance',
+                    name='teacher_att_date_5d9810_idx',
+                ),
+                migrations.RemoveField(
+                    model_name='teacherattendance',
+                    name='attendance_status',
+                ),
+                migrations.RemoveField(
+                    model_name='teacherattendance',
+                    name='created_at',
+                ),
+                migrations.RemoveField(
+                    model_name='teacherattendance',
+                    name='updated_at',
+                ),
                 migrations.AddField(
                     model_name='teacherattendance',
                     name='status',
@@ -41,35 +43,21 @@ class Migration(migrations.Migration):
                         max_length=20,
                     ),
                 ),
+                migrations.AlterField(
+                    model_name='teacherattendance',
+                    name='date',
+                    field=models.DateField(default=django.utils.timezone.localdate),
+                ),
+                migrations.AlterField(
+                    model_name='teacherattendance',
+                    name='remarks',
+                    field=models.CharField(blank=True, default='', max_length=255),
+                ),
+                migrations.AlterField(
+                    model_name='teacherattendance',
+                    name='teacher',
+                    field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attendance_logs', to='teacher.teacher'),
+                ),
             ],
-        ),
-        # Data copy karo purane column se naye column me
-        migrations.RunPython(copy_data_forward, migrations.RunPython.noop),
-        migrations.AlterField(
-            model_name='teacherattendance',
-            name='date',
-            field=models.DateField(default=django.utils.timezone.localdate),
-        ),
-        migrations.AlterField(
-            model_name='teacherattendance',
-            name='remarks',
-            field=models.CharField(blank=True, default='', max_length=255),
-        ),
-        migrations.AlterField(
-            model_name='teacherattendance',
-            name='teacher',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attendance_logs', to='teacher.teacher'),
-        ),
-        migrations.RemoveField(
-            model_name='teacherattendance',
-            name='attendance_status',
-        ),
-        migrations.RemoveField(
-            model_name='teacherattendance',
-            name='created_at',
-        ),
-        migrations.RemoveField(
-            model_name='teacherattendance',
-            name='updated_at',
         ),
     ]
