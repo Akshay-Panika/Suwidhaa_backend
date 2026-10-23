@@ -1,9 +1,11 @@
-# school/teacher_attendance/models.py
 from django.db import models
+from django.utils import timezone
+
 from school.teacher.models import Teacher
 
 
 class TeacherAttendance(models.Model):
+    # ✅ Updated STATUS_CHOICES
     ATTENDANCE_STATUS_CHOICES = [
         ('present', 'Present'),
         ('absent', 'Absent'),
@@ -13,30 +15,28 @@ class TeacherAttendance(models.Model):
     teacher = models.ForeignKey(
         Teacher,
         on_delete=models.CASCADE,
-        related_name='attendances',
+        related_name='attendance_logs'
     )
-    date = models.DateField(db_index=True)
+
+    date = models.DateField(default=timezone.localdate)
+
     check_in_time = models.DateTimeField(null=True, blank=True)
     check_out_time = models.DateTimeField(null=True, blank=True)
-    attendance_status = models.CharField(
+
+    status = models.CharField(
         max_length=20,
         choices=ATTENDANCE_STATUS_CHOICES,
-        default='present',
+        default='absent',
     )
     ip_address = models.GenericIPAddressField(null=True, blank=True)
-    remarks = models.CharField(max_length=255, blank=True, null=True, default='')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    remarks = models.CharField(max_length=255, blank=True, default='')
 
     class Meta:
         unique_together = ('teacher', 'date')
         ordering = ['-date']
-        indexes = [
-            models.Index(fields=['date']),
-        ]
 
     def __str__(self):
-        return f"{self.teacher_id} | {self.date} | {self.attendance_status}"
+        return f"{self.teacher.teacher_id_card} - {self.date}"
 
     @property
     def working_hours(self):

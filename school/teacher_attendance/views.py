@@ -1,609 +1,368 @@
-# school/teacher_attendance/views.py
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from django.db import transaction
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import datetime, time as dt_time, timedelta
 
 from .models import TeacherAttendance
-from .serializers import BulkAttendanceSerializer
+from .serializers import TeacherAttendanceSerializer
+from .helpers import attendance_dict, virtual_dict, fill_missing_dates
+
 from school.teacher.models import Teacher
 from school.teacher.serializers import TeacherSerializer
 
 
-def _teacher_info(teacher):
-    return TeacherSerializer(teacher).data
+# ============================================================
+# HELPER — Teacher get by ID card
+# ============================================================
+def get_teacher_by_card(teacher_id_card):
+    if not teacher_id_card:
+        return None, "teacher_id_card is required."
 
+    teacher_id_card = str(teacher_id_card).strip()
 
-def build_history(attendance_qs):
-    history = {}
-
-    for att in attendance_qs:
-        year = str(att.date.year)
-        month_name = att.date.strftime('%B')
-        day_name = att.date.strftime('%A')
-
-        history.setdefault(year, {})
-        history[year].setdefault(month_name, [])
-
-        history[year][month_name].append({
-            "id": att.id,
-            "date": att.date.strftime('%Y-%m-%d'),
-            "day_name": day_name,
-            "month": month_name,
-            "year": att.date.year,
-            "attendance_status": att.attendance_status,
-            "remarks": att.remarks or '',
-            "created_at": att.created_at,
-            "updated_at": att.updated_at,
-        })
-
-    return history
-
-
-# =========================================================
-#  CREATE / UPDATE — Bulk (teacher_id based)
-# =========================================================
-class TeacherAttendanceCreateView(APIView):
-    def post(self, request):
-        serializer = BulkAttendanceSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        result = []
-        errors = []
-
-        with transaction.atomic():
-            for idx, item in enumerate(serializer.validated_data['teachers']):
-                teacher_id = item['teacher_id']
-
-                try:
-                    teacher = Teacher.objects.select_related('school').get(pk=teacher_id)
-                except Teacher.DoesNotExist:
-                    errors.append({
-                        "index": idx,
-                        "teacher_id": teacher_id,
-                        "error": f"Teacher with id '{teacher_id}' not found."
-                    })
-                    continue
-
-                att, _ = TeacherAttendance.objects.update_or_create(
-                    teacher=teacher,
-                    date=item['date'],
-                    defaults={
-                        'attendance_status': item.get('attendance_status', 'present'),
-                        'remarks': item.get('remarks') or '',
-                    }
-                )
-
-                result.append({
-                    "teacher": _teacher_info(teacher),
-                    "attendance": {
-                        "id": att.id,
-                        "date": att.date.strftime('%Y-%m-%d'),
-                        "day_name": att.date.strftime('%A'),
-                        "attendance_status": att.attendance_status,
-                        "remarks": att.remarks or '',
-                        "created_at": att.created_at,
-                        "updated_at": att.updated_at,
-                    }
-                })
-
-        if result and not errors:
-            return Response(
-                {
-                    "status": True,
-                    "message": "Attendance saved successfully.",
-                    "total": len(result),
-                    "data": result,
-                },
-                status=status.HTTP_200_OK
-            )
-
-        if result and errors:
-            return Response(
-                {
-                    "status": True,
-                    "message": "Partial success. Some records were saved and some failed.",
-                    "saved_count": len(result),
-                    "failed_count": len(errors),
-                    "data": result,
-                    "errors": errors,
-                },
-                status=status.HTTP_207_MULTI_STATUS
-            )
-
-        return Response(
-            {
-                "status": False,
-                "message": "No records were saved.",
-                "errors": errors,
-            },
-            status=status.HTTP_400_BAD_REQUEST
+    try:
+        teacher = Teacher.objects.select_related('school').get(
+            teacher_id_card=teacher_id_card
         )
+        return teacher, None
+    except Teacher.DoesNotExist:
+        return None, f"Teacher with id_card='{teacher_id_card}' not found."
 
 
-# =========================================================
-#  LIST ALL
-# =========================================================
+def today_status_for_teacher(teacher, today):
+    """
+    Returns (status, date_str)
+    Default: 'absent' (jab tak check-in nahi)
+    """
+    try:
+        rec = TeacherAttendance.objects.get(teacher=teacher, date=today)
+        return rec.status, rec.date.strftime("%Y-%m-%d")
+    except TeacherAttendance.DoesNotExist:
+        return 'absent', today.strftime("%Y-%m-%d")
+
+
+# ============================================================
+# 1. TEACHER ATTENDANCE LIST
+#    GET /teacher-attendance/list/
+#    GET /teacher-attendance/list/?school_id=2
+#    GET /teacher-attendance/list/?teacher_id_card=st-teacher02
+# ============================================================
 class TeacherAttendanceListView(APIView):
+    permission_classes = [AllowAny]
+
     def get(self, request):
-        teacher_qs = Teacher.objects.select_related('school').all()
-
-        teacher_id = request.query_params.get('teacher_id')
-        card_id = request.query_params.get('teacher_id_card')
         school_id = request.query_params.get('school_id')
+        teacher_id_card = request.query_params.get('teacher_id_card')
 
-        if teacher_id:
-            teacher_qs = teacher_qs.filter(id=teacher_id)
-        if card_id:
-            teacher_qs = teacher_qs.filter(teacher_id_card__icontains=card_id)
+        qs = Teacher.objects.select_related('school').all().order_by('-id')
+
         if school_id:
-            teacher_qs = teacher_qs.filter(school_id=school_id)
+            qs = qs.filter(school_id=school_id)
 
-        year_filter = request.query_params.get('year')
-        month_filter = request.query_params.get('month')
-        status_filter = request.query_params.get('attendance_status')
+        if teacher_id_card:
+            qs = qs.filter(teacher_id_card=teacher_id_card)
 
+        if not qs.exists():
+            return Response({
+                "success": False,
+                "message": "No teachers found."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        today = timezone.localdate()
         result = []
 
-        for teacher in teacher_qs:
-            att_qs = teacher.attendances.all()
+        for teacher in qs:
+            today_status, date_str = today_status_for_teacher(teacher, today)
 
-            if year_filter:
-                att_qs = att_qs.filter(date__year=year_filter)
-            if month_filter:
-                try:
-                    month_num = datetime.strptime(month_filter, '%B').month
-                    att_qs = att_qs.filter(date__month=month_num)
-                except ValueError:
-                    pass
-            if status_filter:
-                att_qs = att_qs.filter(attendance_status=status_filter)
+            teacher_data = TeacherSerializer(teacher).data
+            teacher_data_with_status = {
+                "today_is": today_status,   # 'present' / 'absent' / 'leave'
+                "date": date_str,           # '2026-10-23'
+                **teacher_data,
+            }
+            result.append(teacher_data_with_status)
 
-            att_qs = att_qs.order_by('-date')
-
-            result.append({
-                "teacher": _teacher_info(teacher),
-                "total_records": att_qs.count(),
-                "history": build_history(att_qs),
-            })
-
-        return Response(
-            {
-                "status": True,
-                "total_teachers": len(result),
-                "teachers": result,
-            },
-            status=status.HTTP_200_OK
-        )
+        return Response({
+            "success": True,
+            "count": len(result),
+            "data": result,
+        }, status=status.HTTP_200_OK)
 
 
-# =========================================================
-#  DETAIL — Single teacher full history
-# =========================================================
-class TeacherAttendanceDetailView(APIView):
-    def get(self, request, teacher_id):
-        try:
-            teacher = Teacher.objects.select_related('school').get(pk=teacher_id)
-        except Teacher.DoesNotExist:
-            return Response(
-                {
-                    "status": False,
-                    "error": f"Teacher with id '{teacher_id}' not found."
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        att_qs = teacher.attendances.all()
-
-        year_filter = request.query_params.get('year')
-        month_filter = request.query_params.get('month')
-        status_filter = request.query_params.get('attendance_status')
-
-        if year_filter:
-            att_qs = att_qs.filter(date__year=year_filter)
-        if month_filter:
-            try:
-                month_num = datetime.strptime(month_filter, '%B').month
-                att_qs = att_qs.filter(date__month=month_num)
-            except ValueError:
-                pass
-        if status_filter:
-            att_qs = att_qs.filter(attendance_status=status_filter)
-
-        att_qs = att_qs.order_by('-date')
-
-        return Response(
-            {
-                "status": True,
-                "teacher": _teacher_info(teacher),
-                "total_records": att_qs.count(),
-                "history": build_history(att_qs),
-            },
-            status=status.HTTP_200_OK
-        )
-
-
-# =========================================================
-#  DELETE — by teacher_id + date
-# =========================================================
-class TeacherAttendanceDeleteView(APIView):
-    def delete(self, request, teacher_id, date):
-        try:
-            teacher = Teacher.objects.select_related('school').get(pk=teacher_id)
-        except Teacher.DoesNotExist:
-            return Response(
-                {
-                    "status": False,
-                    "error": f"Teacher with id '{teacher_id}' not found."
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        try:
-            date_obj = datetime.strptime(date, '%Y-%m-%d').date()
-        except ValueError:
-            return Response(
-                {
-                    "status": False,
-                    "error": f"Invalid date format '{date}'. Use YYYY-MM-DD."
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            att = TeacherAttendance.objects.get(teacher=teacher, date=date_obj)
-        except TeacherAttendance.DoesNotExist:
-            return Response(
-                {
-                    "status": False,
-                    "error": f"No attendance found for teacher id '{teacher_id}' on {date}."
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        deleted_attendance = {
-            "id": att.id,
-            "date": att.date.strftime('%Y-%m-%d'),
-            "attendance_status": att.attendance_status,
-            "remarks": att.remarks or '',
-        }
-
-        att.delete()
-
-        return Response(
-            {
-                "status": True,
-                "message": "Attendance deleted successfully.",
-                "deleted": {
-                    "teacher": _teacher_info(teacher),
-                    "attendance": deleted_attendance,
-                },
-            },
-            status=status.HTTP_200_OK
-        )
-
-
-# =========================================================
-#  CHECK-IN (simple response — same 6 fields)
-# =========================================================
+# ============================================================
+# 2. CHECK IN
+#    POST /teacher-attendance/check-in/
+#    body: {"teacher_id_card": "st-teacher02", "remarks": "..."}
+# ============================================================
 class TeacherCheckInView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        teacher_id = request.data.get('teacher_id')
-        if not teacher_id:
-            return Response(
-                {"status": False, "message": "teacher_id is required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        teacher, error = get_teacher_by_card(request.data.get('teacher_id_card'))
+        if error:
+            return Response({"success": False, "message": error},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            teacher = Teacher.objects.select_related('school').get(pk=teacher_id)
-        except (Teacher.DoesNotExist, ValueError):
-            return Response(
-                {"status": False, "message": f"Teacher with id='{teacher_id}' not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        today = timezone.localtime(timezone.now()).date()
+        today = timezone.localdate()
 
         attendance, _ = TeacherAttendance.objects.get_or_create(
             teacher=teacher, date=today
         )
 
         if attendance.check_in_time:
-            return Response(
-                {
-                    "status": False,
-                    "message": "You have already checked in today.",
-                    "teacher": _teacher_info(teacher),
-                    "attendance": {
-                        "id": attendance.id,
-                        "date": attendance.date.strftime('%Y-%m-%d'),
-                        "day_name": attendance.date.strftime('%A'),
-                        "attendance_status": attendance.attendance_status,
-                        "remarks": attendance.remarks or '',
-                        "created_at": attendance.created_at,
-                        "updated_at": attendance.updated_at,
-                    },
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({
+                "success": False,
+                "message": "You have already checked in today.",
+                "teacher_id_card": teacher.teacher_id_card,
+                "data": attendance_dict(attendance),
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-        attendance.check_in_time = timezone.now()
+        now = timezone.now()
+        attendance.check_in_time = now
         attendance.ip_address = request.META.get('REMOTE_ADDR')
         attendance.remarks = request.data.get('remarks', '')
-        attendance.attendance_status = 'present'
+
+        # ✅ Status ab sirf 'present' — LATE/HALF_DAY logic hataya
+        attendance.status = 'present'
+
         attendance.save()
 
-        return Response(
-            {
-                "status": True,
-                "message": "Check-in successful.",
-                "teacher": _teacher_info(teacher),
-                "attendance": {
-                    "id": attendance.id,
-                    "date": attendance.date.strftime('%Y-%m-%d'),
-                    "day_name": attendance.date.strftime('%A'),
-                    "attendance_status": attendance.attendance_status,
-                    "remarks": attendance.remarks or '',
-                    "created_at": attendance.created_at,
-                    "updated_at": attendance.updated_at,
-                },
-            },
-            status=status.HTTP_201_CREATED
-        )
+        return Response({
+            "success": True,
+            "message": "Check-in successful.",
+            "teacher_id_card": teacher.teacher_id_card,
+            "data": attendance_dict(attendance),
+        }, status=status.HTTP_201_CREATED)
 
 
-# =========================================================
-#  CHECK-OUT
-# =========================================================
+# ============================================================
+# 3. CHECK OUT
+#    POST /teacher-attendance/check-out/
+#    body: {"teacher_id_card": "st-teacher02"}
+# ============================================================
 class TeacherCheckOutView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        teacher_id = request.data.get('teacher_id')
-        if not teacher_id:
-            return Response(
-                {"status": False, "message": "teacher_id is required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        teacher, error = get_teacher_by_card(request.data.get('teacher_id_card'))
+        if error:
+            return Response({"success": False, "message": error},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            teacher = Teacher.objects.select_related('school').get(pk=teacher_id)
-        except (Teacher.DoesNotExist, ValueError):
-            return Response(
-                {"status": False, "message": f"Teacher with id='{teacher_id}' not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        today = timezone.localtime(timezone.now()).date()
+        today = timezone.localdate()
 
         try:
             attendance = TeacherAttendance.objects.get(teacher=teacher, date=today)
         except TeacherAttendance.DoesNotExist:
-            return Response(
-                {
-                    "status": False,
-                    "message": f"No attendance record found for today ({today}). Please check-in first.",
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({
+                "success": False,
+                "message": f"No attendance record found for today ({today}). Please check-in first."
+            }, status=status.HTTP_404_NOT_FOUND)
 
         if not attendance.check_in_time:
-            return Response(
-                {"status": False, "message": "Please check-in first."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"success": False, "message": "Please check-in first."},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         if attendance.check_out_time:
-            return Response(
-                {
-                    "status": False,
-                    "message": "You have already checked out today.",
-                    "teacher": _teacher_info(teacher),
-                    "attendance": {
-                        "id": attendance.id,
-                        "date": attendance.date.strftime('%Y-%m-%d'),
-                        "day_name": attendance.date.strftime('%A'),
-                        "attendance_status": attendance.attendance_status,
-                        "remarks": attendance.remarks or '',
-                        "created_at": attendance.created_at,
-                        "updated_at": attendance.updated_at,
-                    },
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({
+                "success": False,
+                "message": "You have already checked out today.",
+                "teacher_id_card": teacher.teacher_id_card,
+                "data": attendance_dict(attendance),
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         attendance.check_out_time = timezone.now()
+
+        # ✅ Status waise hi 'present' rahega (half-day logic hataya)
+        attendance.status = 'present'
+
         attendance.save()
 
-        return Response(
-            {
-                "status": True,
-                "message": "Check-out successful.",
-                "teacher": _teacher_info(teacher),
-                "attendance": {
-                    "id": attendance.id,
-                    "date": attendance.date.strftime('%Y-%m-%d'),
-                    "day_name": attendance.date.strftime('%A'),
-                    "attendance_status": attendance.attendance_status,
-                    "remarks": attendance.remarks or '',
-                    "created_at": attendance.created_at,
-                    "updated_at": attendance.updated_at,
-                },
-            },
-            status=status.HTTP_200_OK
-        )
+        return Response({
+            "success": True,
+            "message": "Check-out successful.",
+            "teacher_id_card": teacher.teacher_id_card,
+            "data": attendance_dict(attendance),
+        }, status=status.HTTP_200_OK)
 
 
-# =========================================================
-#  TODAY
-# =========================================================
-class TodayAttendanceView(APIView):
+# ============================================================
+# 4. HISTORY (teacher_id_card wise, year → month → date)
+#    GET /teacher-attendance/history/?teacher_id_card=st-teacher02
+#    GET /teacher-attendance/history/?teacher_id_card=st-teacher02&from=2026-09-01&to=2026-09-23
+# ============================================================
+class TeacherAttendanceHistoryView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        teacher_id = request.query_params.get('teacher_id')
-        if not teacher_id:
-            return Response(
-                {"status": False, "message": "teacher_id query param is required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            teacher = Teacher.objects.select_related('school').get(pk=teacher_id)
-        except (Teacher.DoesNotExist, ValueError):
-            return Response(
-                {"status": False, "message": f"Teacher with id='{teacher_id}' not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        today = timezone.localtime(timezone.now()).date()
-
-        try:
-            attendance = TeacherAttendance.objects.get(teacher=teacher, date=today)
-            return Response(
-                {
-                    "status": True,
-                    "message": "Today's attendance record found.",
-                    "teacher": _teacher_info(teacher),
-                    "attendance": {
-                        "id": attendance.id,
-                        "date": attendance.date.strftime('%Y-%m-%d'),
-                        "day_name": attendance.date.strftime('%A'),
-                        "attendance_status": attendance.attendance_status,
-                        "remarks": attendance.remarks or '',
-                        "created_at": attendance.created_at,
-                        "updated_at": attendance.updated_at,
-                    },
-                },
-                status=status.HTTP_200_OK
-            )
-        except TeacherAttendance.DoesNotExist:
-            return Response(
-                {
-                    "status": True,
-                    "message": "No attendance record found for today.",
-                    "teacher": _teacher_info(teacher),
-                    "attendance": None,
-                },
-                status=status.HTTP_200_OK
-            )
-
-
-# =========================================================
-#  MY HISTORY (with virtual fill for missing dates)
-# =========================================================
-class MyAttendanceHistoryView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-        teacher_id = request.query_params.get('teacher_id')
-        if not teacher_id:
-            return Response(
-                {"status": False, "message": "teacher_id query param is required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            teacher = Teacher.objects.select_related('school').get(pk=teacher_id)
-        except (Teacher.DoesNotExist, ValueError):
-            return Response(
-                {"status": False, "message": f"Teacher with id='{teacher_id}' not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        teacher, error = get_teacher_by_card(request.query_params.get('teacher_id_card'))
+        if error:
+            return Response({"success": False, "message": error},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         from_param = request.query_params.get('from')
         to_param = request.query_params.get('to')
 
-        records_qs = TeacherAttendance.objects.filter(teacher=teacher).order_by('-date')
-        today = timezone.localtime(timezone.now()).date()
+        today = timezone.localdate()
 
+        # ---------- Parse params ----------
         parsed_from = parsed_to = None
         if from_param:
             try:
-                parsed_from = datetime.strptime(from_param, '%Y-%m-%d').date()
+                parsed_from = datetime.strptime(from_param, "%Y-%m-%d").date()
             except ValueError:
-                return Response(
-                    {"status": False, "message": "from must be YYYY-MM-DD"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response({"success": False, "message": "from must be YYYY-MM-DD"},
+                                status=status.HTTP_400_BAD_REQUEST)
         if to_param:
             try:
-                parsed_to = datetime.strptime(to_param, '%Y-%m-%d').date()
+                parsed_to = datetime.strptime(to_param, "%Y-%m-%d").date()
             except ValueError:
-                return Response(
-                    {"status": False, "message": "to must be YYYY-MM-DD"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response({"success": False, "message": "to must be YYYY-MM-DD"},
+                                status=status.HTTP_400_BAD_REQUEST)
 
-        real_records = list(records_qs)
-        existing_dates = {r.date for r in real_records}
+        if parsed_from and parsed_to and parsed_from > parsed_to:
+            return Response({"success": False, "message": "from must be <= to"},
+                            status=status.HTTP_400_BAD_REQUEST)
 
+        records_qs = TeacherAttendance.objects.filter(teacher=teacher).order_by('-date')
+
+        flat_records = [attendance_dict(rec) for rec in records_qs]
+
+        # ---------- Decide range ----------
         if parsed_from and parsed_to:
             range_start, range_end = parsed_from, parsed_to
         elif parsed_from:
             range_start, range_end = parsed_from, today
         elif parsed_to:
-            dates = [r.date for r in real_records] + [parsed_to]
-            range_start, range_end = min(dates), parsed_to
+            earliest = min(records_qs.values_list('date', flat=True), default=parsed_to)
+            range_start, range_end = min(earliest, parsed_to), parsed_to
         else:
-            range_start = min((r.date for r in real_records), default=None)
+            if records_qs.exists():
+                range_start = records_qs.last().date
+            else:
+                range_start = None
             range_end = today
 
-        virtual_records = []
+        # ---------- Fill missing dates (absent) ----------
         if range_start is not None:
-            cursor = range_start
-            while cursor <= range_end:
-                if cursor not in existing_dates:
-                    is_week_off = (cursor.weekday() == 6)
-                    virtual_records.append({
-                        "id": None,
-                        "date": cursor.strftime('%Y-%m-%d'),
-                        "day_name": cursor.strftime('%A'),
-                        "month": cursor.strftime('%B'),
-                        "year": cursor.year,
-                        "attendance_status": 'leave' if is_week_off else 'absent',
-                        "remarks": 'auto',
-                        "created_at": None,
-                        "updated_at": None,
-                    })
-                cursor += timedelta(days=1)
+            flat_records = fill_missing_dates(flat_records, range_start, range_end, week_off_day=6)
+        else:
+            flat_records.sort(key=lambda r: r['date'], reverse=True)
 
-        all_records = []
-        for att in real_records:
-            all_records.append({
-                "id": att.id,
-                "date": att.date.strftime('%Y-%m-%d'),
-                "day_name": att.date.strftime('%A'),
-                "month": att.date.strftime('%B'),
-                "year": att.date.year,
-                "attendance_status": att.attendance_status,
-                "remarks": att.remarks or '',
-                "created_at": att.created_at,
-                "updated_at": att.updated_at,
-            })
-        all_records.extend(virtual_records)
+        # ---------- Group: year → month → [dates] ----------
+        grouped = {}
+        for rec in flat_records:
+            date_obj = datetime.strptime(rec['date'], "%Y-%m-%d").date()
+            year_key = str(date_obj.year)
+            month_key = date_obj.strftime("%B")
+            grouped.setdefault(year_key, {}).setdefault(month_key, []).append(rec)
 
-        all_records.sort(key=lambda r: r['date'], reverse=True)
+        return Response({
+            "success": True,
+            "teacher_id_card": teacher.teacher_id_card,
+            "teacher_name": f"{teacher.first_name} {teacher.last_name}",
+            "total_records": len(flat_records),
+            "real_records": records_qs.count(),
+            "history": grouped,
+        }, status=status.HTTP_200_OK)
 
-        history = {}
-        for rec in all_records:
-            year = str(rec['year'])
-            month = rec['month']
-            history.setdefault(year, {}).setdefault(month, []).append(rec)
 
-        return Response(
-            {
-                "status": True,
-                "teacher": _teacher_info(teacher),
-                "total_records": len(all_records),
-                "real_records": len(real_records),
-                "history": history,
-            },
-            status=status.HTTP_200_OK
-        )
+# ============================================================
+# 5. UPDATE
+#    PUT / PATCH /teacher-attendance/update/<pk>/
+# ============================================================
+class AttendanceUpdateView(APIView):
+    permission_classes = [AllowAny]
+
+    def _update(self, request, pk, partial=False):
+        try:
+            attendance = TeacherAttendance.objects.get(id=pk)
+        except TeacherAttendance.DoesNotExist:
+            return Response({"success": False, "message": f"Attendance id={pk} not found."},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data
+
+        if 'remarks' in data:
+            attendance.remarks = data['remarks']
+
+        # ✅ Updated: only lowercase valid choices
+        if 'status' in data:
+            valid = [c[0] for c in TeacherAttendance.ATTENDANCE_STATUS_CHOICES]
+            if data['status'] not in valid:
+                return Response({
+                    "success": False,
+                    "message": f"Invalid status. Allowed: {valid}"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            attendance.status = data['status']
+
+        # ✅ aware datetime parse
+        def parse_dt(key):
+            if key not in data:
+                return None
+            val = data[key]
+            if not val:
+                return "null"  # signal to set None
+            try:
+                naive = datetime.strptime(val, "%Y-%m-%d %H:%M:%S")
+                return timezone.make_aware(naive, timezone.get_current_timezone())
+            except ValueError:
+                raise ValueError(f"{key} format must be 'YYYY-MM-DD HH:MM:SS'")
+
+        try:
+            ci = parse_dt('check_in_time')
+            if ci == "null":
+                attendance.check_in_time = None
+            elif ci is not None:
+                attendance.check_in_time = ci
+
+            co = parse_dt('check_out_time')
+            if co == "null":
+                attendance.check_out_time = None
+            elif co is not None:
+                attendance.check_out_time = co
+        except ValueError as e:
+            return Response({"success": False, "message": str(e)},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        attendance.save()
+
+        return Response({
+            "success": True,
+            "message": "Attendance updated successfully.",
+            "teacher_id_card": attendance.teacher.teacher_id_card,
+            "data": attendance_dict(attendance),
+        }, status=status.HTTP_200_OK)
+
+    def put(self, request, pk):
+        return self._update(request, pk, partial=False)
+
+    def patch(self, request, pk):
+        return self._update(request, pk, partial=True)
+
+
+# ============================================================
+# 6. DELETE
+#    DELETE /teacher-attendance/delete/<pk>/
+# ============================================================
+class AttendanceDeleteView(APIView):
+    permission_classes = [AllowAny]
+
+    def delete(self, request, pk):
+        try:
+            attendance = TeacherAttendance.objects.get(id=pk)
+        except TeacherAttendance.DoesNotExist:
+            return Response({"success": False, "message": f"Attendance id={pk} not found."},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        card = attendance.teacher.teacher_id_card
+        attendance.delete()
+
+        return Response({
+            "success": True,
+            "message": "Attendance deleted successfully.",
+            "teacher_id_card": card,
+            "deleted_id": pk,
+        }, status=status.HTTP_200_OK)
