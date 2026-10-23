@@ -9,6 +9,7 @@ from .models import TeacherAttendance
 from .serializers import TeacherAttendanceSerializer
 from .helpers import attendance_dict, virtual_dict, fill_missing_dates
 
+# ✅ Teacher model hi use kar rahe hain — apna alag koi model nahi
 from school.teacher.models import Teacher
 from school.teacher.serializers import TeacherSerializer
 
@@ -44,7 +45,7 @@ def today_status_for_teacher(teacher, today):
 
 
 # ============================================================
-# 1. TEACHER ATTENDANCE LIST
+# 1. TEACHER ATTENDANCE LIST  ⭐ UPDATED
 #    GET /teacher-attendance/list/
 #    GET /teacher-attendance/list/?school_id=2
 #    GET /teacher-attendance/list/?teacher_id_card=st-teacher02
@@ -76,13 +77,17 @@ class TeacherAttendanceListView(APIView):
         for teacher in qs:
             today_status, date_str = today_status_for_teacher(teacher, today)
 
+            # ✅ TeacherSerializer se pura teacher object (school nested included)
             teacher_data = TeacherSerializer(teacher).data
-            teacher_data_with_status = {
-                "today_is": today_status,   # 'present' / 'absent' / 'leave'
-                "date": date_str,           # '2026-10-23'
-                **teacher_data,
-            }
-            result.append(teacher_data_with_status)
+
+            # ✅ New nested shape
+            result.append({
+                "attendance_status": {
+                    "today_is": today_status,     # 'present' / 'absent' / 'leave'
+                    "date": date_str,             # '2026-10-23'
+                },
+                "teacher": teacher_data,
+            })
 
         return Response({
             "success": True,
@@ -93,8 +98,6 @@ class TeacherAttendanceListView(APIView):
 
 # ============================================================
 # 2. CHECK IN
-#    POST /teacher-attendance/check-in/
-#    body: {"teacher_id_card": "st-teacher02", "remarks": "..."}
 # ============================================================
 class TeacherCheckInView(APIView):
     permission_classes = [AllowAny]
@@ -123,8 +126,6 @@ class TeacherCheckInView(APIView):
         attendance.check_in_time = now
         attendance.ip_address = request.META.get('REMOTE_ADDR')
         attendance.remarks = request.data.get('remarks', '')
-
-        # ✅ Status ab sirf 'present' — LATE/HALF_DAY logic hataya
         attendance.status = 'present'
 
         attendance.save()
@@ -139,8 +140,6 @@ class TeacherCheckInView(APIView):
 
 # ============================================================
 # 3. CHECK OUT
-#    POST /teacher-attendance/check-out/
-#    body: {"teacher_id_card": "st-teacher02"}
 # ============================================================
 class TeacherCheckOutView(APIView):
     permission_classes = [AllowAny]
@@ -174,10 +173,7 @@ class TeacherCheckOutView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         attendance.check_out_time = timezone.now()
-
-        # ✅ Status waise hi 'present' rahega (half-day logic hataya)
         attendance.status = 'present'
-
         attendance.save()
 
         return Response({
@@ -189,9 +185,7 @@ class TeacherCheckOutView(APIView):
 
 
 # ============================================================
-# 4. HISTORY (teacher_id_card wise, year → month → date)
-#    GET /teacher-attendance/history/?teacher_id_card=st-teacher02
-#    GET /teacher-attendance/history/?teacher_id_card=st-teacher02&from=2026-09-01&to=2026-09-23
+# 4. HISTORY
 # ============================================================
 class TeacherAttendanceHistoryView(APIView):
     permission_classes = [AllowAny]
@@ -207,7 +201,6 @@ class TeacherAttendanceHistoryView(APIView):
 
         today = timezone.localdate()
 
-        # ---------- Parse params ----------
         parsed_from = parsed_to = None
         if from_param:
             try:
@@ -230,7 +223,6 @@ class TeacherAttendanceHistoryView(APIView):
 
         flat_records = [attendance_dict(rec) for rec in records_qs]
 
-        # ---------- Decide range ----------
         if parsed_from and parsed_to:
             range_start, range_end = parsed_from, parsed_to
         elif parsed_from:
@@ -245,13 +237,11 @@ class TeacherAttendanceHistoryView(APIView):
                 range_start = None
             range_end = today
 
-        # ---------- Fill missing dates (absent) ----------
         if range_start is not None:
             flat_records = fill_missing_dates(flat_records, range_start, range_end, week_off_day=6)
         else:
             flat_records.sort(key=lambda r: r['date'], reverse=True)
 
-        # ---------- Group: year → month → [dates] ----------
         grouped = {}
         for rec in flat_records:
             date_obj = datetime.strptime(rec['date'], "%Y-%m-%d").date()
@@ -271,7 +261,6 @@ class TeacherAttendanceHistoryView(APIView):
 
 # ============================================================
 # 5. UPDATE
-#    PUT / PATCH /teacher-attendance/update/<pk>/
 # ============================================================
 class AttendanceUpdateView(APIView):
     permission_classes = [AllowAny]
@@ -288,7 +277,6 @@ class AttendanceUpdateView(APIView):
         if 'remarks' in data:
             attendance.remarks = data['remarks']
 
-        # ✅ Updated: only lowercase valid choices
         if 'status' in data:
             valid = [c[0] for c in TeacherAttendance.ATTENDANCE_STATUS_CHOICES]
             if data['status'] not in valid:
@@ -298,13 +286,12 @@ class AttendanceUpdateView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
             attendance.status = data['status']
 
-        # ✅ aware datetime parse
         def parse_dt(key):
             if key not in data:
                 return None
             val = data[key]
             if not val:
-                return "null"  # signal to set None
+                return "null"
             try:
                 naive = datetime.strptime(val, "%Y-%m-%d %H:%M:%S")
                 return timezone.make_aware(naive, timezone.get_current_timezone())
@@ -345,7 +332,6 @@ class AttendanceUpdateView(APIView):
 
 # ============================================================
 # 6. DELETE
-#    DELETE /teacher-attendance/delete/<pk>/
 # ============================================================
 class AttendanceDeleteView(APIView):
     permission_classes = [AllowAny]
