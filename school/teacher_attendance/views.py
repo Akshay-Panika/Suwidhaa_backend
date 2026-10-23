@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -8,7 +7,6 @@ from rest_framework.views import APIView
 
 from school.teacher.models import Teacher
 from school.teacher.serializers import TeacherSerializer
-
 from .models import TeacherAttendance
 
 
@@ -305,76 +303,84 @@ class TeacherAttendanceHistoryView(APIView):
 class AttendanceUpdateView(APIView):
     permission_classes = [AllowAny]
 
-    def _update(self, request, pk):
-        try:
-            attendance = TeacherAttendance.objects.get(id=pk)
-        except TeacherAttendance.DoesNotExist:
+    def _update(self, request, pk=None):
+        teacher_id = request.data.get('teacher_id')
+        date_str = request.data.get('date')
+        status_value = request.data.get('status')
+        remarks = request.data.get('remarks', '')
+
+        if not teacher_id or not date_str:
             return Response(
-                {"success": False, "message": f"Attendance id={pk} not found."},
-                status=status.HTTP_404_NOT_FOUND,
+                {"success": False, "message": "teacher_id and date are required."},
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        data = request.data
-
-        if 'remarks' in data:
-            attendance.remarks = data['remarks']
-
-        if 'status' in data:
-            valid = [c[0] for c in TeacherAttendance.ATTENDANCE_STATUS_CHOICES]
-            if data['status'] not in valid:
-                return Response(
-                    {"success": False, "message": f"Invalid status. Allowed: {valid}"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            attendance.status = data['status']
-
-        def parse_dt(key):
-            if key not in data:
-                return None
-            val = data[key]
-            if not val:
-                return "null"
-            try:
-                naive = datetime.strptime(val, "%Y-%m-%d %H:%M:%S")
-                return timezone.make_aware(naive, timezone.get_current_timezone())
-            except ValueError:
-                raise ValueError(f"{key} format must be 'YYYY-MM-DD HH:MM:SS'")
-
         try:
-            ci = parse_dt('check_in_time')
-            if ci == "null":
-                attendance.check_in_time = None
-            elif ci is not None:
-                attendance.check_in_time = ci
-
-            co = parse_dt('check_out_time')
-            if co == "null":
-                attendance.check_out_time = None
-            elif co is not None:
-                attendance.check_out_time = co
-        except ValueError as e:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
             return Response(
-                {"success": False, "message": str(e)},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"success": False, "message": "date format must be YYYY-MM-DD"},
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        attendance.save()
+        valid_statuses = [c[0] for c in TeacherAttendance.ATTENDANCE_STATUS_CHOICES]
+        if status_value and status_value not in valid_statuses:
+            return Response(
+                {"success": False, "message": f"Invalid status. Allowed: {valid_statuses}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            teacher = Teacher.objects.get(id=teacher_id)
+        except Teacher.DoesNotExist:
+            return Response(
+                {"success": False, "message": f"Teacher with id={teacher_id} not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        attendance, created = TeacherAttendance.objects.get_or_create(
+            teacher=teacher,
+            date=date_obj,
+            defaults={
+                'status': status_value or 'absent',
+                'remarks': remarks
+            }
+        )
+
+        if not created:
+            if status_value:
+                attendance.status = status_value
+            if remarks:
+                attendance.remarks = remarks
+            attendance.save()
 
         return Response(
             {
                 "success": True,
-                "message": "Attendance updated successfully.",
-                "teacher_id": attendance.teacher.id,
-                "teacher_id_card": attendance.teacher.teacher_id_card,
-                "data": attendance_to_dict(attendance),
+                "message": "Attendance updated successfully." if not created else "Attendance created successfully.",
+                "teacher_id": teacher.id,
+                "teacher_id_card": teacher.teacher_id_card,
+                "data": {
+                    "id": attendance.id,
+                    "date": attendance.date.strftime("%Y-%m-%d"),
+                    "day_name": attendance.date.strftime("%A"),
+                    "month": attendance.date.strftime("%B"),
+                    "year": attendance.date.year,
+                    "check_in_time": attendance.check_in_time.strftime("%I:%M %p") if attendance.check_in_time else None,
+                    "check_out_time": attendance.check_out_time.strftime("%I:%M %p") if attendance.check_out_time else None,
+                    "status": attendance.status,
+                    "working_hours": attendance.working_hours,
+                    "remarks": attendance.remarks,
+                    "is_virtual": False,
+                }
             },
-            status=status.HTTP_200_OK,
+            status=status.HTTP_200_OK
         )
 
-    def put(self, request, pk):
+    def put(self, request, pk=None):
         return self._update(request, pk)
 
-    def patch(self, request, pk):
+    def patch(self, request, pk=None):
         return self._update(request, pk)
 
 
