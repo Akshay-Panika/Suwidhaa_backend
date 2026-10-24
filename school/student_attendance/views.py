@@ -5,7 +5,7 @@ from django.db import transaction
 from datetime import datetime
 
 from .models import StudentAttendance
-from .serializers import BulkAttendanceSerializer, AttendanceInputSerializer
+from .serializers import BulkAttendanceSerializer
 from school.student.models import Student
 from school.student.serializers import StudentSerializer
 
@@ -116,57 +116,6 @@ class StudentAttendanceCreateView(APIView):
             },
             status=status.HTTP_400_BAD_REQUEST
         )
-
-
-# ✅ Naya View: Single Student ID + Date se create/update
-class StudentAttendanceCreateOrUpdateView(APIView):
-    def post(self, request):
-        serializer = AttendanceInputSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        data = serializer.validated_data
-        student_id = data['student_id']
-        date_obj = data['date']
-        status_value = data.get('attendance_status', 'present')
-        remarks = data.get('remarks') or ''
-
-        try:
-            student = Student.objects.select_related('school').get(pk=student_id)
-        except Student.DoesNotExist:
-            return Response(
-                {"status": False, "message": f"Student with id '{student_id}' not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        with transaction.atomic():
-            att, created = StudentAttendance.objects.update_or_create(
-                student=student,
-                date=date_obj,
-                defaults={
-                    'attendance_status': status_value,
-                    'remarks': remarks,
-                }
-            )
-
-            message = "Attendance created successfully." if created else "Attendance updated successfully."
-
-            return Response(
-                {
-                    "status": True,
-                    "message": message,
-                    "student": _student_info(student),
-                    "data": {
-                        "id": att.id,
-                        "date": att.date.strftime('%Y-%m-%d'),
-                        "day_name": att.date.strftime('%A'),
-                        "attendance_status": att.attendance_status,
-                        "remarks": att.remarks or '',
-                        "created_at": att.created_at,
-                        "updated_at": att.updated_at,
-                    }
-                },
-                status=status.HTTP_200_OK
-            )
 
 
 class StudentAttendanceListView(APIView):
