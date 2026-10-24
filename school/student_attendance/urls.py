@@ -1,17 +1,28 @@
 from django.urls import path
 from .views import (
     StudentAttendanceCreateView,
+    StudentAttendanceCreateOrUpdateView,  # ✅ Naya
     StudentAttendanceListView,
     StudentAttendanceDetailView,
     StudentAttendanceDeleteView,
 )
 
 urlpatterns = [
+    # ✅ Naya endpoint: single student update/create
+    path(
+        'student-attendance/update/',
+        StudentAttendanceCreateOrUpdateView.as_view(),
+        name='student-attendance-update'
+    ),
+
+    # Bulk create (purana)
     path(
         'student-attendance/create/',
         StudentAttendanceCreateView.as_view(),
         name='student-attendance-create'
     ),
+
+    # List, Detail, Delete
     path(
         'student-attendance/list/',
         StudentAttendanceListView.as_view(),
