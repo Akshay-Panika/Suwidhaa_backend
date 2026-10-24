@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.db import transaction
-from datetime import datetime
+from datetime import datetime, date
 
 from .models import StudentAttendance
 from .serializers import BulkAttendanceSerializer
@@ -268,6 +268,62 @@ class StudentAttendanceDeleteView(APIView):
                 "deleted": {
                     "student": _student_info(student),
                     "attendance": deleted_attendance,
+                },
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class StudentAttendanceTodayView(APIView):
+    def get(self, request, student_id):
+        # 1. Fetch the student
+        try:
+            student = Student.objects.select_related('school').get(pk=student_id)
+        except Student.DoesNotExist:
+            return Response(
+                {
+                    "status": False,
+                    "error": f"Student with id '{student_id}' not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        today = date.today()
+
+        # 2. Try to fetch today's attendance
+        try:
+            att = StudentAttendance.objects.get(student=student, date=today)
+        except StudentAttendance.DoesNotExist:
+            return Response(
+                {
+                    "status": False,
+                    "message": f"No attendance record found for today ({today.strftime('%Y-%m-%d')}).",
+                    "student": _student_info(student),
+                    "date": today.strftime('%Y-%m-%d'),
+                    "day_name": today.strftime('%A'),
+                    "attendance": None,
+                },
+                status=status.HTTP_200_OK
+            )
+
+        # 3. Return today's attendance
+        return Response(
+            {
+                "status": True,
+                "message": "Today's attendance fetched successfully.",
+                "student": _student_info(student),
+                "date": today.strftime('%Y-%m-%d'),
+                "day_name": today.strftime('%A'),
+                "attendance": {
+                    "id": att.id,
+                    "date": att.date.strftime('%Y-%m-%d'),
+                    "day_name": att.date.strftime('%A'),
+                    "month": att.date.strftime('%B'),
+                    "year": att.date.year,
+                    "attendance_status": att.attendance_status,
+                    "remarks": att.remarks or '',
+                    "created_at": att.created_at,
+                    "updated_at": att.updated_at,
                 },
             },
             status=status.HTTP_200_OK

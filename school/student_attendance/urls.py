@@ -4,6 +4,7 @@ from .views import (
     StudentAttendanceListView,
     StudentAttendanceDetailView,
     StudentAttendanceDeleteView,
+    StudentAttendanceTodayView,
 )
 
 urlpatterns = [
@@ -26,5 +27,11 @@ urlpatterns = [
         'student-attendance/list/<int:student_id>/<str:date>/',
         StudentAttendanceDeleteView.as_view(),
         name='student-attendance-delete'
+    ),
+
+    path(
+        'student-attendance/today/<int:student_id>/',
+        StudentAttendanceTodayView.as_view(),
+        name='student-attendance-today'
     ),
 ]
