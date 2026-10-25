@@ -44,17 +44,11 @@ class TransportCreateView(APIView):
 
 
 class TransportListView(APIView):
+    """Get ALL transports (No filter)"""
     def get(self, request):
         queryset = Transport.objects.all()
         
-        school_id = request.query_params.get('school_id')
-        if school_id:
-            queryset = queryset.filter(school_id=school_id)
-            
-        transport_type = request.query_params.get('transport_type')
-        if transport_type:
-            queryset = queryset.filter(transport_type__icontains=transport_type)
-        
+        # Optional search by vehicle or driver
         search = request.query_params.get('search')
         if search:
             queryset = queryset.filter(
@@ -70,6 +64,33 @@ class TransportListView(APIView):
             "count": queryset.count(),
             "data": serializer.data
         }, status=status.HTTP_200_OK)
+
+
+# ✅ NEW: School wise Transport View
+class TransportBySchoolView(APIView):
+    """Get Transport by School ID"""
+    def get(self, request, school_id):
+        transports = Transport.objects.filter(school_id=school_id).prefetch_related('assigned_students__student')
+        
+        if not transports.exists():
+            return Response(
+                {
+                    "success": False,
+                    "message": f"No transports found for school id '{school_id}'",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+            
+        serializer = TransportSerializer(transports, many=True)
+        return Response(
+            {
+                "success": True,
+                "school_id": school_id,
+                "count": transports.count(),
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class TransportDetailView(APIView):
