@@ -1,15 +1,21 @@
-# school/transport/models.py
 from django.db import models
 from cloudinary.models import CloudinaryField
+from school.school_type.models import SchoolType
 from school.student.models import Student
 
 class Transport(models.Model):
-    # Transport Details (all manual entry)
+    school = models.ForeignKey(
+        SchoolType,
+        on_delete=models.CASCADE,
+        related_name="transports",
+        null=True,
+        blank=True,
+    )
+    
     transport_type = models.CharField(max_length=100, blank=True, null=True)
     school_type = models.CharField(max_length=100, blank=True, null=True)
     vehicle_number = models.CharField(max_length=20, unique=True, db_index=True)
     
-    # Driver Details
     driver_name = models.CharField(max_length=150)
     driver_number = models.CharField(max_length=20)
     driver_image = CloudinaryField(
@@ -19,7 +25,6 @@ class Transport(models.Model):
         null=True
     )
     
-    # Additional Fields
     capacity = models.CharField(max_length=50, blank=True, null=True)
     route_name = models.CharField(max_length=200, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -35,25 +40,31 @@ class Transport(models.Model):
 
 
 class TransportStudent(models.Model):
-    """Model to store students assigned to a transport"""
     transport = models.ForeignKey(
         Transport,
         on_delete=models.CASCADE,
-        related_name='students'
+        related_name='assigned_students'
     )
-    student_name = models.CharField(max_length=200)
-    student_id = models.CharField(max_length=50)
-    address = models.TextField(blank=True, null=True)          # ✅ ADDED
+    
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name='transport_assignments',
+        null=True,
+        blank=True
+    )
+    
+    address = models.TextField(blank=True, null=True)
     pickup_time = models.CharField(max_length=50, blank=True, null=True)
     drop_time = models.CharField(max_length=50, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        ordering = ['student_name']
+        ordering = ['student__first_name']
         verbose_name = 'Transport Student'
         verbose_name_plural = 'Transport Students'
-        unique_together = [['transport', 'student_id']]
+        unique_together = [['transport', 'student']]
     
     def __str__(self):
-        return f"{self.transport.vehicle_number} - {self.student_name}"
+        return f"{self.transport.vehicle_number} - {self.student.first_name if self.student else 'No Student'}"

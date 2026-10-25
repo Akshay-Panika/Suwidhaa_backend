@@ -54,10 +54,6 @@ urlpatterns = [
          include("school.subject.urls"),
     ),
     path(
-         "api/v1/school/",
-         include("school.schedule.urls"),
-    ),
-    path(
         "api/v1/school/",
         include("school.student_pass.urls"),
     ),

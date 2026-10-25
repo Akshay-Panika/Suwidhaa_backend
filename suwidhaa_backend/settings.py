@@ -40,7 +40,6 @@ INSTALLED_APPS = [
     "school.student_attendance",
     "school.classes",
     "school.subject",
-    "school.schedule",
     "school.student_pass",
     "school.teacher_pass",
     "school.teacher_leave",
