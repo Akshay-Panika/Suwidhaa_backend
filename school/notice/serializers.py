@@ -1,15 +1,25 @@
 from rest_framework import serializers
+from school.school_type.models import SchoolType  # ✅ Changed this line
 from .models import Notice
+
+
+
+class SchoolTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchoolType
+        fields = "__all__"
 
 
 class NoticeSerializer(serializers.ModelSerializer):
     display_date = serializers.SerializerMethodField()
     attachment_url = serializers.SerializerMethodField()
+    school = SchoolTypeSerializer(read_only=True)
 
     class Meta:
         model = Notice
         fields = [
             "id",
+            "school",
             "title",
             "description",
             "priority",
@@ -22,7 +32,12 @@ class NoticeSerializer(serializers.ModelSerializer):
             "created_at",
             "display_date",
         ]
-        read_only_fields = ["id", "created_at", "display_date", "attachment_url"]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "display_date",
+            "attachment_url",
+        ]
 
     def get_display_date(self, obj):
         return obj.created_at.strftime("%d %b %Y")
@@ -37,11 +52,12 @@ class NoticeSerializer(serializers.ModelSerializer):
 
 
 class NoticeCreateSerializer(serializers.ModelSerializer):
-    """Handles multipart/form-data to accept file uploads."""
+    school_id = serializers.IntegerField(write_only=True, required=True)
 
     class Meta:
         model = Notice
         fields = [
+            "school_id",
             "title",
             "description",
             "priority",
@@ -54,3 +70,15 @@ class NoticeCreateSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "attachment": {"required": False, "allow_null": True},
         }
+
+    def validate_school_id(self, value):
+        if not SchoolType.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(
+                f"School with id {value} not found"
+            )
+        return value
+
+    def create(self, validated_data):
+        school_id = validated_data.pop("school_id")
+        school = SchoolType.objects.get(pk=school_id)
+        return Notice.objects.create(school=school, **validated_data)

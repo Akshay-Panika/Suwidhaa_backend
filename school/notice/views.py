@@ -4,16 +4,12 @@ from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 
+
+from school.school_type.models import SchoolType  # ✅ Changed this line
 from .models import Notice
 from .serializers import NoticeSerializer, NoticeCreateSerializer
 
 
-# ============================================================
-# 1. CREATE NOTICE
-#    POST /api/v1/school/notice/create/
-#    Content-Type: multipart/form-data  (when file attached)
-#    Content-Type: application/json     (when no file)
-# ============================================================
 class NoticeCreateAPIView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
@@ -41,17 +37,16 @@ class NoticeCreateAPIView(APIView):
         )
 
 
-# ============================================================
-# 2. LIST ALL NOTICES
-#    GET /api/v1/school/notice/list/
-# ============================================================
-class NoticeListAPIView(APIView):
-    def get(self, request):
-        notices = Notice.objects.all()
+class NoticeListBySchoolAPIView(APIView):
+    def get(self, request, school_id):
+        school = get_object_or_404(SchoolType, pk=school_id)
+
+        notices = Notice.objects.filter(school=school)
 
         priority = request.query_params.get("priority")
         audience = request.query_params.get("audience")
         assigned_class = request.query_params.get("class")
+        is_pinned = request.query_params.get("is_pinned")
 
         if priority:
             notices = notices.filter(priority=priority)
@@ -59,11 +54,17 @@ class NoticeListAPIView(APIView):
             notices = notices.filter(audience=audience)
         if assigned_class:
             notices = notices.filter(assigned_class=assigned_class)
+        if is_pinned is not None:
+            notices = notices.filter(
+                is_pinned=str(is_pinned).lower() in ("1", "true", "yes")
+            )
 
         serializer = NoticeSerializer(notices, many=True)
+
         return Response(
             {
                 "success": True,
+                "school_id": school.id,
                 "count": notices.count(),
                 "data": serializer.data,
             },
@@ -71,9 +72,6 @@ class NoticeListAPIView(APIView):
         )
 
 
-# ============================================================
-# 3. RETRIEVE / UPDATE / DELETE
-# ============================================================
 class NoticeDetailAPIView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
@@ -105,6 +103,9 @@ class NoticeDetailAPIView(APIView):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    def patch(self, request, pk):
+        return self.put(request, pk)
+
     def delete(self, request, pk):
         notice = self.get_object(pk)
         notice.delete()
@@ -114,10 +115,6 @@ class NoticeDetailAPIView(APIView):
         )
 
 
-# ============================================================
-# 4. PIN / UNPIN NOTICE
-#    POST /api/v1/school/notice/<id>/toggle-pin/
-# ============================================================
 class NoticeTogglePinAPIView(APIView):
     def post(self, request, pk):
         notice = get_object_or_404(Notice, pk=pk)

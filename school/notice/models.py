@@ -16,6 +16,14 @@ class Notice(models.Model):
         ("Staff", "Staff"),
     ]
 
+    school = models.ForeignKey(
+        "school_type.SchoolType",
+        on_delete=models.CASCADE,
+        related_name="notices",
+        null=True,
+        blank=True,
+    )
+
     title = models.CharField(max_length=255)
     description = models.TextField()
 
@@ -26,22 +34,18 @@ class Notice(models.Model):
         max_length=20, choices=AUDIENCE_CHOICES, default="Students"
     )
 
-    # Class reference (string because Flutter uses names like "Class 10 - A")
     assigned_class = models.CharField(max_length=100, default="All Classes")
 
-    # 📎 Attachment — accepts PDF, Image, or any file (Cloudinary)
     attachment = CloudinaryField(
         "attachment",
         folder="suwidhaa/school/notice",
-        resource_type="auto",   # auto-detects image / video / raw (pdf, doc, etc.)
+        resource_type="auto",
         blank=True,
         null=True,
     )
 
-    # Options
     is_pinned = models.BooleanField(default=False)
 
-    # Meta
     created_by = models.CharField(max_length=150, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
