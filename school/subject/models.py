@@ -13,9 +13,6 @@ class Subject(models.Model):
 
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=50, blank=True, null=True)
-    description = models.TextField(blank=True, null=True)
-    
-    check_box = models.BooleanField(default=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
