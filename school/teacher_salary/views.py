@@ -1,3 +1,4 @@
+# school/teacher_salary/views.py
 import logging
 
 from rest_framework.views import APIView
@@ -5,9 +6,12 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
+from django.shortcuts import get_object_or_404
+
+from school.school_type.models import SchoolType
 from school.teacher.models import Teacher
 from .models import TeacherSalary
-from .serializers import TeacherSalarySerializer
+from .serializers import TeacherSalarySerializer, TeacherSalaryListSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -25,31 +29,64 @@ def _get_teacher_by_card(teacher_id_card):
 
 
 # =====================================================================
-# TEACHER SALARY SUMMARY (GET + POST)
+# 1. LIST ALL TEACHERS (with salary summary) - ALL SCHOOLS
+#    GET /api/v1/school/teacher/salary/list/
+# =====================================================================
+class TeacherSalaryListView(APIView):
+    def get(self, request):
+        teachers = Teacher.objects.select_related("school").all().order_by("-id")
+        serializer = TeacherSalaryListSerializer(teachers, many=True)
+
+        return Response(
+            {
+                "success": True,
+                "count": teachers.count(),
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+# =====================================================================
+# 2. LIST TEACHERS BY SCHOOL (with salary summary)
+#    GET /api/v1/school/teacher/salary/list/school/<school_id>/
+# =====================================================================
+class TeacherSalaryListBySchoolView(APIView):
+    def get(self, request, school_id):
+        school = get_object_or_404(SchoolType, pk=school_id)
+        teachers = Teacher.objects.filter(school=school).select_related("school").order_by("-id")
+
+        if not teachers.exists():
+            return Response(
+                {
+                    "success": False,
+                    "message": f"No teachers found for school id '{school_id}'",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = TeacherSalaryListSerializer(teachers, many=True)
+
+        return Response(
+            {
+                "success": True,
+                "school_id": school.id,
+                "school_name": school.school_name,
+                "count": teachers.count(),
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+# =====================================================================
+# 3. TEACHER SALARY SUMMARY (GET + POST)
+#    GET  /api/v1/school/teacher/salary/summary/<teacher_id_card>/
+#    POST /api/v1/school/teacher/salary/summary/<teacher_id_card>/
 # =====================================================================
 class TeacherSalarySummaryView(APIView):
-    """
-    GET  /api/v1/school/teacher/salary/summary/<teacher_id_card>/
-         Returns year-wise + month-wise salary records + totals.
-
-    POST /api/v1/school/teacher/salary/summary/<teacher_id_card>/
-         Create salary payment.
-         Body: {
-             "month": "October",
-             "year": "2025",
-             "payment_method": "Cash" | "Bank" | "UPI" | "Cheque" | "Bank Transfer",
-             "amount": 43500,
-             "paid_amount": 40000,
-             "paid_date": "2025-10-30",
-             "remark": "optional"
-         }
-    """
-
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
-    # ----------------------------------------------------------------
-    # GET — year-wise + month-wise
-    # ----------------------------------------------------------------
     def get(self, request, teacher_id_card):
         teacher = _get_teacher_by_card(teacher_id_card)
         if not teacher:
@@ -60,22 +97,17 @@ class TeacherSalarySummaryView(APIView):
 
         qs = TeacherSalary.objects.filter(teacher=teacher).order_by("-year", "-id")
 
-        # ==== Group: year -> month (normalized) -> records ====
         years_map = {}
         for s in qs:
             year = (s.year or "Unknown").strip()
-            month_key = (s.month or "Unknown").strip().title()  # "october" -> "October"
-
+            month_key = (s.month or "Unknown").strip().title()
             years_map.setdefault(year, {})
             years_map[year].setdefault(month_key, [])
             years_map[year][month_key].append(s)
 
-        # ==== Build ordered year-wise response ====
         years_data = []
         for year in sorted(years_map.keys(), reverse=True):
             months_data = []
-
-            # First: standard months in Jan -> Dec order
             for month in MONTHS_ORDER:
                 if month in years_map[year]:
                     records = years_map[year][month]
@@ -91,7 +123,6 @@ class TeacherSalarySummaryView(APIView):
                         "records": TeacherSalarySerializer(records, many=True).data,
                     })
 
-            # Then: any leftover non-standard month keys
             for month_key in years_map[year].keys():
                 if month_key not in MONTHS_ORDER:
                     records = years_map[year][month_key]
@@ -115,11 +146,9 @@ class TeacherSalarySummaryView(APIView):
                 "months": months_data,
             })
 
-        # ==== Latest record for the top summary card ====
         latest = qs.first()
         latest_data = TeacherSalarySerializer(latest).data if latest else None
 
-        # ==== Grand totals ====
         all_total = sum(float(s.amount or 0) for s in qs)
         all_paid = sum(float(s.paid_amount or 0) for s in qs)
         all_pending = sum(float(s.pending_amount or 0) for s in qs)
@@ -130,6 +159,8 @@ class TeacherSalarySummaryView(APIView):
                 "data": {
                     "teacher_id_card": teacher.teacher_id_card,
                     "teacher_name": f"{teacher.first_name} {teacher.last_name}",
+                    "school_id": teacher.school.id if teacher.school else None,
+                    "school_name": teacher.school.school_name if teacher.school else None,
                     "total_salary": all_total,
                     "paid_amount": all_paid,
                     "pending_amount": all_pending,
@@ -140,9 +171,6 @@ class TeacherSalarySummaryView(APIView):
             status=status.HTTP_200_OK,
         )
 
-    # ----------------------------------------------------------------
-    # POST — create salary payment
-    # ----------------------------------------------------------------
     def post(self, request, teacher_id_card):
         teacher = _get_teacher_by_card(teacher_id_card)
         if not teacher:
@@ -159,14 +187,12 @@ class TeacherSalarySummaryView(APIView):
         paid_date = request.data.get("paid_date")
         remark = request.data.get("remark", "")
 
-        # ==== Validate required fields ====
         if not month or not year:
             return Response(
                 {"success": False, "message": "month and year are required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ==== Validate payment method ====
         valid_methods = ["Cash", "Bank", "UPI", "Cheque", "Bank Transfer"]
         if payment_method not in valid_methods:
             return Response(
@@ -174,7 +200,6 @@ class TeacherSalarySummaryView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ==== Validate numbers ====
         try:
             amount = float(amount)
             paid_amount = float(paid_amount)
@@ -184,7 +209,6 @@ class TeacherSalarySummaryView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ==== Create salary (model auto-normalizes month/year, sets status, pending) ====
         salary = TeacherSalary.objects.create(
             teacher=teacher,
             month=month,
@@ -207,19 +231,10 @@ class TeacherSalarySummaryView(APIView):
 
 
 # =====================================================================
-# DELETE SALARY BY MONTH + YEAR (teacher-specific)
+# 4. DELETE SALARY BY MONTH + YEAR
+#    DELETE /api/v1/school/teacher/salary/summary/<teacher_id_card>/<year>/<month>/
 # =====================================================================
 class TeacherSalaryDeleteMonthView(APIView):
-    """
-    DELETE /api/v1/school/teacher/salary/summary/<teacher_id_card>/<year>/<month>/
-
-    Deletes all salary records of a given teacher
-    for a specific month + year.
-
-    Example:
-        DELETE /api/v1/school/teacher/salary/summary/St-Teacher01/2026/October/
-    """
-
     def delete(self, request, teacher_id_card, year, month):
         teacher = _get_teacher_by_card(teacher_id_card)
         if not teacher:
@@ -228,14 +243,13 @@ class TeacherSalaryDeleteMonthView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # normalize month (case insensitive match)
         month_key = (month or "").strip().title()
         year_key = str(year).strip()
 
         qs = TeacherSalary.objects.filter(
             teacher=teacher,
             year=year_key,
-            month__iexact=month_key,     # "october" or "OCTOBER" or "October" all match
+            month__iexact=month_key,
         )
 
         count = qs.count()
@@ -264,4 +278,4 @@ class TeacherSalaryDeleteMonthView(APIView):
                 },
             },
             status=status.HTTP_200_OK,
-        )    
+        )
