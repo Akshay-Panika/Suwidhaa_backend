@@ -1,6 +1,6 @@
 from django.db import models
 from cloudinary.models import CloudinaryField
-
+from school.school_type.models import SchoolType
 
 class SchoolEvent(models.Model):
     CATEGORY_CHOICES = [
@@ -27,6 +27,15 @@ class SchoolEvent(models.Model):
         ("Cancelled", "Cancelled"),
     ]
 
+    # 🔗 Link to School
+    school = models.ForeignKey(
+        SchoolType, 
+        on_delete=models.CASCADE, 
+        related_name="events",
+        null=True,    # <--- MUST BE HERE
+        blank=True    # <--- MUST BE HERE
+    )
+
     title = models.CharField(max_length=255)
     description = models.TextField()
     category = models.CharField(
@@ -34,7 +43,7 @@ class SchoolEvent(models.Model):
     )
     venue = models.CharField(max_length=200)
 
-    # Dates & Times (stored as strings to match Flutter format: "27 Sep 2026" / "09:00 AM")
+    # Dates & Times
     start_date = models.CharField(max_length=50)
     end_date = models.CharField(max_length=50)
     start_time = models.CharField(max_length=20)
@@ -66,4 +75,4 @@ class SchoolEvent(models.Model):
         ordering = ["-is_pinned", "-created_at"]
 
     def __str__(self):
-        return f"{self.title} ({self.category})"
+        return f"{self.title} ({self.school.school_name})"
