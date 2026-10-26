@@ -1,27 +1,25 @@
-# school/exams/views.py
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
+from school.school_type.models import SchoolType
 from .models import ClassExamTimetable
 from .serializers import ClassExamTimetableSerializer
 
 
-# ==================== CREATE ====================
 class ClassExamTimetableCreateView(APIView):
-    """
-    POST /api/v1/school/exam-timetables/create/
-    Body may contain:
-      - created_by_id   (int, optional)
-      - created_by_name (string, optional)
-    """
     authentication_classes = []
     permission_classes = []
 
-    def post(self, request):
+    def post(self, request, school_id):
+        school = get_object_or_404(SchoolType, pk=school_id)
+        
+        data = request.data.copy()
+        data['school'] = school.id
+        
         serializer = ClassExamTimetableSerializer(
-            data=request.data, context={'request': request}
+            data=data, context={'request': request}
         )
         if serializer.is_valid():
             timetable = serializer.save()
@@ -41,17 +39,13 @@ class ClassExamTimetableCreateView(APIView):
         )
 
 
-# ==================== LIST ====================
 class ClassExamTimetableListView(APIView):
-    """
-    GET /api/v1/school/exam-timetables/list/
-    Optional query: ?class_name=10th&exam_type=board
-    """
     authentication_classes = []
     permission_classes = []
 
-    def get(self, request):
-        qs = ClassExamTimetable.objects.all().prefetch_related('schedules')
+    def get(self, request, school_id):
+        school = get_object_or_404(SchoolType, pk=school_id)
+        qs = ClassExamTimetable.objects.filter(school=school).prefetch_related('schedules__invigilator')
 
         class_name = request.query_params.get('class_name')
         exam_type = request.query_params.get('exam_type')
@@ -70,16 +64,15 @@ class ClassExamTimetableListView(APIView):
         )
 
 
-# ==================== DETAIL ====================
 class ClassExamTimetableDetailView(APIView):
     authentication_classes = []
     permission_classes = []
 
-    def _get_object(self, pk):
-        return get_object_or_404(ClassExamTimetable, pk=pk)
+    def _get_object(self, school_id, pk):
+        return get_object_or_404(ClassExamTimetable, pk=pk, school_id=school_id)
 
-    def get(self, request, pk):
-        obj = self._get_object(pk)
+    def get(self, request, school_id, pk):
+        obj = self._get_object(school_id, pk)
         serializer = ClassExamTimetableSerializer(
             obj, context={'request': request}
         )
@@ -88,8 +81,8 @@ class ClassExamTimetableDetailView(APIView):
             status=status.HTTP_200_OK,
         )
 
-    def put(self, request, pk):
-        obj = self._get_object(pk)
+    def put(self, request, school_id, pk):
+        obj = self._get_object(school_id, pk)
         serializer = ClassExamTimetableSerializer(
             obj, data=request.data, context={'request': request}
         )
@@ -110,8 +103,8 @@ class ClassExamTimetableDetailView(APIView):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    def patch(self, request, pk):
-        obj = self._get_object(pk)
+    def patch(self, request, school_id, pk):
+        obj = self._get_object(school_id, pk)
         serializer = ClassExamTimetableSerializer(
             obj, data=request.data, partial=True,
             context={'request': request},
@@ -133,8 +126,8 @@ class ClassExamTimetableDetailView(APIView):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    def delete(self, request, pk):
-        obj = self._get_object(pk)
+    def delete(self, request, school_id, pk):
+        obj = self._get_object(school_id, pk)
         obj.delete()
         return Response(
             {'success': True, 'message': 'Timetable deleted successfully.'},

@@ -1,4 +1,3 @@
-# school/exams/urls.py
 from django.urls import path
 from .views import (
     ClassExamTimetableCreateView,
@@ -7,19 +6,7 @@ from .views import (
 )
 
 urlpatterns = [
-    path(
-        'exam-timetables/create/',
-        ClassExamTimetableCreateView.as_view(),
-        name='exam-timetable-create',
-    ),
-    path(
-        'exam-timetables/list/',
-        ClassExamTimetableListView.as_view(),
-        name='exam-timetable-list',
-    ),
-    path(
-        'exam-timetables/<int:pk>/',
-        ClassExamTimetableDetailView.as_view(),
-        name='exam-timetable-detail',
-    ),
+    path('<int:school_id>/exam-timetables/create/', ClassExamTimetableCreateView.as_view(), name='exam-timetable-create'),
+    path('<int:school_id>/exam-timetables/list/', ClassExamTimetableListView.as_view(), name='exam-timetable-list'),
+    path('<int:school_id>/exam-timetables/<int:pk>/', ClassExamTimetableDetailView.as_view(), name='exam-timetable-detail'),
 ]

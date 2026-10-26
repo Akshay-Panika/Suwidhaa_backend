@@ -1,11 +1,19 @@
-# school/exams/serializers.py
 from rest_framework import serializers
-
 from .models import ClassExamTimetable, SubjectSchedule
+from school.teacher.models import Teacher
+from school.teacher.serializers import TeacherSerializer
 
-
-# ==================== SUBJECT SCHEDULE ====================
 class SubjectScheduleSerializer(serializers.ModelSerializer):
+    # 👇 Read-only: Returns full teacher object
+    invigilator_details = TeacherSerializer(source='invigilator', read_only=True)
+    
+    # 👇 Write-only: Accepts teacher ID to assign
+    invigilator = serializers.PrimaryKeyRelatedField(
+        queryset=Teacher.objects.all(),
+        required=False,
+        allow_null=True
+    )
+
     class Meta:
         model = SubjectSchedule
         fields = [
@@ -14,7 +22,8 @@ class SubjectScheduleSerializer(serializers.ModelSerializer):
             'date',
             'start_time',
             'end_time',
-            'invigilator',
+            'invigilator',           # Accepts ID
+            'invigilator_details',   # Returns Teacher Object
             'room',
         ]
 
@@ -28,32 +37,34 @@ class SubjectScheduleSerializer(serializers.ModelSerializer):
         return attrs
 
 
-# ==================== CLASS EXAM TIMETABLE ====================
 class ClassExamTimetableSerializer(serializers.ModelSerializer):
     schedules = SubjectScheduleSerializer(many=True)
     exam_type_label = serializers.CharField(
         source='get_exam_type_display', read_only=True
     )
+    school_name = serializers.CharField(source='school.school_name', read_only=True)
 
     class Meta:
         model = ClassExamTimetable
         fields = [
             'id',
+            'school',
+            'school_name',
             'class_name',
             'exam_type',
             'exam_type_label',
             'from_date',
             'to_date',
             'schedules',
-            'created_by_id',      # 👈 now a string like "St-Teacher01"
-            'created_by_name',    # string like "Akshay"
+            'created_by_id',
+            'created_by_name',
             'created_at',
             'updated_at',
         ]
         extra_kwargs = {
-            # 👇 updated: string field => allow_blank + allow_null
             'created_by_id': {'required': False, 'allow_null': True, 'allow_blank': True},
             'created_by_name': {'required': False, 'allow_null': True, 'allow_blank': True},
+            'school': {'required': False, 'allow_null': True},
         }
 
     def validate(self, attrs):
