@@ -1,7 +1,16 @@
 from django.db import models
-
+from school.school_type.models import SchoolType  # 👈 Import SchoolType
 
 class Meeting(models.Model):
+    # 🔗 Link to School
+    school = models.ForeignKey(
+        SchoolType, 
+        on_delete=models.CASCADE, 
+        related_name="meetings",
+        null=True,
+        blank=True
+    )
+
     title = models.CharField(max_length=255)
     date = models.DateField()
     time = models.TimeField()
@@ -16,4 +25,5 @@ class Meeting(models.Model):
         ordering = ['-date', '-time']
 
     def __str__(self):
-        return f"{self.title} - {self.for_meeting} - {self.date} {self.time}"
+        school_name = self.school.school_name if self.school else "No School"
+        return f"{self.title} - {school_name} ({self.date})"

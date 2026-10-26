@@ -3,14 +3,21 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 
+from school.school_type.models import SchoolType
 from .models import Meeting
 from .serializers import MeetingSerializer
 
 
-# ---------------- CREATE ----------------
+# ---------------- CREATE (School Specific) ----------------
 class MeetingCreateView(APIView):
-    def post(self, request):
-        serializer = MeetingSerializer(data=request.data)
+    def post(self, request, school_id):
+        school = get_object_or_404(SchoolType, pk=school_id)
+        
+        # Force the school ID into the data
+        data = request.data.copy()
+        data['school'] = school.id
+
+        serializer = MeetingSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(
@@ -30,10 +37,11 @@ class MeetingCreateView(APIView):
         )
 
 
-# ---------------- LIST ----------------
+# ---------------- LIST (School Specific) ----------------
 class MeetingListView(APIView):
-    def get(self, request):
-        queryset = Meeting.objects.all()
+    def get(self, request, school_id):
+        school = get_object_or_404(SchoolType, pk=school_id)
+        queryset = Meeting.objects.filter(school=school)
 
         for_meeting = request.query_params.get('for_meeting')
         class_name = request.query_params.get('class_name')
@@ -50,6 +58,7 @@ class MeetingListView(APIView):
         return Response(
             {
                 "success": True,
+                "school_name": school.school_name,
                 "count": queryset.count(),
                 "data": serializer.data,
             },
@@ -59,11 +68,12 @@ class MeetingListView(APIView):
 
 # ---------------- DETAIL (GET / PUT / PATCH) ----------------
 class MeetingDetailView(APIView):
-    def get_object(self, id):
-        return get_object_or_404(Meeting, id=id)
+    def get_object(self, school_id, id):
+        # Ensure the meeting belongs to this school
+        return get_object_or_404(Meeting, id=id, school_id=school_id)
 
-    def get(self, request, id):
-        meeting = self.get_object(id)
+    def get(self, request, school_id, id):
+        meeting = self.get_object(school_id, id)
         serializer = MeetingSerializer(meeting)
         return Response(
             {
@@ -73,8 +83,8 @@ class MeetingDetailView(APIView):
             status=status.HTTP_200_OK,
         )
 
-    def put(self, request, id):
-        meeting = self.get_object(id)
+    def put(self, request, school_id, id):
+        meeting = self.get_object(school_id, id)
         serializer = MeetingSerializer(meeting, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -94,8 +104,8 @@ class MeetingDetailView(APIView):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    def patch(self, request, id):
-        meeting = self.get_object(id)
+    def patch(self, request, school_id, id):
+        meeting = self.get_object(school_id, id)
         serializer = MeetingSerializer(meeting, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -118,8 +128,8 @@ class MeetingDetailView(APIView):
 
 # ---------------- DELETE ----------------
 class MeetingDeleteView(APIView):
-    def delete(self, request, id):
-        meeting = get_object_or_404(Meeting, id=id)
+    def delete(self, request, school_id, id):
+        meeting = get_object_or_404(Meeting, id=id, school_id=school_id)
         meeting.delete()
         return Response(
             {
