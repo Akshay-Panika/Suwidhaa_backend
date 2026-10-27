@@ -2,4 +2,5 @@ from django.apps import AppConfig
 
 
 class StudentFeeConfig(AppConfig):
-    name = 'student_fee'
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'school.student_fee'

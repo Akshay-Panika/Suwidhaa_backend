@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "cloudinary",
     "cloudinary_storage",
     "school.student",
+    'school.student_fee',
     "school.teacher",
     "school.teacher_attendance",
     "school.student_attendance",
