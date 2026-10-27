@@ -25,6 +25,17 @@ class TeacherSalaryTransactionCreateSerializer(serializers.ModelSerializer):
         return data
 
 
+class TeacherSalaryTransactionUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TeacherSalaryTransaction
+        fields = ['amount_paid', 'month', 'year', 'remarks']
+        
+    def validate_amount_paid(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Amount must be greater than 0.")
+        return value
+
+
 class TeacherSalaryListSerializer(TeacherSerializer):
     transaction = serializers.SerializerMethodField()
 
@@ -58,3 +69,9 @@ class TeacherSalaryListSerializer(TeacherSerializer):
             "pending": pending_amount,
             "status": "Paid" if pending_amount == 0 and paid_amount > 0 else "Pending"
         }
+
+
+class TeacherSalaryTransactionHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TeacherSalaryTransaction
+        fields = ['id', 'amount_paid', 'month', 'year', 'remarks', 'payment_date']
