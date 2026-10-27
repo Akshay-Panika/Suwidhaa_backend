@@ -214,5 +214,9 @@ urlpatterns = [
     "api/v1/ecommerce/",
     include("ecommerce.store.urls"),
     ),
+    path(
+    "api/v1/profile/",
+    include("auth.app_profile.urls"),
+    ),
     
 ]

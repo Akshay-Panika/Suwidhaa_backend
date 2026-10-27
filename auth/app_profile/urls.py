@@ -1,0 +1,21 @@
+from django.urls import path
+from .views import (
+    UserProfileListView,
+    UserProfileDetailView,
+    UserProfileCreateUpdateView,
+    UserProfileDeleteView,
+)
+
+urlpatterns = [
+    # 1. Get all profiles list
+    path("profile/list/", UserProfileListView.as_view(), name="profile-list"),
+    
+    # 2. Get profile by profile ID
+    path("profile/<int:profile_id>/", UserProfileDetailView.as_view(), name="profile-detail"),
+    
+    # 3. Add / Update profile by User ID (Register hone ke baad is ID par hit karein)
+    path("profile/user/<int:user_id>/", UserProfileCreateUpdateView.as_view(), name="profile-create-update"),
+    
+    # 4. Delete profile by profile ID
+    path("profile/delete/<int:profile_id>/", UserProfileDeleteView.as_view(), name="profile-delete"),
+]
