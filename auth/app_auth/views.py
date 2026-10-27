@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.db import IntegrityError
 from django.db import connection
 from .models import User
-from .serializers import UserSerializer  # Only import UserSerializer
+from .serializers import UserSerializer
 
 class RegisterView(APIView):
     """This view handles both registration and login"""
@@ -23,7 +23,6 @@ class RegisterView(APIView):
             
             # Get phone number from request
             phone_number = request.data.get('phone_number', '').strip()
-            name = request.data.get('name', '').strip()
             
             if not phone_number:
                 return Response({
@@ -55,16 +54,8 @@ class RegisterView(APIView):
                     "data": response_serializer.data
                 }, status=status.HTTP_200_OK)
             else:
-                # User doesn't exist - REGISTER
-                if not name:
-                    return Response({
-                        "success": False,
-                        "error": "Name is required for new registration"
-                    }, status=status.HTTP_400_BAD_REQUEST)
-                
-                # Create new user
+                # User doesn't exist - REGISTER (No name required)
                 user = User.objects.create(
-                    name=name,
                     phone_number=cleaned_phone,
                     is_logged_in=True  # Auto login after registration
                 )
@@ -92,7 +83,6 @@ class UserListView(APIView):
     """Get all users list"""
     def get(self, request):
         try:
-            # Check if table exists first
             with connection.cursor() as cursor:
                 try:
                     cursor.execute("SELECT 1 FROM app_auth_user LIMIT 1")
