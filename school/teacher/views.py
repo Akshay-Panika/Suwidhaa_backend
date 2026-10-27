@@ -9,7 +9,6 @@ import threading
 from .models import Teacher
 from .serializers import TeacherSerializer
 from school.teacher_pass.models import TeacherPass
-from school.teacher_salary.models import TeacherSalary   # ✅ NEW IMPORT
 from services.whatsapp_service import WhatsAppService
 
 logger = logging.getLogger(__name__)
@@ -56,18 +55,6 @@ class TeacherCreateView(APIView):
                 )
                 teacher_pass.set_password(default_password)
                 teacher_pass.save()
-
-                # ✅ Create salary record for current month (TeacherSalary)
-                TeacherSalary.objects.create(
-                    teacher=teacher,
-                    school=teacher.school,
-                    month=date.today().strftime("%B %Y"),
-                    salary_amount=teacher.salary or 0,
-                    paid_amount=0,
-                    pending_amount=teacher.salary or 0,
-                    status="Pending",
-                    due_date=date.today(),
-                )
 
                 whatsapp_response = None
                 if teacher.phone:
