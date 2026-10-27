@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.db.models import Sum  # <-- Ye line missing thi
+from django.db.models import Sum
 from school.teacher.models import Teacher
 from .models import TeacherSalaryTransaction
 from .serializers import (
@@ -20,6 +20,32 @@ class TeacherSalaryListView(APIView):
         return Response(
             {
                 "success": True,
+                "count": teachers.count(),
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class TeacherSalaryBySchoolView(APIView):
+    def get(self, request, school_id):
+        teachers = Teacher.objects.filter(school_id=school_id).select_related("school").order_by("-id")
+        
+        if not teachers.exists():
+            return Response(
+                {
+                    "success": False, 
+                    "message": f"No teachers found for school id '{school_id}'"
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = TeacherSalaryListSerializer(teachers, many=True)
+
+        return Response(
+            {
+                "success": True,
+                "school_id": school_id,
                 "count": teachers.count(),
                 "data": serializer.data,
             },
