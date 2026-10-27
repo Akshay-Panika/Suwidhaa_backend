@@ -10,7 +10,6 @@ class TeacherSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
 
-    # ✅ Write: pass school_id
     school_id = serializers.PrimaryKeyRelatedField(
         queryset=SchoolType.objects.all(),
         source="school",
@@ -18,7 +17,6 @@ class TeacherSerializer(serializers.ModelSerializer):
         allow_null=True,
         write_only=True,
     )
-    # ✅ Read: full school details
     school = SchoolTypeSerializer(read_only=True)
 
     class Meta:
