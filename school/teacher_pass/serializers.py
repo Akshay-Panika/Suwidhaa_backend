@@ -1,11 +1,15 @@
 from rest_framework import serializers
 from .models import TeacherPass
+from school.school_type.serializers import SchoolTypeSerializer # ✅ Import add kiya
 
 
 class TeacherPassSerializer(serializers.ModelSerializer):
     teacher_name = serializers.SerializerMethodField()
     teacher_class = serializers.SerializerMethodField()
     teacher_id_card = serializers.CharField(read_only=True)
+    
+    # ✅ Ye line teacher ke model se school ka pura data uthayegi
+    school = SchoolTypeSerializer(source='teacher.school', read_only=True)
 
     class Meta:
         model = TeacherPass
@@ -15,6 +19,7 @@ class TeacherPassSerializer(serializers.ModelSerializer):
             "teacher_name",
             "teacher_class",
             "teacher_id_card",
+            "school", # ✅ Fields me add kiya
             "is_active",
             "last_login",
             "created_at",
