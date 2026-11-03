@@ -163,6 +163,14 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
+# Twilio SMS
+TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "")
+
+if TWILIO_PHONE_NUMBER:
+    TWILIO_PHONE_NUMBER = TWILIO_PHONE_NUMBER.strip().replace("whatsapp:", "")
+    if not TWILIO_PHONE_NUMBER.startswith("+"):
+        TWILIO_PHONE_NUMBER = "+" + TWILIO_PHONE_NUMBER
+
 # Twilio WhatsApp
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
