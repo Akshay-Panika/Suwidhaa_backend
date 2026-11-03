@@ -3,7 +3,6 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.throttling import ScopedRateThrottle
 from django.core.cache import cache
-from django.conf import settings
 from django.utils import timezone
 import random
 import logging
@@ -20,9 +19,8 @@ from services.whatsapp_service import WhatsAppService
 
 logger = logging.getLogger(__name__)
 
-# OTP config
-OTP_TTL_SECONDS = 300         # 5 minutes
-OTP_RESEND_COOLDOWN = 60      # 60 seconds
+OTP_TTL_SECONDS = 300        # 5 minutes
+OTP_RESEND_COOLDOWN = 60     # 60 seconds
 
 
 def _otp_key(card):
@@ -107,8 +105,8 @@ class StudentPassLoginView(APIView):
                              "message": "Invalid student ID card or account inactive"},
                             status=status.HTTP_404_NOT_FOUND)
 
-        # check_password() only matches the CURRENT hash.
-        # After password reset, old password can never match.
+        # check_password() sirf current hash se match karta hai.
+        # Password reset ke baad purana password kabhi match nahi hoga.
         if not sp.check_password(pwd):
             return Response({"success": False, "message": "Invalid password"},
                             status=status.HTTP_401_UNAUTHORIZED)
@@ -124,7 +122,7 @@ class StudentPassLoginView(APIView):
 
 
 # ==================================================
-# STEP 1 — SEND OTP
+# STEP 1 — SEND OTP (WhatsApp only, no debug leak)
 # ==================================================
 class RequestForgotPasswordOtpView(APIView):
     throttle_classes = [ScopedRateThrottle]
@@ -157,15 +155,17 @@ class RequestForgotPasswordOtpView(APIView):
                              "message": "Parent phone number not available"},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        # resend cooldown
+        # Resend cooldown
         if cache.get(_cooldown_key(card)):
             return Response({"success": False,
                              "message": "Please wait before requesting another OTP"},
                             status=status.HTTP_429_TOO_MANY_REQUESTS)
 
+        # Generate OTP
         otp = f"{random.randint(100000, 999999)}"
         cache.set(_otp_key(card), otp, timeout=OTP_TTL_SECONDS)
 
+        # Send via WhatsApp
         name = f"{sp.student.first_name} {sp.student.last_name}"
         result = WhatsAppService().send_otp(
             phone_number=phone,
@@ -176,22 +176,20 @@ class RequestForgotPasswordOtpView(APIView):
 
         if not result.get("success"):
             cache.delete(_otp_key(card))
-            logger.error(f"OTP send failed for {card}: {result}")
-            return Response({"success": False,
-                             "message": "Could not send OTP. Please try again later.",
-                             "error": result.get("error")},
-                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(f"OTP WhatsApp send failed for {card}: {result}")
+            return Response({
+                "success": False,
+                "message": "WhatsApp pe OTP bhejne me problem aayi. Please try again.",
+                "error": result.get("error"),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         cache.set(_cooldown_key(card), True, timeout=OTP_RESEND_COOLDOWN)
 
-        payload = {
+        return Response({
             "success": True,
             "message": f"OTP sent on WhatsApp to the registered number for {name}",
             "expires_in_seconds": OTP_TTL_SECONDS,
-        }
-        if settings.DEBUG:
-            payload["debug_otp"] = otp   # never leaks in production
-        return Response(payload, status=status.HTTP_200_OK)
+        }, status=status.HTTP_200_OK)
 
 
 # ==================================================
@@ -222,12 +220,11 @@ class VerifyOtpAndResetPasswordView(APIView):
             return Response({"success": False, "message": "Student pass not found"},
                             status=status.HTTP_404_NOT_FOUND)
 
-        # set_password(new) re-hashes with a NEW salt.
-        # Old password will never match again.
+        # set_password(new) re-hash with new salt →
+        # purana password DB me nahi bachta, login hi nahi hoga.
         sp.set_password(new_password)
         sp.save()
 
-        # clear OTP + cooldown
         cache.delete(_otp_key(card))
         cache.delete(_cooldown_key(card))
 
@@ -248,7 +245,6 @@ class StudentPassLogoutView(APIView):
                             status=status.HTTP_400_BAD_REQUEST)
         try:
             StudentPass.objects.get(student_id_card=card)
-            # agar JWT/Knox use kar rahe ho, token blacklist yahan karein
             return Response({"success": True, "message": "Logged out successfully"},
                             status=status.HTTP_200_OK)
         except StudentPass.DoesNotExist:

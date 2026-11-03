@@ -83,7 +83,7 @@ class WhatsAppService:
                 return {'success': False, 'error': 'Please send "join open-speed" to +14155238886 first'}
             return {'success': False, 'error': error_msg}
 
-    # ---------------- ✅ NEW: OTP SENDER ----------------
+    # ---------------- OTP SENDER (WhatsApp) ----------------
     def send_otp(self, phone_number, otp, student_name=None, expiry_minutes=5):
         """Send a one-time password via WhatsApp for forgot-password."""
         if not self.client:
@@ -109,7 +109,6 @@ class WhatsAppService:
                 return {'success': False, 'error': 'Please send "join open-speed" to +14155238886 first'}
             return {'success': False, 'error': error_msg}
 
-    # ---------------- ✅ NEW: OTP TEMPLATE ----------------
     def _create_otp_message(self, otp, name=None, expiry_minutes=5):
         greeting = f"Hello {name}," if name else "Hello,"
         return f"""🔐 *Password Reset — Suwidhaa*
@@ -127,24 +126,19 @@ If you did not request this, please ignore this message.
 
 — Suwidhaa Team"""
 
-    # ---------------- ✅ FIXED PHONE FORMATTER ----------------
     def _format_phone_number(self, phone_number):
         phone_number = ''.join(c for c in phone_number.strip() if c.isdigit() or c == '+')
         if phone_number.startswith('whatsapp:'):
             return phone_number
-
-        # strip leading 0 (Indian local format)
         if phone_number.startswith('0'):
             phone_number = phone_number[1:]
-
         if not phone_number.startswith('+'):
             if len(phone_number) == 10:
                 phone_number = '+91' + phone_number
             elif len(phone_number) == 12 and phone_number.startswith('91'):
                 phone_number = '+' + phone_number
             else:
-                phone_number = '+91' + phone_number  # fallback (same as old behaviour)
-
+                phone_number = '+91' + phone_number
         return f"whatsapp:{phone_number}"
 
     def _create_message(self, name, id_card, password, user_type="Student"):
