@@ -4,33 +4,17 @@ from . import views
 app_name = 'app_auth'
 
 urlpatterns = [
+    path('send-otp/', views.SendOTPView.as_view(), name='send-otp'),
 
-    # Send SMS OTP
-    path(
-        'send-otp/',
-        views.SendOTPView.as_view(),
-        name='send-otp'
-    ),
+    path('verify-otp/', views.VerifyOTPView.as_view(), name='verify-otp'),
 
-    # Verify OTP and Register/Login
-    path(
-        'verify-otp/',
-        views.VerifyOTPView.as_view(),
-        name='verify-otp'
-    ),
+    path('logout/', views.LogoutView.as_view(), name='logout'),
 
-    # Get all users
-    path(
-        'users/',
-        views.UserListView.as_view(),
-        name='user-list'
-    ),
+    path('users/', views.UserListView.as_view(), name='user-list'),
 
-    # Delete user
     path(
         'users/<int:user_id>/delete/',
         views.UserDeleteView.as_view(),
         name='user-delete'
     ),
-
 ]

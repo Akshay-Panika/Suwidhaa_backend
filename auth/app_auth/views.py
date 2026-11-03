@@ -368,6 +368,61 @@ class UserListView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+
+# =====================================
+# USER LOGOUT API
+# =====================================
+
+class LogoutView(APIView):
+
+    def post(self, request):
+
+        phone_number = request.data.get("phone_number", "")
+        phone = normalize_phone(phone_number)
+
+        if not phone:
+            return Response({
+                "success": False,
+                "message": "Invalid phone number."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        phone_variants = [phone]
+
+        if phone.startswith("+"):
+            phone_variants.append(phone[1:])
+
+        user = User.objects.filter(
+            phone_number__in=phone_variants
+        ).first()
+
+        if not user:
+            return Response({
+                "success": False,
+                "message": "User not found."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        if not user.is_logged_in:
+            return Response({
+                "success": True,
+                "message": "User is already logged out.",
+                "data": {
+                    "phone_number": user.phone_number,
+                    "is_logged_in": False
+                }
+            }, status=status.HTTP_200_OK)
+
+        user.is_logged_in = False
+        user.save(update_fields=["is_logged_in", "updated_at"])
+
+        return Response({
+            "success": True,
+            "message": "Logout successful.",
+            "data": {
+                "phone_number": user.phone_number,
+                "is_logged_in": user.is_logged_in
+            }
+        }, status=status.HTTP_200_OK)
+
 # =====================================
 # USER DELETE API
 # =====================================
