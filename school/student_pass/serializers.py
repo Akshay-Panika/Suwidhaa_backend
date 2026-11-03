@@ -27,6 +27,13 @@ class StudentPassLoginSerializer(serializers.Serializer):
     student_id_card = serializers.CharField(max_length=50)
     password = serializers.CharField(max_length=255)
 
-class StudentPassForgotPasswordSerializer(serializers.Serializer):
+# Step 1: Request OTP for Forgot Password
+class RequestForgotPasswordOtpSerializer(serializers.Serializer):
     student_id_card = serializers.CharField(max_length=50)
     dob = serializers.DateField()
+
+# Step 2: Verify OTP & Set Custom New Password
+class VerifyOtpAndResetPasswordSerializer(serializers.Serializer):
+    student_id_card = serializers.CharField(max_length=50)
+    otp = serializers.CharField(max_length=6)
+    new_password = serializers.CharField(max_length=255, min_length=6)
