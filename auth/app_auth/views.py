@@ -17,19 +17,28 @@ from .models import User
 from .serializers import UserSerializer
 
 
-# --------------------------------
+# =====================================
 # TWILIO CLIENT
-# --------------------------------
+# =====================================
 
-twilio_client = Client(
-    settings.TWILIO_ACCOUNT_SID,
-    settings.TWILIO_AUTH_TOKEN
-)
+def get_twilio_client():
+
+    account_sid = settings.TWILIO_ACCOUNT_SID
+    auth_token = settings.TWILIO_AUTH_TOKEN
+    service_sid = settings.TWILIO_VERIFY_SERVICE_SID
+
+    if not account_sid or not auth_token or not service_sid:
+        raise ValueError("Twilio credentials are not configured.")
+
+    return Client(
+        account_sid,
+        auth_token
+    )
 
 
-# --------------------------------
+# =====================================
 # PHONE NUMBER VALIDATION
-# --------------------------------
+# =====================================
 
 def normalize_phone(phone_number):
 
@@ -38,27 +47,31 @@ def normalize_phone(phone_number):
     # Remove spaces, hyphens and brackets
     phone = re.sub(r'[\s\-()]', '', phone)
 
-    # Indian 10 digit number
+    # Indian 10-digit number
     if re.fullmatch(r'[6-9]\d{9}', phone):
+
         phone = '+91' + phone
 
     # Indian number with 91 prefix
     elif re.fullmatch(r'91[6-9]\d{9}', phone):
+
         phone = '+' + phone
 
-    # International number
+    # International E.164 number
     elif re.fullmatch(r'\+[1-9]\d{7,14}', phone):
+
         pass
 
     else:
+
         return None
 
     return phone
 
 
-# --------------------------------
-# OTP SEND API
-# --------------------------------
+# =====================================
+# SEND OTP API
+# =====================================
 
 class SendOTPView(APIView):
 
@@ -73,31 +86,45 @@ class SendOTPView(APIView):
 
         phone = normalize_phone(phone_number)
 
+        # Phone validation
         if not phone:
 
             return Response({
-                'success': False,
-                'message': 'Please enter a valid phone number.'
+
+                "success": False,
+
+                "message": "Please enter a valid phone number."
+
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Prevent repeated SMS requests
+        # Cooldown key
         phone_hash = hashlib.sha256(
             phone.encode()
         ).hexdigest()
 
         cache_key = f'otp_cooldown_{phone_hash}'
 
-        if not cache.add(cache_key, True, timeout=60):
+        # Prevent repeated OTP requests
+        if not cache.add(
+            cache_key,
+            True,
+            timeout=60
+        ):
 
             return Response({
-                'success': False,
-                'message': 'Please wait 60 seconds before requesting another OTP.'
+
+                "success": False,
+
+                "message": "Please wait 60 seconds before requesting another OTP."
+
             }, status=status.HTTP_429_TOO_MANY_REQUESTS)
 
         try:
 
+            client = get_twilio_client()
+
             verification = (
-                twilio_client.verify
+                client.verify
                 .v2
                 .services(settings.TWILIO_VERIFY_SERVICE_SID)
                 .verifications
@@ -109,44 +136,54 @@ class SendOTPView(APIView):
 
             return Response({
 
-                'success': True,
+                "success": True,
 
-                'message': 'OTP sent successfully.',
+                "message": "OTP sent successfully.",
 
-                'phone_number': phone,
+                "phone_number": phone,
 
-                'status': verification.status
+                "status": verification.status
 
             }, status=status.HTTP_200_OK)
 
-        except TwilioRestException:
+        except TwilioRestException as e:
 
             cache.delete(cache_key)
 
+            print("TWILIO ERROR CODE:", e.code)
+            print("TWILIO ERROR MESSAGE:", e.msg)
+            print("TWILIO ERROR STATUS:", e.status)
+
             return Response({
 
-                'success': False,
+                "success": False,
 
-                'message': 'Unable to send OTP. Please try again.'
+                "message": "Twilio SMS error.",
+
+                "error_code": e.code,
+
+                "error": e.msg
 
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        except Exception:
+        except Exception as e:
 
             cache.delete(cache_key)
 
+            print("OTP SEND ERROR:", str(e))
+
             return Response({
 
-                'success': False,
+                "success": False,
 
-                'message': 'Something went wrong while sending OTP.'
+                "message": "Something went wrong while sending OTP."
 
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# --------------------------------
-# OTP VERIFY API
-# --------------------------------
+# =====================================
+# VERIFY OTP API
+# =====================================
 
 class VerifyOTPView(APIView):
 
@@ -165,32 +202,35 @@ class VerifyOTPView(APIView):
 
         phone = normalize_phone(phone_number)
 
+        # Validate phone
         if not phone:
 
             return Response({
 
-                'success': False,
+                "success": False,
 
-                'message': 'Invalid phone number.'
+                "message": "Invalid phone number."
 
             }, status=status.HTTP_400_BAD_REQUEST)
 
+        # Validate OTP
         if not re.fullmatch(r'\d{6}', otp):
 
             return Response({
 
-                'success': False,
+                "success": False,
 
-                'message': 'Please enter a valid 6-digit OTP.'
+                "message": "Please enter a valid 6-digit OTP."
 
             }, status=status.HTTP_400_BAD_REQUEST)
 
         try:
 
-            # Verify OTP through Twilio
+            client = get_twilio_client()
 
+            # Verify OTP using Twilio
             verification_check = (
-                twilio_client.verify
+                client.verify
                 .v2
                 .services(settings.TWILIO_VERIFY_SERVICE_SID)
                 .verification_checks
@@ -200,25 +240,29 @@ class VerifyOTPView(APIView):
                 )
             )
 
+            # OTP not approved
             if verification_check.status != 'approved':
 
                 return Response({
 
-                    'success': False,
+                    "success": False,
 
-                    'message': 'Invalid or expired OTP.'
+                    "message": "Invalid or expired OTP."
 
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            # --------------------------------
+            # =====================================
             # REGISTER OR LOGIN
-            # --------------------------------
+            # =====================================
 
-            # Support existing users stored without +91
             phone_variants = [phone]
 
+            # Support old database numbers
             if phone.startswith('+'):
-                phone_variants.append(phone[1:])
+
+                phone_variants.append(
+                    phone[1:]
+                )
 
             user = User.objects.filter(
                 phone_number__in=phone_variants
@@ -228,10 +272,13 @@ class VerifyOTPView(APIView):
 
                 # Existing user login
                 user.phone_number = phone
+
                 user.is_logged_in = True
+
                 user.save()
 
                 action = 'login'
+
                 message = 'Login successful.'
 
                 response_status = status.HTTP_200_OK
@@ -240,11 +287,15 @@ class VerifyOTPView(APIView):
 
                 # New user registration
                 user = User.objects.create(
+
                     phone_number=phone,
+
                     is_logged_in=True
+
                 )
 
                 action = 'register'
+
                 message = 'Registration successful.'
 
                 response_status = status.HTTP_201_CREATED
@@ -253,40 +304,47 @@ class VerifyOTPView(APIView):
 
             return Response({
 
-                'success': True,
+                "success": True,
 
-                'message': message,
+                "message": message,
 
-                'action': action,
+                "action": action,
 
-                'data': serializer.data
+                "data": serializer.data
 
             }, status=response_status)
 
-        except TwilioRestException:
+        except TwilioRestException as e:
+
+            print("TWILIO VERIFY ERROR CODE:", e.code)
+            print("TWILIO VERIFY ERROR:", e.msg)
 
             return Response({
 
-                'success': False,
+                "success": False,
 
-                'message': 'Invalid or expired OTP.'
+                "message": "Invalid or expired OTP.",
+
+                "error_code": e.code
 
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        except Exception:
+        except Exception as e:
+
+            print("OTP VERIFY ERROR:", str(e))
 
             return Response({
 
-                'success': False,
+                "success": False,
 
-                'message': 'Something went wrong. Please try again.'
+                "message": "Something went wrong. Please try again."
 
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# --------------------------------
+# =====================================
 # USER LIST API
-# --------------------------------
+# =====================================
 
 class UserListView(APIView):
 
@@ -301,18 +359,18 @@ class UserListView(APIView):
 
         return Response({
 
-            'success': True,
+            "success": True,
 
-            'count': users.count(),
+            "count": users.count(),
 
-            'data': serializer.data
+            "data": serializer.data
 
         }, status=status.HTTP_200_OK)
 
 
-# --------------------------------
+# =====================================
 # USER DELETE API
-# --------------------------------
+# =====================================
 
 class UserDeleteView(APIView):
 
@@ -327,8 +385,8 @@ class UserDeleteView(APIView):
 
         return Response({
 
-            'success': True,
+            "success": True,
 
-            'message': 'User deleted successfully.'
+            "message": "User deleted successfully."
 
         }, status=status.HTTP_200_OK)

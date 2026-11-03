@@ -1,3 +1,4 @@
+
 from pathlib import Path
 import os
 import cloudinary
@@ -16,12 +17,20 @@ ALLOWED_HOSTS = [
     "suwidhaa-backend.onrender.com",
 ]
 
+# =====================================
+# CLOUDINARY CONFIGURATION
+# =====================================
+
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
     api_key=os.getenv("CLOUDINARY_API_KEY"),
     api_secret=os.getenv("CLOUDINARY_API_SECRET"),
     secure=True,
 )
+
+# =====================================
+# INSTALLED APPS
+# =====================================
 
 INSTALLED_APPS = [
     "corsheaders",
@@ -34,8 +43,9 @@ INSTALLED_APPS = [
     "rest_framework",
     "cloudinary",
     "cloudinary_storage",
+
     "school.student",
-    'school.student_fee',
+    "school.student_fee",
     "school.teacher",
     "school.teacher_attendance",
     "school.student_attendance",
@@ -48,13 +58,16 @@ INSTALLED_APPS = [
     "school.teacher_salary",
     "school.homework",
     "school.transport",
+
     "college.college_banner",
     "college.colleges",
     "college.college_booking",
     "college.room",
     "college.tiffin",
+
     "auth.app_auth",
     "auth.app_profile",
+
     "ott.content",
     "ott.movies",
     "ott.cartoons",
@@ -63,28 +76,37 @@ INSTALLED_APPS = [
     "ott.banner",
     "ott.reels",
     "ott.webseries",
+
     "school.report_card",
     "school.meeting",
     "school.notice",
     "school.event",
     "school.library",
     "school.exams",
+
     "ngo.banner",
     "ngo.category",
     "ngo.service",
     "ngo.staff",
     "ngo.history",
+
     "it_service.banner",
     "it_service.category",
     "it_service.service",
     "it_service.booking",
+
     "ecommerce.banner",
     "ecommerce.category",
     "ecommerce.subcategory",
     "ecommerce.product",
     "ecommerce.store",
+
     "school.school_type",
 ]
+
+# =====================================
+# MIDDLEWARE
+# =====================================
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
@@ -98,6 +120,10 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "suwidhaa_backend.urls"
+
+# =====================================
+# TEMPLATES
+# =====================================
 
 TEMPLATES = [
     {
@@ -116,7 +142,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "suwidhaa_backend.wsgi.application"
 
+# =====================================
+# DATABASE CONFIGURATION
+# =====================================
+
 if os.getenv("DATABASE_URL"):
+
     DATABASES = {
         "default": dj_database_url.config(
             default=os.getenv("DATABASE_URL"),
@@ -124,7 +155,9 @@ if os.getenv("DATABASE_URL"):
             ssl_require=True,
         )
     }
+
 else:
+
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -136,45 +169,49 @@ else:
         }
     }
 
+# =====================================
+# PASSWORD VALIDATION
+# =====================================
+
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"
+    },
 ]
+
+# =====================================
+# LANGUAGE & TIMEZONE
+# =====================================
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Asia/Kolkata"
+
 USE_I18N = True
 USE_TZ = True
 
+# =====================================
+# STATIC & MEDIA
+# =====================================
+
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
 DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 
-REST_FRAMEWORK = {
-    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
-}
-
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# CORS
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
-
-# Twilio SMS
-TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "")
-
-if TWILIO_PHONE_NUMBER:
-    TWILIO_PHONE_NUMBER = TWILIO_PHONE_NUMBER.strip().replace("whatsapp:", "")
-    if not TWILIO_PHONE_NUMBER.startswith("+"):
-        TWILIO_PHONE_NUMBER = "+" + TWILIO_PHONE_NUMBER
-
-# Twilio WhatsApp
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
-TWILIO_VERIFY_SERVICE_SID = os.getenv("TWILIO_VERIFY_SERVICE_SID", "")
+# =====================================
+# REST FRAMEWORK
+# =====================================
 
 REST_FRAMEWORK = {
 
@@ -191,12 +228,88 @@ REST_FRAMEWORK = {
     },
 
 }
-TWILIO_WHATSAPP_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "") or os.getenv("TWILIO_PHONE_NUMBER", "")
 
-if TWILIO_WHATSAPP_FROM and not TWILIO_WHATSAPP_FROM.startswith('whatsapp:'):
-    if TWILIO_WHATSAPP_FROM.startswith('whatsapp:'):
-        TWILIO_WHATSAPP_FROM = TWILIO_WHATSAPP_FROM.replace('whatsapp:', '')
+# =====================================
+# EMAIL
+# =====================================
+
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+# =====================================
+# CORS
+# =====================================
+
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
+# =====================================
+# TWILIO SMS CONFIGURATION
+# =====================================
+
+TWILIO_PHONE_NUMBER = os.getenv(
+    "TWILIO_PHONE_NUMBER", ""
+)
+
+if TWILIO_PHONE_NUMBER:
+
+    TWILIO_PHONE_NUMBER = (
+        TWILIO_PHONE_NUMBER.strip()
+        .replace("whatsapp:", "")
+    )
+
+    if not TWILIO_PHONE_NUMBER.startswith("+"):
+        TWILIO_PHONE_NUMBER = "+" + TWILIO_PHONE_NUMBER
+
+# =====================================
+# TWILIO VERIFY OTP CONFIGURATION
+# =====================================
+
+TWILIO_ACCOUNT_SID = os.getenv(
+    "TWILIO_ACCOUNT_SID", ""
+)
+
+TWILIO_AUTH_TOKEN = os.getenv(
+    "TWILIO_AUTH_TOKEN", ""
+)
+
+TWILIO_VERIFY_SERVICE_SID = os.getenv(
+    "TWILIO_VERIFY_SERVICE_SID", ""
+)
+
+# =====================================
+# CACHE CONFIGURATION
+# =====================================
+
+CACHES = {
+
+    "default": {
+
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+
+        "LOCATION": "suwidhaa-otp-cache",
+
+    }
+
+}
+
+# =====================================
+# TWILIO WHATSAPP CONFIGURATION
+# =====================================
+
+TWILIO_WHATSAPP_FROM = (
+    os.getenv("TWILIO_WHATSAPP_FROM", "")
+    or os.getenv("TWILIO_PHONE_NUMBER", "")
+)
+
+if TWILIO_WHATSAPP_FROM:
+
     TWILIO_WHATSAPP_FROM = TWILIO_WHATSAPP_FROM.strip()
-    if not TWILIO_WHATSAPP_FROM.startswith('+'):
-        TWILIO_WHATSAPP_FROM = '+' + TWILIO_WHATSAPP_FROM
-    TWILIO_WHATSAPP_FROM = f"whatsapp:{TWILIO_WHATSAPP_FROM}"
+
+    if not TWILIO_WHATSAPP_FROM.startswith("whatsapp:"):
+
+        if not TWILIO_WHATSAPP_FROM.startswith("+"):
+            TWILIO_WHATSAPP_FROM = "+" + TWILIO_WHATSAPP_FROM
+
+        TWILIO_WHATSAPP_FROM = (
+            f"whatsapp:{TWILIO_WHATSAPP_FROM}"
+        )

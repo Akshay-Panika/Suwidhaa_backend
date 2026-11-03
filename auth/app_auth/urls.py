@@ -5,7 +5,7 @@ app_name = 'app_auth'
 
 urlpatterns = [
 
-    # Send OTP
+    # Send SMS OTP
     path(
         'send-otp/',
         views.SendOTPView.as_view(),
