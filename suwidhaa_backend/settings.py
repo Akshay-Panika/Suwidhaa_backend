@@ -174,6 +174,23 @@ if TWILIO_PHONE_NUMBER:
 # Twilio WhatsApp
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
+TWILIO_VERIFY_SERVICE_SID = os.getenv("TWILIO_VERIFY_SERVICE_SID", "")
+
+REST_FRAMEWORK = {
+
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny",
+    ],
+
+    "DEFAULT_THROTTLE_RATES": {
+
+        "otp_send": "5/hour",
+
+        "otp_verify": "10/hour",
+
+    },
+
+}
 TWILIO_WHATSAPP_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "") or os.getenv("TWILIO_PHONE_NUMBER", "")
 
 if TWILIO_WHATSAPP_FROM and not TWILIO_WHATSAPP_FROM.startswith('whatsapp:'):
