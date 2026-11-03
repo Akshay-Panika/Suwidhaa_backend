@@ -15,9 +15,7 @@ class WhatsAppService:
         self.from_number = getattr(settings, 'TWILIO_WHATSAPP_FROM', '') or os.getenv("TWILIO_WHATSAPP_FROM") or os.getenv("TWILIO_PHONE_NUMBER", "")
 
         if self.from_number and not self.from_number.startswith('whatsapp:'):
-            if self.from_number.startswith('whatsapp:'):
-                self.from_number = self.from_number.replace('whatsapp:', '')
-            self.from_number = self.from_number.strip()
+            self.from_number = self.from_number.replace('whatsapp:', '').strip()
             if not self.from_number.startswith('+'):
                 self.from_number = '+' + self.from_number
             self.from_number = f"whatsapp:{self.from_number}"
@@ -33,20 +31,16 @@ class WhatsAppService:
             logger.error(f"Failed to initialize Twilio client: {str(e)}")
             self.client = None
 
+    # ---------------- REGISTRATION CREDENTIALS ----------------
     def send_credentials(self, phone_number, name, id_card, password, user_type="Student"):
         if not self.client:
             return {'success': False, 'error': 'Twilio client not initialized'}
-
         try:
             phone_number = self._format_phone_number(phone_number)
             message_body = self._create_message(name, id_card, password, user_type)
-
             message = self.client.messages.create(
-                from_=self.from_number,
-                to=phone_number,
-                body=message_body
+                from_=self.from_number, to=phone_number, body=message_body
             )
-
             return {
                 'success': True,
                 'message_sid': message.sid,
@@ -67,24 +61,15 @@ class WhatsAppService:
     def send_teacher_credentials(self, phone_number, teacher_name, teacher_id, password):
         return self.send_credentials(phone_number, teacher_name, teacher_id, password, "Teacher")
 
-    # ✅ NAYA METHOD — college booking ke liye custom message bhejta hai
+    # ---------------- CUSTOM MESSAGE ----------------
     def send_custom_message(self, phone_number, message_body):
-        """
-        Send a custom message to any phone number on WhatsApp.
-        Used for college booking notifications.
-        """
         if not self.client:
             return {'success': False, 'error': 'Twilio client not initialized'}
-
         try:
             phone_number = self._format_phone_number(phone_number)
-
             message = self.client.messages.create(
-                from_=self.from_number,
-                to=phone_number,
-                body=message_body
+                from_=self.from_number, to=phone_number, body=message_body
             )
-
             return {
                 'success': True,
                 'message_sid': message.sid,
@@ -95,19 +80,72 @@ class WhatsAppService:
         except Exception as e:
             error_msg = str(e)
             if 'not a registered whatsapp user' in error_msg.lower() or 'sandbox' in error_msg.lower():
-                return {
-                    'success': False,
-                    'error': 'Please send "join open-speed" to +14155238886 first'
-                }
+                return {'success': False, 'error': 'Please send "join open-speed" to +14155238886 first'}
             return {'success': False, 'error': error_msg}
 
+    # ---------------- ✅ NEW: OTP SENDER ----------------
+    def send_otp(self, phone_number, otp, student_name=None, expiry_minutes=5):
+        """Send a one-time password via WhatsApp for forgot-password."""
+        if not self.client:
+            return {'success': False, 'error': 'Twilio client not initialized'}
+        try:
+            phone_number = self._format_phone_number(phone_number)
+            message_body = self._create_otp_message(
+                otp=otp, name=student_name, expiry_minutes=expiry_minutes
+            )
+            message = self.client.messages.create(
+                from_=self.from_number, to=phone_number, body=message_body
+            )
+            return {
+                'success': True,
+                'message_sid': message.sid,
+                'status': message.status,
+                'to': phone_number,
+                'from': self.from_number,
+            }
+        except Exception as e:
+            error_msg = str(e)
+            if 'not a registered whatsapp user' in error_msg.lower() or 'sandbox' in error_msg.lower():
+                return {'success': False, 'error': 'Please send "join open-speed" to +14155238886 first'}
+            return {'success': False, 'error': error_msg}
+
+    # ---------------- ✅ NEW: OTP TEMPLATE ----------------
+    def _create_otp_message(self, otp, name=None, expiry_minutes=5):
+        greeting = f"Hello {name}," if name else "Hello,"
+        return f"""🔐 *Password Reset — Suwidhaa*
+
+{greeting}
+
+Your verification code is:
+
+*{otp}*
+
+⏳ This OTP will expire in {expiry_minutes} minutes.
+🔒 Never share this code with anyone.
+
+If you did not request this, please ignore this message.
+
+— Suwidhaa Team"""
+
+    # ---------------- ✅ FIXED PHONE FORMATTER ----------------
     def _format_phone_number(self, phone_number):
         phone_number = ''.join(c for c in phone_number.strip() if c.isdigit() or c == '+')
-        if not phone_number.startswith('whatsapp:'):
-            if not phone_number.startswith('+'):
-                phone_number = '+91' + phone_number if len(phone_number) == 10 or phone_number.startswith('0') else '+91' + phone_number
-            phone_number = f"whatsapp:{phone_number}"
-        return phone_number
+        if phone_number.startswith('whatsapp:'):
+            return phone_number
+
+        # strip leading 0 (Indian local format)
+        if phone_number.startswith('0'):
+            phone_number = phone_number[1:]
+
+        if not phone_number.startswith('+'):
+            if len(phone_number) == 10:
+                phone_number = '+91' + phone_number
+            elif len(phone_number) == 12 and phone_number.startswith('91'):
+                phone_number = '+' + phone_number
+            else:
+                phone_number = '+91' + phone_number  # fallback (same as old behaviour)
+
+        return f"whatsapp:{phone_number}"
 
     def _create_message(self, name, id_card, password, user_type="Student"):
         app_link = "https://play.google.com/store/apps/details?id=com.suwidhaa.app"
