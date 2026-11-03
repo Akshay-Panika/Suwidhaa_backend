@@ -8,7 +8,6 @@ class TeacherPassSerializer(serializers.ModelSerializer):
     teacher_class = serializers.SerializerMethodField()
     teacher_id_card = serializers.CharField(read_only=True)
     
-    # ✅ Ye line teacher ke model se school ka pura data uthayegi
     school = SchoolTypeSerializer(source='teacher.school', read_only=True)
 
     class Meta:
@@ -19,7 +18,7 @@ class TeacherPassSerializer(serializers.ModelSerializer):
             "teacher_name",
             "teacher_class",
             "teacher_id_card",
-            "school", # ✅ Fields me add kiya
+            "school", 
             "is_active",
             "last_login",
             "created_at",
