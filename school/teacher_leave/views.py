@@ -118,6 +118,60 @@ class TeacherLeaveDetailView(APIView):
         )
 
 
+
+# ═══════════════════════════════════════════════════════════
+# ✅ NEW: UPDATE ONLY STATUS
+#   PATCH /teacher-leave/<pk>/status/
+#   Body: {"apply_status": "approved"}  (or "rejected", "pending")
+# ═══════════════════════════════════════════════════════════
+class TeacherLeaveStatusUpdateView(APIView):
+    """
+    Lightweight endpoint to approve/reject/pend a leave.
+    Admin or teacher can call this.
+    """
+
+    def patch(self, request, pk):
+        try:
+            leave = TeacherLeave.objects.get(pk=pk)
+        except TeacherLeave.DoesNotExist:
+            return Response(
+                {"status": False, "message": "Leave not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        new_status = request.data.get("apply_status")
+        if not new_status:
+            return Response(
+                {"status": False, "message": "apply_status is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        valid = [c[0] for c in TeacherLeave.STATUS_CHOICES]
+        if new_status not in valid:
+            return Response(
+                {
+                    "status": False,
+                    "message": f"Invalid apply_status. Allowed: {valid}",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        leave.apply_status = new_status
+        leave.save(update_fields=["apply_status"])
+
+        return Response(
+            {
+                "status": True,
+                "message": f"Leave status updated to '{new_status}'",
+                "data": TeacherLeaveSerializer(leave).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    # POST alias for flexibility
+    def post(self, request, pk):
+        return self.patch(request, pk)
+    
 # ═══════════════════════════════════════════════════════════
 # TEACHER-WISE LIST (by id_card)
 #   GET /teacher-leave/list/<teacher_id_card>/

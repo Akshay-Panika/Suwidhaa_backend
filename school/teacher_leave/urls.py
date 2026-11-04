@@ -4,8 +4,9 @@ from .views import (
     TeacherLeaveListView,
     TeacherLeaveDetailView,
     TeacherLeaveByIdCardView,
-    TeacherLeaveByTeacherIdView,   # ✅ NEW
-    TeacherLeaveBySchoolView,      # ✅ NEW
+    TeacherLeaveByTeacherIdView,
+    TeacherLeaveBySchoolView,
+    TeacherLeaveStatusUpdateView,   # ✅ NEW
 )
 
 urlpatterns = [
@@ -23,7 +24,7 @@ urlpatterns = [
         name="teacher-leave-list",
     ),
 
-    # ✅ SPECIFIC: by DB int id (must come before generic)
+    # ✅ SPECIFIC: by DB int id
     path(
         "teacher-leave/teacher/<str:teacher_id>/",
         TeacherLeaveByTeacherIdView.as_view(),
@@ -35,6 +36,13 @@ urlpatterns = [
         "teacher-leave/school/<int:school_id>/",
         TeacherLeaveBySchoolView.as_view(),
         name="teacher-leave-by-school",
+    ),
+
+    # ✅ NEW: STATUS UPDATE (must come BEFORE generic <int:pk> detail)
+    path(
+        "teacher-leave/<int:pk>/status/",
+        TeacherLeaveStatusUpdateView.as_view(),
+        name="teacher-leave-status-update",
     ),
 
     # SPECIFIC: by id_card

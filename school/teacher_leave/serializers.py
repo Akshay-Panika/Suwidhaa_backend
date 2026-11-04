@@ -8,6 +8,13 @@ class TeacherLeaveSerializer(serializers.ModelSerializer):
     # ✅ Full teacher + school data
     teacher = serializers.SerializerMethodField()
 
+    # ✅ Status validation field
+    apply_status = serializers.ChoiceField(
+        choices=TeacherLeave.STATUS_CHOICES,
+        required=False,
+        default='pending',
+    )
+
     class Meta:
         model = TeacherLeave
         fields = [
@@ -20,7 +27,7 @@ class TeacherLeaveSerializer(serializers.ModelSerializer):
             "end_date",
             "image",
             "created_date",
-            "teacher",           # ✅ full nested teacher
+            "teacher",
         ]
         read_only_fields = ["id", "created_date", "teacher"]
 
@@ -41,6 +48,7 @@ class TeacherLeaveSerializer(serializers.ModelSerializer):
         return TeacherSerializer(teacher).data
 
     def validate(self, attrs):
+        # Date range validation
         start_date = attrs.get(
             "start_date", getattr(self.instance, "start_date", None)
         )
@@ -51,6 +59,18 @@ class TeacherLeaveSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"end_date": "End date cannot be earlier than start date."}
             )
+
+        # Status validation
+        valid_statuses = [c[0] for c in TeacherLeave.STATUS_CHOICES]
+        apply_status = attrs.get(
+            "apply_status",
+            getattr(self.instance, "apply_status", 'pending'),
+        )
+        if apply_status and apply_status not in valid_statuses:
+            raise serializers.ValidationError({
+                "apply_status":
+                    f"Invalid status. Allowed: {valid_statuses}"
+            })
 
         # Validate teacher exists
         teacher_id_card = attrs.get(
