@@ -99,6 +99,10 @@ urlpatterns = [
     ),
     path(
         "api/v1/ott/",
+        include("ott.category.urls"),
+    ),
+    path(
+        "api/v1/ott/",
         include("ott.content.urls"),
     ),
     path(

@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "auth.app_auth",
     "auth.app_profile",
 
+    "ott.category", 
     "ott.content",
     "ott.movies",
     "ott.cartoons",
