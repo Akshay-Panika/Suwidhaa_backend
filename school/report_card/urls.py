@@ -1,44 +1,53 @@
 from django.urls import path
 from .views import (
     ReportCardCreateView,
+    ReportCardBulkCreateView,     # ✅ NEW
     ReportCardListView,
     ReportCardDetailView,
-    ReportCardByAdminIdView,
     ReportCardByStudentIdView,
+    ReportCardByTeacherView,
 )
 
 urlpatterns = [
-    # Create
+    # SINGLE CREATE
     path(
         'report-cards/create/',
         ReportCardCreateView.as_view(),
         name='report-card-create',
     ),
 
-    # List
+    # ✅ BULK CREATE (multi-student assign)
+    path(
+        'report-cards/bulk-create/',
+        ReportCardBulkCreateView.as_view(),
+        name='report-card-bulk-create',
+    ),
+
+    # LIST ALL
     path(
         'report-cards/list/',
         ReportCardListView.as_view(),
         name='report-card-list',
     ),
 
+    # TEACHER-WISE
+    path(
+        'report-cards/teacher/<str:teacher_id>/',
+        ReportCardByTeacherView.as_view(),
+        name='report-card-by-teacher',
+    ),
+
+    # STUDENT-WISE (DB int id)
     path(
         'report-cards/student-list/<str:student_id>/',
         ReportCardByStudentIdView.as_view(),
         name='report-card-by-student',
     ),
 
-    # Detail by id (GET / PUT / PATCH / DELETE)
+    # DETAIL
     path(
         'report-cards/list/<int:pk>/',
         ReportCardDetailView.as_view(),
         name='report-card-detail',
-    ),
-
-    # List by admin_id
-    path(
-        'report-cards/adminid/<str:admin_id>/',
-        ReportCardByAdminIdView.as_view(),
-        name='report-card-by-admin',
     ),
 ]
