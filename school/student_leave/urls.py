@@ -4,22 +4,38 @@ from .views import (
     StudentLeaveListView,
     StudentLeaveDetailView,
     StudentLeaveByIdCardView,
+    StudentLeaveBySchoolView,
+    StudentLeaveByClassView,
     StudentLeaveApprovalView,
 )
 
 urlpatterns = [
-    path("student-leave/create/", StudentLeaveCreateView.as_view(), name="student-leave-create"),
-    path("student-leave/list/", StudentLeaveListView.as_view(), name="student-leave-list"),
-    path("student-leave/<int:pk>/", StudentLeaveDetailView.as_view(), name="student-leave-detail"),
+    # Create / List (list supports ?school_id=&student_class=&student_id_card=&leave_status=)
+    path("student-leave/create/", StudentLeaveCreateView.as_view()),
+    path("student-leave/list/", StudentLeaveListView.as_view()),
+
+    # ✅ School id wise
+    path(
+        "student-leave/list/school/<int:school_id>/",
+        StudentLeaveBySchoolView.as_view(),
+        name="student-leave-by-school",
+    ),
+
+    # ✅ Class wise
+    path(
+        "student-leave/list/class/<str:student_class>/",
+        StudentLeaveByClassView.as_view(),
+        name="student-leave-by-class",
+    ),
+
+    # ✅ Student id card wise (keep last – most generic)
     path(
         "student-leave/list/<str:student_id_card>/",
         StudentLeaveByIdCardView.as_view(),
         name="student-leave-by-id-card",
     ),
-    # NEW: Teacher approval / rejection
-    path(
-        "student-leave/approval/<int:pk>/",
-        StudentLeaveApprovalView.as_view(),
-        name="student-leave-approval",
-    ),
+
+    # Detail / approval
+    path("student-leave/<int:pk>/", StudentLeaveDetailView.as_view()),
+    path("student-leave/approval/<int:pk>/", StudentLeaveApprovalView.as_view()),
 ]

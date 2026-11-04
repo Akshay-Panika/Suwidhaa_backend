@@ -1,9 +1,22 @@
 from rest_framework import serializers
 from .models import StudentLeave
+from school.school_type.models import SchoolType
+from school.school_type.serializers import SchoolTypeSerializer
 
 
 class StudentLeaveSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(required=False, allow_null=True)
+
+    # Write: pass school_id
+    school_id = serializers.PrimaryKeyRelatedField(
+        queryset=SchoolType.objects.all(),
+        source="school",
+        required=False,
+        allow_null=True,
+        write_only=True,
+    )
+    # Read: full school details
+    school = SchoolTypeSerializer(read_only=True)
 
     class Meta:
         model = StudentLeave
@@ -13,6 +26,8 @@ class StudentLeaveSerializer(serializers.ModelSerializer):
             "student_name",
             "student_class",
             "school_type",
+            "school_id",   # write
+            "school",      # read
             "reason_msg",
             "start_date",
             "end_date",
@@ -22,7 +37,13 @@ class StudentLeaveSerializer(serializers.ModelSerializer):
             "teacher_name",
             "created_date",
         ]
-        read_only_fields = ["id", "created_date", "leave_status", "teacher_card_id", "teacher_name"]
+        read_only_fields = [
+            "id",
+            "created_date",
+            "leave_status",
+            "teacher_card_id",
+            "teacher_name",
+        ]
 
     def validate(self, attrs):
         start_date = attrs.get("start_date", getattr(self.instance, "start_date", None))
