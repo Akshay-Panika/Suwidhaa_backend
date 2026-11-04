@@ -30,7 +30,7 @@ class Category(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["created_at"]        # ✅ oldest first → new categories go to bottom
         verbose_name = "Category"
         verbose_name_plural = "Categories"
 

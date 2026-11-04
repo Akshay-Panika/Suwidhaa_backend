@@ -19,13 +19,12 @@ ALL_CONTENT_VIRTUAL = {
     "updated_at": None,
 }
 
-
 class CategoryListCreateAPIView(APIView):
     """GET: List all categories (with All Content first) | POST: Create a new category"""
 
     def get(self, request):
         try:
-            categories = Category.objects.all().order_by("-created_at")
+            categories = Category.objects.all().order_by("created_at")   # ✅ removed minus sign
             serializer = CategorySerializer(categories, many=True)
 
             # ✅ Prepend virtual All Content at index 0
@@ -44,35 +43,7 @@ class CategoryListCreateAPIView(APIView):
                 {"success": False, "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-    def post(self, request):
-        try:
-            serializer = CategorySerializer(data=request.data)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(
-                    {
-                        "success": True,
-                        "message": "Category created successfully",
-                        "data": serializer.data,
-                    },
-                    status=status.HTTP_201_CREATED,
-                )
-            return Response(
-                {"success": False, "errors": serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        except IntegrityError:
-            return Response(
-                {"success": False, "error": "Category name already exists"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        except Exception as e:
-            return Response(
-                {"success": False, "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
+        
 
 class CategoryDetailAPIView(APIView):
     """GET | PUT | DELETE a single category"""
