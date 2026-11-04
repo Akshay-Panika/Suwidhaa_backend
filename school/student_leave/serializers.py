@@ -12,6 +12,9 @@ from school.teacher.serializers import TeacherSerializer
 class StudentLeaveSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(required=False, allow_null=True)
 
+    # ✅ Only needed for write (create/update lookup)
+    student_id_card = serializers.CharField(write_only=True)
+
     # ✅ Read-only nested — full models
     school = SchoolTypeSerializer(read_only=True)
     student = serializers.SerializerMethodField()
@@ -21,13 +24,12 @@ class StudentLeaveSerializer(serializers.ModelSerializer):
         model = StudentLeave
         fields = [
             "id",
-            "student_id_card",     # write + read (needed for create/lookup)
+            "student_id_card",   # write_only
             "reason_msg",
             "start_date",
             "end_date",
             "image",
-            "leave_status",        # read-only (from approval)
-            "teacher_card_id",     # read-only (set by approval API)
+            "leave_status",
             "created_date",
             # nested
             "school",
@@ -35,37 +37,51 @@ class StudentLeaveSerializer(serializers.ModelSerializer):
             "teacher",
         ]
         read_only_fields = [
-            "id", "created_date", "leave_status", "teacher_card_id",
+            "id", "created_date", "leave_status",
             "school", "student", "teacher",
         ]
 
-    # ────── Nested: Full Student (with nested school) ──────
     def get_student(self, obj):
         if not obj.student_id_card:
             return None
+
+        cache = self.context.setdefault("_student_cache", {})
+        if obj.student_id_card in cache:
+            return cache[obj.student_id_card]
+
         try:
             student = (
                 Student.objects
                 .select_related("school")
                 .get(student_id_card=obj.student_id_card)
             )
-            return StudentSerializer(student).data
+            data = StudentSerializer(student).data
         except Student.DoesNotExist:
-            return None
+            data = None
 
-    # ────── Nested: Full Teacher (with nested school) ──────
+        cache[obj.student_id_card] = data
+        return data
+
     def get_teacher(self, obj):
         if not obj.teacher_card_id:
             return None
+
+        cache = self.context.setdefault("_teacher_cache", {})
+        if obj.teacher_card_id in cache:
+            return cache[obj.teacher_card_id]
+
         try:
             teacher = (
                 Teacher.objects
                 .select_related("school")
-                .get(teacher_card_id=obj.teacher_card_id)
+                .get(teacher_id_card=obj.teacher_card_id)
             )
-            return TeacherSerializer(teacher).data
+            data = TeacherSerializer(teacher).data
         except Teacher.DoesNotExist:
-            return None
+            data = None
+
+        cache[obj.teacher_card_id] = data
+        return data
 
     def validate(self, attrs):
         start_date = attrs.get("start_date", getattr(self.instance, "start_date", None))
@@ -78,8 +94,6 @@ class StudentLeaveSerializer(serializers.ModelSerializer):
 
 
 class StudentLeaveApprovalSerializer(serializers.ModelSerializer):
-    """Used for teacher approval / rejection / reset to pending."""
-
     class Meta:
         model = StudentLeave
         fields = ["leave_status", "teacher_card_id", "teacher_name"]

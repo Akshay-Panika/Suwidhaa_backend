@@ -10,7 +10,6 @@ from school.student.models import Student
 
 # ─────────────────────────────────────────────
 # Helper: derive leave fields from Student
-# ─────────────────────────────────────────────
 def _get_student_extra(student_id_card):
     """Return (student, extra_fields_dict) or (None, None)."""
     if not student_id_card:
@@ -23,6 +22,8 @@ def _get_student_extra(student_id_card):
         return None, None
 
     extra = {
+        # ✅ student_id_card save karne ke liye
+        "student_id_card": student.student_id_card,
         "student_name": f"{student.first_name} {student.last_name}".strip(),
         "student_class": student.student_class or "",
         "school": student.school,
