@@ -1,24 +1,41 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from django.db import IntegrityError
 from django.shortcuts import get_object_or_404
 
 from .models import Category
 from .serializers import CategorySerializer
 
 
+# ✅ Virtual "All Content" — always returned as first item (not stored in DB)
+ALL_CONTENT_VIRTUAL = {
+    "id": 0,
+    "name": "All Content",
+    "image": "",
+    "category_type": "all",
+    "is_active": True,
+    "created_at": None,
+    "updated_at": None,
+}
+
+
 class CategoryListCreateAPIView(APIView):
-    """GET: List all categories | POST: Create a new category"""
+    """GET: List all categories (with All Content first) | POST: Create a new category"""
 
     def get(self, request):
         try:
             categories = Category.objects.all().order_by("-created_at")
             serializer = CategorySerializer(categories, many=True)
+
+            # ✅ Prepend virtual All Content at index 0
+            data = [ALL_CONTENT_VIRTUAL] + list(serializer.data)
+
             return Response(
                 {
                     "success": True,
-                    "count": categories.count(),
-                    "data": serializer.data,
+                    "count": len(data),
+                    "data": data,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -45,6 +62,11 @@ class CategoryListCreateAPIView(APIView):
                 {"success": False, "errors": serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        except IntegrityError:
+            return Response(
+                {"success": False, "error": "Category name already exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
             return Response(
                 {"success": False, "error": str(e)},
@@ -60,6 +82,12 @@ class CategoryDetailAPIView(APIView):
 
     def get(self, request, pk):
         try:
+            # ✅ All Content is virtual — return it
+            if pk == 0:
+                return Response(
+                    {"success": True, "data": ALL_CONTENT_VIRTUAL},
+                    status=status.HTTP_200_OK,
+                )
             category = self.get_object(pk)
             serializer = CategorySerializer(category)
             return Response(
@@ -79,8 +107,19 @@ class CategoryDetailAPIView(APIView):
 
     def put(self, request, pk):
         try:
+            # ✅ Cannot update virtual All Content
+            if pk == 0:
+                return Response(
+                    {
+                        "success": False,
+                        "error": 'Cannot update the "All Content" category',
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             category = self.get_object(pk)
-            serializer = CategorySerializer(category, data=request.data, partial=True)
+            serializer = CategorySerializer(
+                category, data=request.data, partial=True
+            )
             if serializer.is_valid():
                 serializer.save()
                 return Response(
@@ -100,6 +139,11 @@ class CategoryDetailAPIView(APIView):
                 {"success": False, "error": "Category not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        except IntegrityError:
+            return Response(
+                {"success": False, "error": "Category name already exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
             return Response(
                 {"success": False, "error": str(e)},
@@ -108,6 +152,15 @@ class CategoryDetailAPIView(APIView):
 
     def delete(self, request, pk):
         try:
+            # ✅ Cannot delete virtual All Content
+            if pk == 0:
+                return Response(
+                    {
+                        "success": False,
+                        "error": 'Cannot delete the "All Content" category',
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             category = self.get_object(pk)
             category.delete()
             return Response(

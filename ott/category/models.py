@@ -3,17 +3,9 @@ from cloudinary.models import CloudinaryField
 
 
 class Category(models.Model):
-    # Manual choices — admin picks one
-    CATEGORY_TYPES = (
-        ("movie", "Movie"),
-        ("cartoon", "Cartoon"),
-        ("sport", "Sport"),
-        ("sci_fi", "Sci-Fi"),
-        ("webseries", "Web Series"),
-    )
-
     name = models.CharField(
         max_length=100,
+        unique=True,          # ✅ unique category name
         blank=False,
         null=False,
     )
@@ -26,10 +18,10 @@ class Category(models.Model):
     )
 
     category_type = models.CharField(
-        max_length=20,
-        choices=CATEGORY_TYPES,
-        blank=False,
-        null=False,
+        max_length=100,
+        blank=True,
+        null=True,
+        # ✅ CATEGORY_TYPES removed — free text now
     )
 
     is_active = models.BooleanField(default=True)
@@ -43,4 +35,4 @@ class Category(models.Model):
         verbose_name_plural = "Categories"
 
     def __str__(self):
-        return f"{self.name} ({self.get_category_type_display()})"
+        return self.name
