@@ -13,7 +13,6 @@ ALL_CONTENT_VIRTUAL = {
     "id": 0,
     "name": "All Content",
     "image": "",
-    "category_type": "all",
     "is_active": True,
     "created_at": None,
     "updated_at": None,

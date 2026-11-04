@@ -5,7 +5,7 @@ from cloudinary.models import CloudinaryField
 class Category(models.Model):
     name = models.CharField(
         max_length=100,
-        unique=True,          # ✅ unique category name
+        unique=True,
         blank=False,
         null=False,
     )
@@ -17,12 +17,7 @@ class Category(models.Model):
         null=False,
     )
 
-    category_type = models.CharField(
-        max_length=100,
-        blank=True,
-        null=True,
-        # ✅ CATEGORY_TYPES removed — free text now
-    )
+    # ❌ category_type removed
 
     is_active = models.BooleanField(default=True)
 
@@ -30,7 +25,7 @@ class Category(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["created_at"]        # ✅ oldest first → new categories go to bottom
+        ordering = ["created_at"]
         verbose_name = "Category"
         verbose_name_plural = "Categories"
 
