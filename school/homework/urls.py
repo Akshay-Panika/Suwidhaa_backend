@@ -2,10 +2,10 @@ from django.urls import path
 from .views import (
     HomeworkCreateView,
     HomeworkListView,
-    HomeworkListSchoolWithClassView,
     HomeworkListByTeacherView,
+    HomeworkListByStudentView,        # ✅ NEW
     HomeworkDetailView,
-     HomeworkToggleStudentStatusView,  
+    HomeworkToggleStudentStatusView,
 )
 
 urlpatterns = [
@@ -23,13 +23,14 @@ urlpatterns = [
         name="homework_list",
     ),
 
+    # POST /api/v1/school/homework/<pk>/toggle-status/<student_idcard>/
     path(
         "homework/<int:pk>/toggle-status/<str:student_idcard>/",
         HomeworkToggleStudentStatusView.as_view(),
         name="homework_toggle_student_status",
     ),
 
-    # ✅ SPECIFIC: teacher-id pattern MUST be before generic <str:> pattern
+    # ✅ SPECIFIC: teacher-id (must come before generic patterns)
     # GET /api/v1/school/homework/list/teacher-id/<teacher_id>/
     path(
         "homework/list/teacher-id/<str:teacher_id>/",
@@ -37,12 +38,12 @@ urlpatterns = [
         name="homework_list_by_teacher",
     ),
 
-    # ✅ GENERIC: school_type + class_name
-    # GET /api/v1/school/homework/list/<school_type>/<class_name>/
+    # ✅ SPECIFIC: student-id (must come before generic patterns)
+    # GET /api/v1/school/homework/list/student-id/<student_idcard>/
     path(
-        "homework/list/<str:school_type>/<str:class_name>/",
-        HomeworkListSchoolWithClassView.as_view(),
-        name="homework_list_by_type_class",
+        "homework/list/student-id/<str:student_idcard>/",
+        HomeworkListByStudentView.as_view(),
+        name="homework_list_by_student",
     ),
 
     # GET / PUT / PATCH / DELETE /api/v1/school/homework/<id>/

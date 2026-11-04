@@ -84,6 +84,53 @@ class HomeworkListView(APIView):
 
 
 # ═══════════════════════════════════════════════════════════
+# ✅ NEW: LIST HOMEWORK BY STUDENT ID CARD
+#    GET /api/v1/school/homework/list/student-id/<student_idcard>/
+# ═══════════════════════════════════════════════════════════
+class HomeworkListByStudentView(APIView):
+
+    def get(self, request, student_idcard):
+        try:
+            target = str(student_idcard).strip()
+
+            # JSONField can't do partial dict match reliably → filter in Python
+            all_hw = Homework.objects.all().order_by("-created_at")
+            matched = []
+            for hw in all_hw:
+                for entry in (hw.student_ids_list or []):
+                    if isinstance(entry, dict):
+                        card = (
+                            entry.get("studentIdcard")
+                            or entry.get("student_id_card")
+                            or entry.get("studentId")
+                            or ""
+                        )
+                        if str(card).strip() == target:
+                            matched.append(hw)
+                            break
+                    elif isinstance(entry, (str, int)):
+                        if str(entry).strip() == target:
+                            matched.append(hw)
+                            break
+
+            serializer = HomeworkSerializer(matched, many=True)
+            return Response(
+                {
+                    "success": True,
+                    "message": "Homework list fetched successfully",
+                    "student_idcard": student_idcard,
+                    "count": len(serializer.data),
+                    "data": serializer.data,
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                {"success": False, "message": f"Server error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        
+# ═══════════════════════════════════════════════════════════
 # 📌 LIST BY SCHOOL TYPE + CLASS NAME
 #    GET /api/v1/school/homework/list/<school_type>/<class_name>/
 # ═══════════════════════════════════════════════════════════
