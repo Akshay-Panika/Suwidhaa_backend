@@ -14,7 +14,6 @@ class CloudinaryInputField(serializers.Field):
 class BannerSerializer(serializers.ModelSerializer):
     image = CloudinaryInputField(required=True, allow_null=False)
 
-    # ✅ Optional video URL — accepts "", null, or a valid URL
     video_url = serializers.URLField(
         required=False,
         allow_null=True,
@@ -23,6 +22,5 @@ class BannerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Banner
-        fields = "__all__"
-        # ✅ is_play is managed by the model's save() — never accepted from client
+        fields = "__all__"   # ✅ is_active auto-drops because the field no longer exists
         read_only_fields = ("id", "is_play", "created_at", "updated_at")
