@@ -1,49 +1,71 @@
 from rest_framework import serializers
 from .models import StudentLeave
+
 from school.school_type.models import SchoolType
 from school.school_type.serializers import SchoolTypeSerializer
+from school.student.models import Student
+from school.student.serializers import StudentSerializer
+from school.teacher.models import Teacher
+from school.teacher.serializers import TeacherSerializer
 
 
 class StudentLeaveSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(required=False, allow_null=True)
 
-    # Write: pass school_id
-    school_id = serializers.PrimaryKeyRelatedField(
-        queryset=SchoolType.objects.all(),
-        source="school",
-        required=False,
-        allow_null=True,
-        write_only=True,
-    )
-    # Read: full school details
+    # ✅ Read-only nested — full models
     school = SchoolTypeSerializer(read_only=True)
+    student = serializers.SerializerMethodField()
+    teacher = serializers.SerializerMethodField()
 
     class Meta:
         model = StudentLeave
         fields = [
             "id",
-            "student_id_card",
-            "student_name",
-            "student_class",
-            "school_type",
-            "school_id",   # write
-            "school",      # read
+            "student_id_card",     # write + read (needed for create/lookup)
             "reason_msg",
             "start_date",
             "end_date",
             "image",
-            "leave_status",
-            "teacher_card_id",
-            "teacher_name",
+            "leave_status",        # read-only (from approval)
+            "teacher_card_id",     # read-only (set by approval API)
             "created_date",
+            # nested
+            "school",
+            "student",
+            "teacher",
         ]
         read_only_fields = [
-            "id",
-            "created_date",
-            "leave_status",
-            "teacher_card_id",
-            "teacher_name",
+            "id", "created_date", "leave_status", "teacher_card_id",
+            "school", "student", "teacher",
         ]
+
+    # ────── Nested: Full Student (with nested school) ──────
+    def get_student(self, obj):
+        if not obj.student_id_card:
+            return None
+        try:
+            student = (
+                Student.objects
+                .select_related("school")
+                .get(student_id_card=obj.student_id_card)
+            )
+            return StudentSerializer(student).data
+        except Student.DoesNotExist:
+            return None
+
+    # ────── Nested: Full Teacher (with nested school) ──────
+    def get_teacher(self, obj):
+        if not obj.teacher_card_id:
+            return None
+        try:
+            teacher = (
+                Teacher.objects
+                .select_related("school")
+                .get(teacher_card_id=obj.teacher_card_id)
+            )
+            return TeacherSerializer(teacher).data
+        except Teacher.DoesNotExist:
+            return None
 
     def validate(self, attrs):
         start_date = attrs.get("start_date", getattr(self.instance, "start_date", None))
