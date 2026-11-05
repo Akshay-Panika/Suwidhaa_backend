@@ -5,6 +5,7 @@ from ott.content.models import Content
 
 class CloudinaryInputField(serializers.Field):
     """File input → Full URL output"""
+
     def to_representation(self, value):
         return value.url if value else None
 
@@ -17,10 +18,42 @@ class CartoonSerializer(serializers.ModelSerializer):
     thumbnail_horizontal = CloudinaryInputField(required=False, allow_null=True)
     thumbnail_vertical = CloudinaryInputField(required=False, allow_null=True)
 
+    # Read-only label — matches Movie response shape
+    category_name = serializers.CharField(source="category.name", read_only=True)
+
     class Meta:
         model = Cartoon
-        fields = '__all__'
-        read_only_fields = ('id', 'content_type', 'created_at', 'updated_at')
+        fields = [
+            "id",
+            "title",
+            "description",
+            "category",           # writable FK
+            "category_name",      # read-only label
+            "thumbnail_horizontal",
+            "thumbnail_vertical",
+            "content_type",
+            "release_date",
+            "language",
+            "duration",
+            "video_url",
+            "rating",
+            "is_trending",
+            "is_recommended",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ("id", "content_type", "created_at", "updated_at")
+        extra_kwargs = {
+            "category": {"required": True, "allow_null": False},
+        }
+
+    def validate_category(self, value):
+        if value is None:
+            raise serializers.ValidationError(
+                'Category is required. "All Content" (id=0) is virtual — pick a real category.'
+            )
+        return value
 
     def create(self, validated_data):
         cartoon = Cartoon.objects.create(**validated_data)

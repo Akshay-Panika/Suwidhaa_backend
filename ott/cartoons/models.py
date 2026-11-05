@@ -6,6 +6,16 @@ class Cartoon(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
 
+    # ✅ NEW — category FK (same target as Movie)
+    category = models.ForeignKey(
+        "ott_category.Category",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cartoons",
+        help_text='NULL → appears only in "All Content" (virtual).',
+    )
+
     thumbnail_horizontal = CloudinaryField(
         "thumbnail_horizontal",
         folder="suwidhaa/ott/cartoons/horizontal",
@@ -19,7 +29,7 @@ class Cartoon(models.Model):
 
     content_type = models.CharField(
         max_length=50,
-        default='cartoon',
+        default="cartoon",
         editable=False,
     )
 
@@ -35,6 +45,11 @@ class Cartoon(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Cartoon"
+        verbose_name_plural = "Cartoons"
 
     def __str__(self):
         return f"{self.title} ({self.content_type})"
