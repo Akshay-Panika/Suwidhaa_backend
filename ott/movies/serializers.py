@@ -1,10 +1,14 @@
 from rest_framework import serializers
 from .models import Movie
-from ott.content.models import Content
+
+# ✅ Cross-app import — MovieSerializer needs Category for validation
+from ott.category.models import Category   # adjust to your app path
+from ott.content.models import Content     # existing
 
 
 class CloudinaryInputField(serializers.Field):
     """File input → Full URL output"""
+
     def to_representation(self, value):
         return value.url if value else None
 
@@ -17,16 +21,49 @@ class MovieSerializer(serializers.ModelSerializer):
     thumbnail_horizontal = CloudinaryInputField(required=False, allow_null=True)
     thumbnail_vertical = CloudinaryInputField(required=False, allow_null=True)
 
+    # Read-only helper — Flutter gets label without extra call
+    category_name = serializers.CharField(source="category.name", read_only=True)
+
     class Meta:
         model = Movie
-        fields = '__all__'
-        read_only_fields = ('id', 'content_type', 'created_at', 'updated_at')
+        fields = [
+            "id",
+            "title",
+            "description",
+            "category",           # writable FK (send real category id)
+            "category_name",      # read-only label
+            "thumbnail_horizontal",
+            "thumbnail_vertical",
+            "content_type",
+            "release_date",
+            "language",
+            "duration",
+            "video_url",
+            "rating",
+            "is_trending",
+            "is_recommended",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ("id", "content_type", "created_at", "updated_at")
+        extra_kwargs = {
+            "category": {"required": True, "allow_null": False},
+        }
 
+    # ---------- validation ----------
+    def validate_category(self, value):
+        if value is None:
+            raise serializers.ValidationError(
+                'Category is required. "All Content" (id=0) is virtual — pick a real category.'
+            )
+        return value
+
+    # ---------- create ----------
     def create(self, validated_data):
-        # Movie create
         movie = Movie.objects.create(**validated_data)
 
-        # Content auto-create
+        # Auto-sync into Content table so OTT feed picks it up
         Content.objects.create(
             movie=movie,
             title=movie.title,
@@ -41,13 +78,12 @@ class MovieSerializer(serializers.ModelSerializer):
         )
         return movie
 
+    # ---------- update ----------
     def update(self, instance, validated_data):
-        # Movie update
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
-        # Content auto-update
         content, _ = Content.objects.get_or_create(movie=instance)
         content.title = instance.title
         content.thumbnail_horizontal = instance.thumbnail_horizontal.url if instance.thumbnail_horizontal else None
