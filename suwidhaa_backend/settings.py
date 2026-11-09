@@ -1,4 +1,3 @@
-
 from pathlib import Path
 import os
 import cloudinary
@@ -41,9 +40,13 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
-    "cloudinary",
-    "cloudinary_storage",
 
+    # ⚠️ cloudinary_storage pehle, cloudinary baad me
+    "cloudinary_storage",
+    "cloudinary",
+
+    # ---------- school ----------
+    "school.school_type",
     "school.student",
     "school.student_fee",
     "school.teacher",
@@ -58,26 +61,6 @@ INSTALLED_APPS = [
     "school.teacher_salary",
     "school.homework",
     "school.transport",
-
-    "college.college_banner",
-    "college.colleges",
-    "college.college_booking",
-    "college.room",
-    "college.tiffin",
-
-    "auth.app_auth",
-    "auth.app_profile",
-
-    "ott.category", 
-    "ott.content",
-    "ott.movies",
-    "ott.cartoons",
-    "ott.sports",
-    "ott.sci_fi",
-    "ott.banner",
-    "ott.reels",
-    "ott.webseries",
-
     "school.report_card",
     "school.meeting",
     "school.notice",
@@ -85,24 +68,43 @@ INSTALLED_APPS = [
     "school.library",
     "school.exams",
 
+    # ---------- college ----------
+    "college.college_banner",
+    "college.colleges",
+    "college.college_booking",
+    "college.room",
+    "college.tiffin",
+
+    # ---------- auth ----------
+    "auth.app_auth",
+    "auth.app_profile",
+
+    # ---------- ott ----------
+    "ott.category",
+    # "ott.movies",        # ❌ folder delete ho gaya — hata diya
+    "ott.banner",
+    "ott.reels",
+    # "ott.webseries",
+
+    # ---------- ngo ----------
     "ngo.banner",
     "ngo.category",
     "ngo.service",
     "ngo.staff",
     "ngo.history",
 
+    # ---------- it_service ----------
     "it_service.banner",
     "it_service.category",
     "it_service.service",
     "it_service.booking",
 
+    # ---------- ecommerce ----------
     "ecommerce.banner",
     "ecommerce.category",
     "ecommerce.subcategory",
     "ecommerce.product",
     "ecommerce.store",
-
-    "school.school_type",
 ]
 
 # =====================================
@@ -144,11 +146,10 @@ TEMPLATES = [
 WSGI_APPLICATION = "suwidhaa_backend.wsgi.application"
 
 # =====================================
-# DATABASE CONFIGURATION
+# DATABASE
 # =====================================
 
 if os.getenv("DATABASE_URL"):
-
     DATABASES = {
         "default": dj_database_url.config(
             default=os.getenv("DATABASE_URL"),
@@ -156,9 +157,7 @@ if os.getenv("DATABASE_URL"):
             ssl_require=True,
         )
     }
-
 else:
-
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -175,18 +174,10 @@ else:
 # =====================================
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
 # =====================================
@@ -195,7 +186,6 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Asia/Kolkata"
-
 USE_I18N = True
 USE_TZ = True
 
@@ -206,7 +196,14 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+STORAGES = {
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -215,19 +212,13 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # =====================================
 
 REST_FRAMEWORK = {
-
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ],
-
     "DEFAULT_THROTTLE_RATES": {
-
         "otp_send": "5/hour",
-
         "otp_verify": "10/hour",
-
     },
-
 }
 
 # =====================================
@@ -244,57 +235,36 @@ CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 # =====================================
-# TWILIO SMS CONFIGURATION
+# TWILIO SMS
 # =====================================
 
-TWILIO_PHONE_NUMBER = os.getenv(
-    "TWILIO_PHONE_NUMBER", ""
-)
-
+TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "")
 if TWILIO_PHONE_NUMBER:
-
-    TWILIO_PHONE_NUMBER = (
-        TWILIO_PHONE_NUMBER.strip()
-        .replace("whatsapp:", "")
-    )
-
+    TWILIO_PHONE_NUMBER = TWILIO_PHONE_NUMBER.strip().replace("whatsapp:", "")
     if not TWILIO_PHONE_NUMBER.startswith("+"):
         TWILIO_PHONE_NUMBER = "+" + TWILIO_PHONE_NUMBER
 
 # =====================================
-# TWILIO VERIFY OTP CONFIGURATION
+# TWILIO VERIFY OTP
 # =====================================
 
-TWILIO_ACCOUNT_SID = os.getenv(
-    "TWILIO_ACCOUNT_SID", ""
-)
-
-TWILIO_AUTH_TOKEN = os.getenv(
-    "TWILIO_AUTH_TOKEN", ""
-)
-
-TWILIO_VERIFY_SERVICE_SID = os.getenv(
-    "TWILIO_VERIFY_SERVICE_SID", ""
-)
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
+TWILIO_VERIFY_SERVICE_SID = os.getenv("TWILIO_VERIFY_SERVICE_SID", "")
 
 # =====================================
-# CACHE CONFIGURATION
+# CACHE
 # =====================================
 
 CACHES = {
-
     "default": {
-
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-
         "LOCATION": "suwidhaa-otp-cache",
-
     }
-
 }
 
 # =====================================
-# TWILIO WHATSAPP CONFIGURATION
+# TWILIO WHATSAPP
 # =====================================
 
 TWILIO_WHATSAPP_FROM = (
@@ -303,14 +273,8 @@ TWILIO_WHATSAPP_FROM = (
 )
 
 if TWILIO_WHATSAPP_FROM:
-
     TWILIO_WHATSAPP_FROM = TWILIO_WHATSAPP_FROM.strip()
-
     if not TWILIO_WHATSAPP_FROM.startswith("whatsapp:"):
-
         if not TWILIO_WHATSAPP_FROM.startswith("+"):
             TWILIO_WHATSAPP_FROM = "+" + TWILIO_WHATSAPP_FROM
-
-        TWILIO_WHATSAPP_FROM = (
-            f"whatsapp:{TWILIO_WHATSAPP_FROM}"
-        )
+        TWILIO_WHATSAPP_FROM = f"whatsapp:{TWILIO_WHATSAPP_FROM}"
