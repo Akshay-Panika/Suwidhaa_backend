@@ -84,6 +84,7 @@ INSTALLED_APPS = [
      "ott.content",
     "ott.banner",
     "ott.reels",
+    "ott.ads",
 
     # ---------- ngo ----------
     "ngo.banner",
