@@ -20,7 +20,7 @@ class Content(models.Model):
         Category,
         on_delete=models.CASCADE,
         related_name="contents",
-        db_column="category_id",   # DB me column name category_id rahega
+        db_column="category_id",
     )
 
     # ── Horizontal thumbnail (OTT banner style 16:9) ──
@@ -58,6 +58,13 @@ class Content(models.Model):
         help_text="Content release date (YYYY-MM-DD)",
     )
 
+    # ── Boolean flags (all default False) ──
+    is_family = models.BooleanField(default=False, help_text="Family-friendly content")
+    is_recommended = models.BooleanField(default=False, help_text="Show in Recommended section")
+    is_trending = models.BooleanField(default=False, help_text="Show in Trending section")
+    is_something_new = models.BooleanField(default=False, help_text="Show in New Arrivals section")
+    is_lock = models.BooleanField(default=False, help_text="Locked / Premium content")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -67,6 +74,9 @@ class Content(models.Model):
         verbose_name_plural = "Contents"
         indexes = [
             models.Index(fields=["category"]),
+            models.Index(fields=["is_trending"]),
+            models.Index(fields=["is_recommended"]),
+            models.Index(fields=["is_something_new"]),
         ]
 
     def __str__(self):

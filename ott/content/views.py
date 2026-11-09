@@ -8,12 +8,26 @@ from .models import Content
 from .serializers import ContentSerializer
 
 
+def _to_bool(val):
+    """'true'/'1'/'yes' → True, baaki → False"""
+    return str(val).strip().lower() in ("true", "1", "yes", "on")
+
+
 class ContentListCreateAPIView(APIView):
     """
-    GET  : List content (optional filter: ?category_id=3)
+    GET  : List content
+           Filters (all optional):
+             ?category_id=3
+             ?is_family=true
+             ?is_recommended=true
+             ?is_trending=true
+             ?is_something_new=true
+             ?is_lock=true
     POST : Create new content (multipart form-data ya JSON)
     """
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    BOOL_FILTERS = ["is_family", "is_recommended", "is_trending", "is_something_new", "is_lock"]
 
     def get(self, request):
         try:
@@ -22,7 +36,18 @@ class ContentListCreateAPIView(APIView):
             # ── Filter by category (id=0 ya missing → sab kuch) ──
             category_id = request.query_params.get("category_id")
             if category_id and category_id not in ("0", ""):
+                if not category_id.isdigit():
+                    return Response(
+                        {"success": False, "error": "category_id must be a number."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 qs = qs.filter(category_id=category_id)
+
+            # ── Boolean filters ──
+            for field in self.BOOL_FILTERS:
+                val = request.query_params.get(field)
+                if val is not None and val != "":
+                    qs = qs.filter(**{field: _to_bool(val)})
 
             serializer = ContentSerializer(qs, many=True)
             return Response(
@@ -92,9 +117,7 @@ class ContentDetailAPIView(APIView):
     def put(self, request, pk):
         try:
             content = self.get_object(pk)
-            serializer = ContentSerializer(
-                content, data=request.data, partial=True
-            )
+            serializer = ContentSerializer(content, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
                 return Response(

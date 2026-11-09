@@ -27,7 +27,7 @@ class ContentSerializer(serializers.ModelSerializer):
         },
     )
 
-    # ── Read side: return FULL category object (id, name, image, is_active, ...) ──
+    # ── Read side: return FULL category object ──
     category = CategorySerializer(read_only=True)
 
     # ── Two thumbnails ──
@@ -47,6 +47,12 @@ class ContentSerializer(serializers.ModelSerializer):
             "video_url",
             "video_duration",
             "release_date",
+            # ── Boolean flags ──
+            "is_family",
+            "is_recommended",
+            "is_trending",
+            "is_something_new",
+            "is_lock",
             "created_at",
             "updated_at",
         ]
@@ -73,5 +79,21 @@ class ContentSerializer(serializers.ModelSerializer):
         return value.strip()
 
     def validate_release_date(self, value):
-        # Django DateField already validates format; keep for future custom checks
         return value
+
+    # ── Accept "true"/"false"/"1"/"0" strings from form-data ──
+    def to_internal_value(self, data):
+        # form-data me bool string aati hai — convert karo
+        bool_fields = [
+            "is_family", "is_recommended",
+            "is_trending", "is_something_new", "is_lock",
+        ]
+        # QueryDict immutable hota hai — copy banao
+        if hasattr(data, "copy"):
+            data = data.copy()
+        for field in bool_fields:
+            if field in data:
+                val = data.get(field)
+                if isinstance(val, str):
+                    data[field] = val.strip().lower() in ("true", "1", "yes", "on")
+        return super().to_internal_value(data)
