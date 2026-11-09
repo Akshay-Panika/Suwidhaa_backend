@@ -50,10 +50,9 @@ urlpatterns = [
 
     # ---------- ott ----------
     path("api/v1/ott/", include("ott.category.urls")),
-    # path("api/v1/ott/", include("ott.movies.urls")),   # ❌ folder delete
+    path("api/v1/ott/", include("ott.content.urls")),
     path("api/v1/ott/", include("ott.banner.urls")),
     path("api/v1/ott/", include("ott.reels.urls")),
-    # path("api/v1/ott/", include("ott.webseries.urls")),
 
     # ---------- ngo ----------
     path("api/v1/ngo/", include("ngo.banner.urls")),

@@ -81,10 +81,9 @@ INSTALLED_APPS = [
 
     # ---------- ott ----------
     "ott.category",
-    # "ott.movies",        # ❌ folder delete ho gaya — hata diya
+     "ott.content",
     "ott.banner",
     "ott.reels",
-    # "ott.webseries",
 
     # ---------- ngo ----------
     "ngo.banner",
