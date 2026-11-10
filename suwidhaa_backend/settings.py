@@ -83,6 +83,7 @@ INSTALLED_APPS = [
     "ott.category",
     "ott.content",
     "ott.webseries",
+    "ott.tvshows",
     "ott.banner",
     "ott.reels",
     "ott.ads",

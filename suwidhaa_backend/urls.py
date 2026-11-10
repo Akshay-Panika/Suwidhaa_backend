@@ -52,6 +52,7 @@ urlpatterns = [
     path("api/v1/ott/", include("ott.category.urls")),
     path("api/v1/ott/", include("ott.content.urls")),
     path("api/v1/ott/", include("ott.webseries.urls")),
+    path("api/v1/ott/", include("ott.tvshows.urls")),
     path("api/v1/ott/", include("ott.banner.urls")),
     path("api/v1/ott/", include("ott.reels.urls")),
     path("api/v1/ott/", include("ott.ads.urls")),
