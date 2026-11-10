@@ -48,12 +48,10 @@ class SubjectListCreateAPIView(APIView):
 
     def post(self, request, class_id):
         school_class = get_object_or_404(SchoolClass, id=class_id)
-        data = request.data.copy()
-        data['school_class'] = school_class.id
-
-        serializer = SubjectSerializer(data=data)
+        serializer = SubjectSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            # ✅ FIXED: school_class explicitly pass kiya hai
+            serializer.save(school_class=school_class)
             return Response({"status": True, "data": serializer.data}, status=status.HTTP_201_CREATED)
         return Response({"status": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -89,12 +87,10 @@ class RecordVideoListCreateAPIView(APIView):
 
     def post(self, request, class_id):
         school_class = get_object_or_404(SchoolClass, id=class_id)
-        data = request.data.copy()
-        data['school_class'] = school_class.id
-
-        serializer = RecordVideoSerializer(data=data)
+        serializer = RecordVideoSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            # ✅ FIXED: school_class explicitly pass kiya hai
+            serializer.save(school_class=school_class)
             return Response({"status": True, "data": serializer.data}, status=status.HTTP_201_CREATED)
         return Response({"status": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 

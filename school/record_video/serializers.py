@@ -9,7 +9,7 @@ class CloudinaryReadField(serializers.Field):
 
 class SchoolClassSerializer(serializers.ModelSerializer):
     video_count = serializers.IntegerField(source='videos.count', read_only=True)
-    subject_count = serializers.IntegerField(source='subjects.count', read_only=True) # ✅ Added
+    subject_count = serializers.IntegerField(source='subjects.count', read_only=True)
     class Meta:
         model = SchoolClass
         fields = ['id', 'name', 'video_count', 'subject_count']
@@ -19,7 +19,7 @@ class SubjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subject
         fields = ['id', 'name', 'school_class', 'class_name']
-        read_only_fields = ['school_class'] 
+        # ✅ Yahan se read_only_fields = ['school_class'] hata diya gaya hai
 
 class RecordVideoSerializer(serializers.ModelSerializer):
     thumbnail = CloudinaryReadField(required=False, allow_null=True)
