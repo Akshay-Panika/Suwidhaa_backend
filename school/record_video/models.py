@@ -10,7 +10,6 @@ class SchoolClass(models.Model):
         return self.name
 
 class Subject(models.Model):
-    # ✅ Abhi ke liye null=True, blank=True add kar dein
     school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='subjects', null=True, blank=True)
     name = models.CharField(max_length=50) 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -30,7 +29,6 @@ class RecordVideo(models.Model):
     thumbnail = CloudinaryField('thumbnail', folder="suwidhaa/school/record_videos", blank=True, null=True)
     video_url = models.URLField(max_length=500, blank=False, null=False)
     duration = models.CharField(max_length=50, help_text="e.g., 5 min")
-    age_group = models.CharField(max_length=50, help_text="e.g., 3+", blank=True, null=True)
     rating = models.DecimalField(max_digits=3, decimal_places=1, default=5.0)
     created_at = models.DateTimeField(auto_now_add=True)
 

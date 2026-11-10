@@ -39,7 +39,7 @@ class ClassDetailAPIView(APIView):
         obj.delete()
         return Response({"status": True}, status=status.HTTP_204_NO_CONTENT)
 
-# ==================== SUBJECT VIEWS (Class Wise) ====================
+# ==================== SUBJECT VIEWS ====================
 class SubjectListCreateAPIView(APIView):
     permission_classes = [AllowAny]
     def get(self, request, class_id):
@@ -50,7 +50,6 @@ class SubjectListCreateAPIView(APIView):
         school_class = get_object_or_404(SchoolClass, id=class_id)
         serializer = SubjectSerializer(data=request.data)
         if serializer.is_valid():
-            # ✅ FIXED: school_class explicitly pass kiya hai
             serializer.save(school_class=school_class)
             return Response({"status": True, "data": serializer.data}, status=status.HTTP_201_CREATED)
         return Response({"status": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -89,7 +88,6 @@ class RecordVideoListCreateAPIView(APIView):
         school_class = get_object_or_404(SchoolClass, id=class_id)
         serializer = RecordVideoSerializer(data=request.data)
         if serializer.is_valid():
-            # ✅ FIXED: school_class explicitly pass kiya hai
             serializer.save(school_class=school_class)
             return Response({"status": True, "data": serializer.data}, status=status.HTTP_201_CREATED)
         return Response({"status": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
