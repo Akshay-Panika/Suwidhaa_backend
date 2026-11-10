@@ -1,69 +1,111 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from .models import SchoolClass, Subject, RecordVideo
 from .serializers import SchoolClassSerializer, SubjectSerializer, RecordVideoSerializer
 
-class ClassListView(APIView):
-    """
-    GET /api/school/record-videos/classes/
-    Returns list of classes with total video counts.
-    """
+# ==================== CLASS VIEWS ====================
+class ClassListCreateAPIView(APIView):
     def get(self, request):
-        try:
-            classes = SchoolClass.objects.all()
-            serializer = SchoolClassSerializer(classes, many=True)
-            return Response(
-                {"status": True, "count": classes.count(), "data": serializer.data},
-                status=status.HTTP_200_OK
-            )
-        except Exception as e:
-            return Response({"status": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        classes = SchoolClass.objects.all()
+        return Response({"status": True, "data": SchoolClassSerializer(classes, many=True).data}, status=status.HTTP_200_OK)
 
+    def post(self, request):
+        serializer = SchoolClassSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"status": True, "message": "Class created", "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response({"status": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-class SubjectListView(APIView):
-    """
-    GET /api/school/record-videos/subjects/
-    Returns list of subjects for filter chips.
-    """
+class ClassDetailAPIView(APIView):
+    def get_object(self, pk):
+        return get_object_or_404(SchoolClass, pk=pk)
+
+    def put(self, request, pk):
+        obj = self.get_object(pk)
+        serializer = SchoolClassSerializer(obj, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"status": True, "message": "Class updated", "data": serializer.data})
+        return Response({"status": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        obj = self.get_object(pk)
+        obj.delete()
+        return Response({"status": True, "message": "Class deleted"}, status=status.HTTP_204_NO_CONTENT)
+
+# ==================== SUBJECT VIEWS ====================
+class SubjectListCreateAPIView(APIView):
     def get(self, request):
-        try:
-            subjects = Subject.objects.all()
-            serializer = SubjectSerializer(subjects, many=True)
-            return Response(
-                {"status": True, "data": serializer.data},
-                status=status.HTTP_200_OK
-            )
-        except Exception as e:
-            return Response({"status": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        subjects = Subject.objects.all()
+        return Response({"status": True, "data": SubjectSerializer(subjects, many=True).data})
 
+    def post(self, request):
+        serializer = SubjectSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"status": True, "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response({"status": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-class RecordVideoListView(APIView):
-    """
-    GET /api/school/record-videos/classes/<class_id>/videos/
-    GET /api/school/record-videos/classes/<class_id>/videos/?subject_id=2
-    Returns videos for a class, optionally filtered by subject.
-    """
+class SubjectDetailAPIView(APIView):
+    def get_object(self, pk):
+        return get_object_or_404(Subject, pk=pk)
+
+    def put(self, request, pk):
+        obj = self.get_object(pk)
+        serializer = SubjectSerializer(obj, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"status": True, "data": serializer.data})
+        return Response({"status": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        obj = self.get_object(pk)
+        obj.delete()
+        return Response({"status": True, "message": "Subject deleted"}, status=status.HTTP_204_NO_CONTENT)
+
+# ==================== RECORD VIDEO VIEWS ====================
+class RecordVideoListCreateAPIView(APIView):
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
     def get(self, request, class_id):
-        try:
-            school_class = get_object_or_404(SchoolClass, id=class_id)
-            videos = RecordVideo.objects.filter(school_class=school_class)
-            
-            # Filter by Subject if provided (ignore if 'all')
-            subject_id = request.query_params.get('subject_id')
-            if subject_id and subject_id.lower() != 'all':
-                videos = videos.filter(subject_id=subject_id)
+        school_class = get_object_or_404(SchoolClass, id=class_id)
+        videos = RecordVideo.objects.filter(school_class=school_class)
+        
+        subject_id = request.query_params.get('subject_id')
+        if subject_id and subject_id.lower() != 'all':
+            videos = videos.filter(subject_id=subject_id)
 
-            serializer = RecordVideoSerializer(videos, many=True)
-            return Response(
-                {
-                    "status": True, 
-                    "class_name": school_class.name,
-                    "count": videos.count(),
-                    "data": serializer.data
-                },
-                status=status.HTTP_200_OK
-            )
-        except Exception as e:
-            return Response({"status": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"status": True, "data": RecordVideoSerializer(videos, many=True).data})
+
+    def post(self, request, class_id):
+        school_class = get_object_or_404(SchoolClass, id=class_id)
+        data = request.data.copy()
+        data['school_class'] = school_class.id
+
+        serializer = RecordVideoSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"status": True, "message": "Video created", "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response({"status": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+class RecordVideoDetailAPIView(APIView):
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_object(self, class_id, pk):
+        return get_object_or_404(RecordVideo, pk=pk, school_class_id=class_id)
+
+    def put(self, request, class_id, pk):
+        obj = self.get_object(class_id, pk)
+        serializer = RecordVideoSerializer(obj, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"status": True, "data": serializer.data})
+        return Response({"status": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, class_id, pk):
+        obj = self.get_object(class_id, pk)
+        obj.delete()
+        return Response({"status": True, "message": "Video deleted"}, status=status.HTTP_204_NO_CONTENT)
