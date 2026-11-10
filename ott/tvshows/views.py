@@ -90,6 +90,81 @@ class TvshowsDetailAPIView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+class TvShowEpisodeDetailAPIView(APIView):
+    """
+    GET    /api/v1/ott/tvshows/<tvshow_id>/episodes/<episode_id>/
+    PUT    /api/v1/ott/tvshows/<tvshow_id>/episodes/<episode_id>/
+    PATCH  /api/v1/ott/tvshows/<tvshow_id>/episodes/<episode_id>/
+    DELETE /api/v1/ott/tvshows/<tvshow_id>/episodes/<episode_id>/
+    """
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def _get_episode(self, tvshow_id, episode_id):
+        return get_object_or_404(
+            TvShowEpisode,
+            pk=episode_id,
+            tvshow_id=tvshow_id,
+            tvshow__category__name__iexact="TV Shows",
+        )
+
+    def get(self, request, tvshow_id, episode_id):
+        try:
+            ep = self._get_episode(tvshow_id, episode_id)
+            return Response(
+                {"success": True, "data": TvShowEpisodeSerializer(ep).data},
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def put(self, request, tvshow_id, episode_id):
+        return self._update(request, tvshow_id, episode_id, partial=False)
+
+    def patch(self, request, tvshow_id, episode_id):
+        return self._update(request, tvshow_id, episode_id, partial=True)
+
+    def _update(self, request, tvshow_id, episode_id, partial):
+        try:
+            ep = self._get_episode(tvshow_id, episode_id)
+            serializer = TvShowEpisodeSerializer(
+                ep, data=request.data, partial=partial
+            )
+            if serializer.is_valid():
+                serializer.save()
+                return Response(
+                    {
+                        "success": True,
+                        "message": "TV Show Episode updated",
+                        "data": serializer.data,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            return Response(
+                {"success": False, "errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def delete(self, request, tvshow_id, episode_id):
+        try:
+            ep = self._get_episode(tvshow_id, episode_id)
+            ep.delete()
+            return Response(
+                {"success": True, "message": "TV Show Episode deleted"},
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 class TvShowEpisodeListCreateAPIView(APIView):
     """

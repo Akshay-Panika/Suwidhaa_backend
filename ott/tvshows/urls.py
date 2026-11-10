@@ -3,6 +3,7 @@ from .views import (
     TvshowsListAPIView,
     TvshowsDetailAPIView,
     TvShowEpisodeListCreateAPIView,
+    TvShowEpisodeDetailAPIView,   # ✅ new import
 )
 
 urlpatterns = [
@@ -12,5 +13,11 @@ urlpatterns = [
         "tvshows/<int:tvshow_id>/episodes/",
         TvShowEpisodeListCreateAPIView.as_view(),
         name="tvshows-episodes",
+    ),
+    # ✅ New
+    path(
+        "tvshows/<int:tvshow_id>/episodes/<int:episode_id>/",
+        TvShowEpisodeDetailAPIView.as_view(),
+        name="tvshows-episode-detail",
     ),
 ]
