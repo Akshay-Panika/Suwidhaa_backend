@@ -7,7 +7,6 @@ from django.shortcuts import get_object_or_404
 from .models import SchoolClass, Subject, RecordVideo
 from .serializers import SchoolClassSerializer, SubjectSerializer, RecordVideoSerializer
 
-# ==================== CLASS VIEWS ====================
 class ClassListCreateAPIView(APIView):
     permission_classes = [AllowAny]
     def get(self, request):
@@ -39,7 +38,6 @@ class ClassDetailAPIView(APIView):
         obj.delete()
         return Response({"status": True}, status=status.HTTP_204_NO_CONTENT)
 
-# ==================== SUBJECT VIEWS ====================
 class SubjectListCreateAPIView(APIView):
     permission_classes = [AllowAny]
     def get(self, request, class_id):
@@ -72,7 +70,6 @@ class SubjectDetailAPIView(APIView):
         obj.delete()
         return Response({"status": True}, status=status.HTTP_204_NO_CONTENT)
 
-# ==================== RECORD VIDEO VIEWS ====================
 class RecordVideoListCreateAPIView(APIView):
     permission_classes = [AllowAny]
     parser_classes = [MultiPartParser, FormParser, JSONParser]

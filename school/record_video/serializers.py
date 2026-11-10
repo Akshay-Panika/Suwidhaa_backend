@@ -19,7 +19,7 @@ class SubjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subject
         fields = ['id', 'name', 'school_class', 'class_name']
-        read_only_fields = ['school_class'] # View se control hoga
+        read_only_fields = ['school_class']
 
 class RecordVideoSerializer(serializers.ModelSerializer):
     thumbnail = CloudinaryReadField(required=False, allow_null=True)

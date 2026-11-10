@@ -28,7 +28,7 @@ class RecordVideo(models.Model):
     
     thumbnail = CloudinaryField('thumbnail', folder="suwidhaa/school/record_videos", blank=True, null=True)
     video_url = models.URLField(max_length=500, blank=False, null=False)
-    duration = models.CharField(max_length=50, help_text="e.g., 5 min")
+    duration = models.CharField(max_length=50)
     rating = models.DecimalField(max_digits=3, decimal_places=1, default=5.0)
     created_at = models.DateTimeField(auto_now_add=True)
 
