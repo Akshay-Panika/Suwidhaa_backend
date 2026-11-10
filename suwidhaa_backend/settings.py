@@ -81,7 +81,8 @@ INSTALLED_APPS = [
 
     # ---------- ott ----------
     "ott.category",
-     "ott.content",
+    "ott.content",
+    "ott.webseries",
     "ott.banner",
     "ott.reels",
     "ott.ads",
@@ -92,6 +93,7 @@ INSTALLED_APPS = [
     "ngo.service",
     "ngo.staff",
     "ngo.history",
+
 
     # ---------- it_service ----------
     "it_service.banner",
