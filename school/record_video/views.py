@@ -85,6 +85,7 @@ class RecordVideoListCreateAPIView(APIView):
         school_class = get_object_or_404(SchoolClass, id=class_id)
         serializer = RecordVideoSerializer(data=request.data)
         if serializer.is_valid():
+            # ✅ Yahan school_class inject ho raha hai
             serializer.save(school_class=school_class)
             return Response({"status": True, "data": serializer.data}, status=status.HTTP_201_CREATED)
         return Response({"status": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)

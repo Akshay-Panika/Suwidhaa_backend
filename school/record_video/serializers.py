@@ -33,4 +33,5 @@ class RecordVideoSerializer(serializers.ModelSerializer):
             'subject', 'subject_name', 'thumbnail', 'video_url', 
             'duration', 'rating', 'created_at'
         ]
-        read_only_fields = ['id', 'created_at', 'school_class']
+        read_only_fields = ['id', 'created_at', 'school_class'] 
+        # ✅ school_class ko read_only rakha hai, view se handle hoga
