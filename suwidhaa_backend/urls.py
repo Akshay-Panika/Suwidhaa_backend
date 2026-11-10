@@ -36,6 +36,7 @@ urlpatterns = [
     path("api/v1/school/", include("school.event.urls")),
     path("api/v1/school/", include("school.library.urls")),
     path("api/v1/school/", include("school.exams.urls")),
+    path('api/v1/school/', include('school.record_video.urls')),
 
     # ---------- college ----------
     path("api/v1/college/", include("college.college_banner.urls")),

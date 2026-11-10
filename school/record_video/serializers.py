@@ -1,0 +1,40 @@
+from rest_framework import serializers
+from .models import SchoolClass, Subject, RecordVideo
+
+# Cloudinary Image URL ke liye custom field
+class CloudinaryReadField(serializers.Field):
+    def to_representation(self, value):
+        return value.url if value else None
+    def to_internal_value(self, data):
+        return data
+
+
+class SchoolClassSerializer(serializers.ModelSerializer):
+    video_count = serializers.IntegerField(source='videos.count', read_only=True)
+
+    class Meta:
+        model = SchoolClass
+        fields = ['id', 'name', 'video_count']
+
+
+class SubjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subject
+        fields = ['id', 'name']
+
+
+class RecordVideoSerializer(serializers.ModelSerializer):
+    thumbnail = CloudinaryReadField(required=False, allow_null=True)
+    subject_name = serializers.CharField(source='subject.name', read_only=True)
+    class_name = serializers.CharField(source='school_class.name', read_only=True)
+
+    class Meta:
+        model = RecordVideo
+        fields = [
+            'id', 'title', 
+            'school_class', 'class_name', 
+            'subject', 'subject_name', 
+            'thumbnail', 'video_url', 
+            'duration', 'age_group', 'rating', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']

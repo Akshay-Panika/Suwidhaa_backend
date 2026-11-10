@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "school.event",
     "school.library",
     "school.exams",
+    "school.record_video",
 
     # ---------- college ----------
     "college.college_banner",
@@ -87,6 +88,7 @@ INSTALLED_APPS = [
     "ott.banner",
     "ott.reels",
     "ott.ads",
+
 
     # ---------- ngo ----------
     "ngo.banner",
