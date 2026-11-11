@@ -1,4 +1,6 @@
+from collections import defaultdict
 from decimal import Decimal
+
 from django.db.models import Sum, Count
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -9,8 +11,9 @@ from ngo.service.models import NgoService
 from .models import NgoHistory
 from .serializers import NgoHistorySerializer, GroupedHistorySerializer
 
+
 # ═══════════════════════════════════════════════════════════════
-# CREATE & LIST VIEWS (Same as before)
+# CREATE & LIST VIEWS
 # ═══════════════════════════════════════════════════════════════
 class NgoHistoryCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -20,17 +23,30 @@ class NgoHistoryCreateView(APIView):
         if serializer.is_valid():
             history = serializer.save()
             return Response(
-                {"success": True, "message": "NGO history created successfully", "data": NgoHistorySerializer(history).data},
+                {
+                    "success": True,
+                    "message": "NGO history created successfully",
+                    "data": NgoHistorySerializer(history).data,
+                },
                 status=status.HTTP_201_CREATED,
             )
         return Response(
-            {"success": False, "message": "Validation failed", "errors": serializer.errors},
+            {
+                "success": False,
+                "message": "Validation failed",
+                "errors": serializer.errors,
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+
 class NgoHistoryListView(APIView):
     def get(self, request):
-        services = NgoService.objects.filter(history__isnull=False).distinct().order_by("-id")
+        services = (
+            NgoService.objects.filter(history__isnull=False)
+            .distinct()
+            .order_by("-id")
+        )
 
         service_id = request.query_params.get("service_id")
         if service_id:
@@ -50,25 +66,35 @@ class NgoHistoryListView(APIView):
         serializer = GroupedHistorySerializer(services, many=True)
 
         return Response(
-            {"success": True, "count": services.count(), "data": serializer.data},
+            {
+                "success": True,
+                "count": services.count(),
+                "data": serializer.data,
+            },
             status=status.HTTP_200_OK,
         )
+
 
 class NgoHistoryByDonorView(APIView):
     def get(self, request, donor_id):
         qs = NgoHistory.objects.filter(donor_id=donor_id)
-        
-        agg = qs.aggregate(total_donated=Sum("donate_amount"), total_donations=Count("id"))
+
+        agg = qs.aggregate(
+            total_donated=Sum("donate_amount"),
+            total_donations=Count("id"),
+        )
         total_donated = float(agg["total_donated"] or 0)
         total_donations = int(agg["total_donations"] or 0)
         unique_services = qs.values("service").distinct().count()
 
-        services = NgoService.objects.filter(
-            history__donor_id=donor_id
-        ).distinct().order_by("-id")
+        services = (
+            NgoService.objects.filter(history__donor_id=donor_id)
+            .distinct()
+            .order_by("-id")
+        )
 
         serializer = GroupedHistorySerializer(
-            services, many=True, context={'donor_id': donor_id}
+            services, many=True, context={"donor_id": donor_id}
         )
 
         return Response(
@@ -78,7 +104,7 @@ class NgoHistoryByDonorView(APIView):
                 "summary": {
                     "total_donated": total_donated,
                     "total_donations": total_donations,
-                    "unique_services": unique_services
+                    "unique_services": unique_services,
                 },
                 "count": unique_services,
                 "data": serializer.data,
@@ -88,7 +114,71 @@ class NgoHistoryByDonorView(APIView):
 
 
 # ═══════════════════════════════════════════════════════════════
-# DETAIL / UPDATE / DELETE
+# DONOR DELETE — poore donor ki saari history delete
+# ═══════════════════════════════════════════════════════════════
+class NgoHistoryByDonorDeleteView(APIView):
+    """
+    Ek donor_id ki saari donation history delete karta hai.
+    Har affected NgoService ka progress (total_amount + donor count) adjust hoga.
+    """
+
+    def delete(self, request, donor_id):
+        histories = NgoHistory.objects.filter(donor_id=donor_id)
+
+        if not histories.exists():
+            return Response(
+                {
+                    "success": False,
+                    "message": f"No history found for donor {donor_id}",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Per-service total amount + count nikaalo
+        per_service = defaultdict(lambda: {"amount": Decimal("0"), "count": 0})
+        for h in histories:
+            if h.service_id:
+                per_service[h.service_id]["amount"] += Decimal(
+                    str(h.donate_amount or 0)
+                )
+                per_service[h.service_id]["count"] += 1
+
+        # Har affected service ka progress adjust karo
+        for service_id, stats in per_service.items():
+            try:
+                service = NgoService.objects.get(pk=service_id)
+            except NgoService.DoesNotExist:
+                continue
+
+            progress = service.progress or {}
+            total = Decimal(str(progress.get("total_amount", 0) or 0))
+            donor_cnt = int(progress.get("donor", 0) or 0)
+
+            new_total = total - stats["amount"]
+            progress["total_amount"] = float(
+                new_total if new_total > 0 else Decimal("0")
+            )
+            progress["donor"] = max(0, donor_cnt - stats["count"])
+            service.progress = progress
+            service.save(update_fields=["progress", "updated_at"])
+
+        deleted_count = histories.count()
+        histories.delete()
+
+        return Response(
+            {
+                "success": True,
+                "message": f"All donations deleted for donor {donor_id}",
+                "donor_id": donor_id,
+                "deleted_count": deleted_count,
+                "services_affected": len(per_service),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+# ═══════════════════════════════════════════════════════════════
+# DETAIL / UPDATE / DELETE  (single record)
 # ═══════════════════════════════════════════════════════════════
 class NgoHistoryDetailView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -102,35 +192,117 @@ class NgoHistoryDetailView(APIView):
     def get(self, request, pk):
         history = self.get_object(pk)
         if not history:
-            return Response({"success": False, "message": "NGO history not found"}, status=status.HTTP_404_NOT_FOUND)
-        return Response({"success": True, "data": NgoHistorySerializer(history).data}, status=status.HTTP_200_OK)
+            return Response(
+                {"success": False, "message": "NGO history not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(
+            {"success": True, "data": NgoHistorySerializer(history).data},
+            status=status.HTTP_200_OK,
+        )
 
     def patch(self, request, pk):
         history = self.get_object(pk)
         if not history:
-            return Response({"success": False, "message": "NGO history not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"success": False, "message": "NGO history not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         serializer = NgoHistorySerializer(history, data=request.data, partial=True)
         if serializer.is_valid():
             history = serializer.save()
-            return Response({"success": True, "message": "NGO history updated successfully", "data": NgoHistorySerializer(history).data}, status=status.HTTP_200_OK)
-        return Response({"success": False, "message": "Validation failed", "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {
+                    "success": True,
+                    "message": "NGO history updated successfully",
+                    "data": NgoHistorySerializer(history).data,
+                },
+                status=status.HTTP_200_OK,
+            )
+        return Response(
+            {
+                "success": False,
+                "message": "Validation failed",
+                "errors": serializer.errors,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
-    # 👇 NEW: Delete hone par service progress subtract karna
+    # Delete hone par service progress subtract karna
     def delete(self, request, pk):
         history = self.get_object(pk)
         if not history:
-            return Response({"success": False, "message": "NGO history not found"}, status=status.HTTP_404_NOT_FOUND)
-        
+            return Response(
+                {"success": False, "message": "NGO history not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         service = history.service
         if service:
             progress = service.progress or {}
-            total = float(progress.get("total_amount", 0))
-            donor = int(progress.get("donor", 0))
-            
-            progress["total_amount"] = max(0.0, total - float(history.donate_amount))
+            total = float(progress.get("total_amount", 0) or 0)
+            donor = int(progress.get("donor", 0) or 0)
+
+            progress["total_amount"] = max(
+                0.0, total - float(history.donate_amount or 0)
+            )
             progress["donor"] = max(0, donor - 1)
             service.progress = progress
             service.save(update_fields=["progress", "updated_at"])
 
         history.delete()
-        return Response({"success": True, "message": "NGO history deleted successfully"}, status=status.HTTP_200_OK)
+        return Response(
+            {"success": True, "message": "NGO history deleted successfully"},
+            status=status.HTTP_200_OK,
+        )
+
+
+# ═══════════════════════════════════════════════════════════════
+# AMOUNT-ONLY DELETE — record rahega, sirf donate_amount = 0
+# ═══════════════════════════════════════════════════════════════
+class NgoHistoryResetAmountView(APIView):
+    """
+    Sirf amount reset karta hai (donate_amount = 0).
+    History record delete nahi hota — sirf amount minus ho jaata hai
+    aur service.progress.total_amount se bhi utna amount minus hota hai.
+    donor count same rehta hai.
+    """
+
+    def post(self, request, pk):
+        try:
+            history = NgoHistory.objects.get(pk=pk)
+        except NgoHistory.DoesNotExist:
+            return Response(
+                {"success": False, "message": "NGO history not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        old_amount = Decimal(str(history.donate_amount or 0))
+        if old_amount == 0:
+            return Response(
+                {"success": False, "message": "Amount is already zero"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        service = history.service
+        if service:
+            progress = service.progress or {}
+            total = Decimal(str(progress.get("total_amount", 0) or 0))
+            new_total = total - old_amount
+            progress["total_amount"] = float(
+                new_total if new_total > 0 else Decimal("0")
+            )
+            service.progress = progress
+            service.save(update_fields=["progress", "updated_at"])
+
+        history.donate_amount = Decimal("0")
+        history.save(update_fields=["donate_amount", "updated_at"])
+
+        return Response(
+            {
+                "success": True,
+                "message": "Amount reset to zero (history record kept)",
+                "data": NgoHistorySerializer(history).data,
+            },
+            status=status.HTTP_200_OK,
+        )
