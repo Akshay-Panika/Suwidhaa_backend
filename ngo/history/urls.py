@@ -8,7 +8,7 @@ from .views import (
 
 urlpatterns = [
     path("history/create/", NgoHistoryCreateView.as_view(), name="ngo-history-create"),
-    path("history/list/", NgoHistoryListView.as_view(), name="ngo-history-list"), # 👈 Ab ye grouped data dega
+    path("history/list/", NgoHistoryListView.as_view(), name="ngo-history-list"),
     path("history/donor/<int:donor_id>/", NgoHistoryByDonorView.as_view(), name="ngo-history-by-donor"),
     path("history/<int:pk>/", NgoHistoryDetailView.as_view(), name="ngo-history-detail"),
 ]

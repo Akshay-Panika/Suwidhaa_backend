@@ -1,12 +1,8 @@
 from decimal import Decimal
 from rest_framework import serializers
-
 from ngo.service.models import NgoService
 from .models import NgoHistory
 
-# ─────────────────────────────────────────────────────────────
-# 1. Basic NgoHistory Serializer (Create/Detail ke liye)
-# ─────────────────────────────────────────────────────────────
 class NgoHistorySerializer(serializers.ModelSerializer):
     service_id = serializers.PrimaryKeyRelatedField(
         queryset=NgoService.objects.all(),
@@ -56,10 +52,26 @@ class NgoHistorySerializer(serializers.ModelSerializer):
             service.save(update_fields=["progress", "updated_at"])
         return instance
 
+    # 👇 NEW: Update hone par service progress adjust karna
+    def update(self, instance, validated_data):
+        old_amount = instance.donate_amount
+        new_amount = validated_data.get('donate_amount', old_amount)
+        
+        instance = super().update(instance, validated_data)
+        
+        if old_amount != new_amount and instance.service:
+            service = instance.service
+            progress = service.progress or {}
+            total = float(progress.get("total_amount", 0))
+            diff = float(new_amount) - float(old_amount)
+            
+            progress["total_amount"] = total + diff
+            service.progress = progress
+            service.save(update_fields=["progress", "updated_at"])
+                
+        return instance
 
-# ─────────────────────────────────────────────────────────────
-# 2. Grouped Serializers (List & Donor-wise dono ke liye)
-# ─────────────────────────────────────────────────────────────
+
 class GroupedServiceInfoSerializer(serializers.ModelSerializer):
     service_name = serializers.CharField(source='name', read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True, allow_null=True)
@@ -91,14 +103,11 @@ class GroupedHistorySerializer(serializers.ModelSerializer):
         return GroupedServiceInfoSerializer(obj).data
 
     def get_donor(self, obj):
-        # 👇 UPDATE: Check karo agar context me specific donor_id aaya hai
         target_donor_id = self.context.get('donor_id')
         
         if target_donor_id:
-            # Agar donor_id hai, toh sirf usi ki history laao
             histories = obj.history.filter(donor_id=target_donor_id).order_by('created_at')
         else:
-            # Agar nahi hai, toh saari history laao (like in history/list/)
             histories = obj.history.all().order_by('created_at')
 
         grouped = {}
@@ -110,12 +119,17 @@ class GroupedHistorySerializer(serializers.ModelSerializer):
                     "donor_id": h.donor_id,
                     "donor_name": h.donor_name or "",
                     "donor_contact": h.donor_contact or "",
-                    "donate_amount": [], 
+                    "donations": [], # 👈 Name change: Ab isme ID aur Amount dono aayenge
                     "created_at": h.created_at,
                     "updated_at": h.updated_at,
                 }
             
-            grouped[key]["donate_amount"].append(float(h.donate_amount))
+            # 👇 IMPORTANT: Frontend ko ID pass karna zaroori hai delete/update ke liye
+            grouped[key]["donations"].append({
+                "id": h.id,
+                "amount": float(h.donate_amount),
+                "created_at": h.created_at
+            })
             
             if h.updated_at > grouped[key]["updated_at"]:
                 grouped[key]["updated_at"] = h.updated_at
