@@ -256,16 +256,15 @@ class NgoHistoryDetailView(APIView):
             status=status.HTTP_200_OK,
         )
 
-
 # ═══════════════════════════════════════════════════════════════
-# AMOUNT-ONLY DELETE — record rahega, sirf donate_amount = 0
+# UPDATE AMOUNT — naya amount fill karo, progress auto-adjust
 # ═══════════════════════════════════════════════════════════════
-class NgoHistoryResetAmountView(APIView):
+class NgoHistoryUpdateAmountView(APIView):
     """
-    Sirf amount reset karta hai (donate_amount = 0).
-    History record delete nahi hota — sirf amount minus ho jaata hai
-    aur service.progress.total_amount se bhi utna amount minus hota hai.
-    donor count same rehta hai.
+    Donation amount ko naye value se update karta hai.
+    Service progress.total_amount difference ke hisaab se auto-adjust hota hai.
+    Donor count same rehta hai.
+    Body: { "donate_amount": 1500 }
     """
 
     def post(self, request, pk):
@@ -277,31 +276,49 @@ class NgoHistoryResetAmountView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        old_amount = Decimal(str(history.donate_amount or 0))
-        if old_amount == 0:
+        raw = request.data.get("donate_amount")
+        if raw is None or str(raw).strip() == "":
             return Response(
-                {"success": False, "message": "Amount is already zero"},
+                {"success": False, "message": "donate_amount is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        try:
+            new_amount = Decimal(str(raw))
+        except Exception:
+            return Response(
+                {"success": False, "message": "Invalid donate_amount"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if new_amount <= 0:
+            return Response(
+                {"success": False, "message": "Donate amount must be greater than zero"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        old_amount = Decimal(str(history.donate_amount or 0))
+        diff = new_amount - old_amount
+
+        # Service progress adjust (only if amount changed)
         service = history.service
-        if service:
+        if service and diff != 0:
             progress = service.progress or {}
             total = Decimal(str(progress.get("total_amount", 0) or 0))
-            new_total = total - old_amount
+            new_total = total + diff
             progress["total_amount"] = float(
                 new_total if new_total > 0 else Decimal("0")
             )
             service.progress = progress
             service.save(update_fields=["progress", "updated_at"])
 
-        history.donate_amount = Decimal("0")
+        history.donate_amount = new_amount
         history.save(update_fields=["donate_amount", "updated_at"])
 
         return Response(
             {
                 "success": True,
-                "message": "Amount reset to zero (history record kept)",
+                "message": "Donation amount updated successfully",
                 "data": NgoHistorySerializer(history).data,
             },
             status=status.HTTP_200_OK,

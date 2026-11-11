@@ -6,7 +6,7 @@ from .views import (
     NgoHistoryByDonorView,
     NgoHistoryByDonorDeleteView,
     NgoHistoryDetailView,
-    NgoHistoryResetAmountView,
+    NgoHistoryUpdateAmountView,
 )
 
 urlpatterns = [
@@ -31,18 +31,18 @@ urlpatterns = [
         name="ngo-history-by-donor",
     ),
 
-    # ── Donor delete (all donations of a donor) ────────────
+    # ── Donor delete (all donations) ───────────────────────
     path(
         "history/donor/<int:donor_id>/delete/",
         NgoHistoryByDonorDeleteView.as_view(),
         name="ngo-history-by-donor-delete",
     ),
 
-    # ── Amount-only reset (record kept, amount → 0) ────────
+    # ── Update amount (naya amount fill karo) ──────────────
     path(
-        "history/<int:pk>/reset-amount/",
-        NgoHistoryResetAmountView.as_view(),
-        name="ngo-history-reset-amount",
+        "history/<int:pk>/update-amount/",
+        NgoHistoryUpdateAmountView.as_view(),
+        name="ngo-history-update-amount",
     ),
 
     # ── Detail / Update / Delete ───────────────────────────
