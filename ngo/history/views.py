@@ -5,11 +5,11 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
-from ngo.service.models import NgoService # 👈 Import Service
+from ngo.service.models import NgoService
 from .models import NgoHistory
 from .serializers import (
     NgoHistorySerializer, 
-    GroupedHistorySerializer # 👈 Naya Serializer import kiya
+    GroupedHistorySerializer
 )
 
 # ═══════════════════════════════════════════════════════════════
@@ -33,14 +33,12 @@ class NgoHistoryCreateView(APIView):
 
 
 # ═══════════════════════════════════════════════════════════════
-# ✅ UPDATED LIST VIEW (Grouped Response)
+# LIST VIEW (Grouped Response)
 # ═══════════════════════════════════════════════════════════════
 class NgoHistoryListView(APIView):
     def get(self, request):
-        # Base query: Sirf wahi services laao jisme koi history (donation) hui hai
         services = NgoService.objects.filter(history__isnull=False).distinct().order_by("-id")
 
-        # 🔎 Filters (Agar frontend se aaye toh)
         service_id = request.query_params.get("service_id")
         if service_id:
             services = services.filter(id=service_id)
@@ -56,7 +54,6 @@ class NgoHistoryListView(APIView):
         if to_date:
             services = services.filter(history__created_at__date__lte=to_date)
 
-        # Serialize grouped data
         serializer = GroupedHistorySerializer(services, many=True)
 
         return Response(
@@ -70,24 +67,40 @@ class NgoHistoryListView(APIView):
 
 
 # ═══════════════════════════════════════════════════════════════
-# DONOR-WISE LIST (Ye waisa hi rahega)
+# DONOR-WISE LIST (✅ UPDATED: Same format as List View)
 # ═══════════════════════════════════════════════════════════════
 class NgoHistoryByDonorView(APIView):
     def get(self, request, donor_id):
-        qs = NgoHistory.objects.filter(donor_id=donor_id).order_by("-id")
-        serializer = NgoHistorySerializer(qs, many=True)
-
+        # 1. Summary calculate karne ke liye NgoHistory use karo
+        qs = NgoHistory.objects.filter(donor_id=donor_id)
+        
         agg = qs.aggregate(total_donated=Sum("donate_amount"), total_donations=Count("id"))
         total_donated = float(agg["total_donated"] or 0)
         total_donations = int(agg["total_donations"] or 0)
         unique_services = qs.values("service").distinct().count()
 
+        # 2. Sirf wahi services fetch karo jahan is donor ne donate kiya hai
+        services = NgoService.objects.filter(
+            history__donor_id=donor_id
+        ).distinct().order_by("-id")
+
+        # 3. Same Serializer use karo, par context me donor_id pass karo
+        serializer = GroupedHistorySerializer(
+            services, 
+            many=True, 
+            context={'donor_id': donor_id} # 👈 Ye context filter karega
+        )
+
         return Response(
             {
                 "success": True,
                 "donor_id": int(donor_id),
-                "summary": {"total_donated": total_donated, "total_donations": total_donations, "unique_services": unique_services},
-                "count": total_donations,
+                "summary": {
+                    "total_donated": total_donated,
+                    "total_donations": total_donations,
+                    "unique_services": unique_services
+                },
+                "count": unique_services, # Count ab unique services ka hai
                 "data": serializer.data,
             },
             status=status.HTTP_200_OK,
@@ -95,7 +108,7 @@ class NgoHistoryByDonorView(APIView):
 
 
 # ═══════════════════════════════════════════════════════════════
-# DETAIL / UPDATE / DELETE (Same rahega)
+# DETAIL / UPDATE / DELETE
 # ═══════════════════════════════════════════════════════════════
 class NgoHistoryDetailView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]

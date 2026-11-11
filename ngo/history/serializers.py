@@ -58,7 +58,7 @@ class NgoHistorySerializer(serializers.ModelSerializer):
 
 
 # ─────────────────────────────────────────────────────────────
-# 2. Naye Grouped Serializers (Aapki requirement ke liye)
+# 2. Grouped Serializers (List & Donor-wise dono ke liye)
 # ─────────────────────────────────────────────────────────────
 class GroupedServiceInfoSerializer(serializers.ModelSerializer):
     service_name = serializers.CharField(source='name', read_only=True)
@@ -91,12 +91,18 @@ class GroupedHistorySerializer(serializers.ModelSerializer):
         return GroupedServiceInfoSerializer(obj).data
 
     def get_donor(self, obj):
-        # Service ki saari history fetch karo
-        histories = obj.history.all().order_by('created_at')
+        # 👇 UPDATE: Check karo agar context me specific donor_id aaya hai
+        target_donor_id = self.context.get('donor_id')
         
+        if target_donor_id:
+            # Agar donor_id hai, toh sirf usi ki history laao
+            histories = obj.history.filter(donor_id=target_donor_id).order_by('created_at')
+        else:
+            # Agar nahi hai, toh saari history laao (like in history/list/)
+            histories = obj.history.all().order_by('created_at')
+
         grouped = {}
         for h in histories:
-            # Unique key banane ke liye (donor_id ya contact)
             key = str(h.donor_id) if h.donor_id else f"unknown_{h.donor_contact}"
             
             if key not in grouped:
@@ -104,15 +110,13 @@ class GroupedHistorySerializer(serializers.ModelSerializer):
                     "donor_id": h.donor_id,
                     "donor_name": h.donor_name or "",
                     "donor_contact": h.donor_contact or "",
-                    "donate_amount": [], # Array jisme saare amounts aayenge
+                    "donate_amount": [], 
                     "created_at": h.created_at,
                     "updated_at": h.updated_at,
                 }
             
-            # Amount list me append karo
             grouped[key]["donate_amount"].append(float(h.donate_amount))
             
-            # Latest updated_at track karo
             if h.updated_at > grouped[key]["updated_at"]:
                 grouped[key]["updated_at"] = h.updated_at
                 
