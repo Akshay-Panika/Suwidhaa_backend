@@ -64,6 +64,7 @@ urlpatterns = [
     path("api/v1/ngo/", include("ngo.service.urls")),
     path("api/v1/ngo/", include("ngo.staff.urls")),
     path("api/v1/ngo/", include("ngo.history.urls")),
+    path("api/v1/ngo/", include("ngo.ads.urls")),
 
     # ---------- it_service ----------
     path("api/v1/it_service/", include("it_service.banner.urls")),

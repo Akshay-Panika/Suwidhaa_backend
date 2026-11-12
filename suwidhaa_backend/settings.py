@@ -96,6 +96,7 @@ INSTALLED_APPS = [
     "ngo.service",
     "ngo.staff",
     "ngo.history",
+    "ngo.ads",
 
 
     # ---------- it_service ----------
