@@ -10,7 +10,10 @@ from .serializers import AdSerializer
 
 class AdListCreateAPIView(APIView):
     """
-    GET  : List ads (optional filters: ?is_active=true)
+    GET  : List ads
+           Optional filters:
+             ?is_active=true|false
+             ?is_home=true|false
     POST : Create new ad (multipart form-data or JSON)
     """
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -19,10 +22,15 @@ class AdListCreateAPIView(APIView):
         try:
             qs = Ad.objects.all()
 
-            # Optional filter
+            # Optional filter — is_active
             is_active = request.query_params.get("is_active")
             if is_active is not None:
                 qs = qs.filter(is_active=is_active.lower() == "true")
+
+            # Optional filter — is_home
+            is_home = request.query_params.get("is_home")
+            if is_home is not None:
+                qs = qs.filter(is_home=is_home.lower() == "true")
 
             serializer = AdSerializer(qs, many=True)
             return Response(

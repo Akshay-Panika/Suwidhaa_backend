@@ -36,6 +36,12 @@ class Ad(models.Model):
     # ── Status ──
     is_active = models.BooleanField(default=True)
 
+    # ── Home flag ──
+    is_home = models.BooleanField(
+        default=False,
+        help_text="True → show this ad on NGO Home screen",
+    )
+
     # ── Timestamps ──
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -46,7 +52,11 @@ class Ad(models.Model):
         verbose_name_plural = "NGO Ads"
         indexes = [
             models.Index(fields=["is_active"]),
+            models.Index(fields=["is_home"]),
         ]
 
     def __str__(self):
-        return f"{self.title} ({'Active' if self.is_active else 'Inactive'})"
+        flags = ["Active" if self.is_active else "Inactive"]
+        if self.is_home:
+            flags.append("Home")
+        return f"{self.title} ({' • '.join(flags)})"
