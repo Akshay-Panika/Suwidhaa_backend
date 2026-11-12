@@ -33,9 +33,6 @@ class Ad(models.Model):
         help_text="Flutter screen route — e.g. 'donate', 'services', 'history'",
     )
 
-    # ── Status ──
-    is_active = models.BooleanField(default=True)
-
     # ── Home flag ──
     is_home = models.BooleanField(
         default=False,
@@ -51,12 +48,9 @@ class Ad(models.Model):
         verbose_name = "NGO Ad"
         verbose_name_plural = "NGO Ads"
         indexes = [
-            models.Index(fields=["is_active"]),
             models.Index(fields=["is_home"]),
         ]
 
     def __str__(self):
-        flags = ["Active" if self.is_active else "Inactive"]
-        if self.is_home:
-            flags.append("Home")
-        return f"{self.title} ({' • '.join(flags)})"
+        suffix = " (Home)" if self.is_home else ""
+        return f"{self.title}{suffix}"
