@@ -23,7 +23,7 @@ class OttAdsSerializer(serializers.ModelSerializer):
             "image",
             "video_url",
             "navigate_screen",
-            "is_active",
+            "is_home",
             "created_at",
             "updated_at",
         ]
