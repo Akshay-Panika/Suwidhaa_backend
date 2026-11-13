@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.db.models import Case, When, Value, IntegerField
 
 from .models import ItServiceCategory
 from .serializers import ItServiceCategorySerializer
@@ -12,7 +13,6 @@ class ItServiceCategoryCreateView(APIView):
 
     def post(self, request):
         serializer = ItServiceCategorySerializer(data=request.data)
-
         if serializer.is_valid():
             category = serializer.save()
             return Response(
@@ -23,7 +23,6 @@ class ItServiceCategoryCreateView(APIView):
                 },
                 status=status.HTTP_201_CREATED,
             )
-
         return Response(
             {
                 "success": False,
@@ -35,11 +34,19 @@ class ItServiceCategoryCreateView(APIView):
 
 
 class ItServiceCategoryListView(APIView):
-
     def get(self, request):
-        categories = ItServiceCategory.objects.all().order_by("-id")
+        # id=0 ("All Services") ko hamesha sabse pehle
+        categories = (
+            ItServiceCategory.objects.annotate(
+                priority=Case(
+                    When(id=ItServiceCategory.ALL_SERVICES_ID, then=Value(0)),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                )
+            )
+            .order_by("priority", "-id")
+        )
         serializer = ItServiceCategorySerializer(categories, many=True)
-
         return Response(
             {
                 "success": True,
@@ -66,7 +73,6 @@ class ItServiceCategoryDetailView(APIView):
                 {"success": False, "message": "IT service category not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
         return Response(
             {"success": True, "data": ItServiceCategorySerializer(category).data},
             status=status.HTTP_200_OK,
@@ -79,9 +85,7 @@ class ItServiceCategoryDetailView(APIView):
                 {"success": False, "message": "IT service category not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
         serializer = ItServiceCategorySerializer(category, data=request.data)
-
         if serializer.is_valid():
             category = serializer.save()
             return Response(
@@ -92,7 +96,6 @@ class ItServiceCategoryDetailView(APIView):
                 },
                 status=status.HTTP_200_OK,
             )
-
         return Response(
             {
                 "success": False,
@@ -109,11 +112,9 @@ class ItServiceCategoryDetailView(APIView):
                 {"success": False, "message": "IT service category not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
         serializer = ItServiceCategorySerializer(
             category, data=request.data, partial=True
         )
-
         if serializer.is_valid():
             category = serializer.save()
             return Response(
@@ -124,7 +125,6 @@ class ItServiceCategoryDetailView(APIView):
                 },
                 status=status.HTTP_200_OK,
             )
-
         return Response(
             {
                 "success": False,
@@ -141,7 +141,15 @@ class ItServiceCategoryDetailView(APIView):
                 {"success": False, "message": "IT service category not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
+        # ── Block deletion of "All Services" ──
+        if category.is_default:
+            return Response(
+                {
+                    "success": False,
+                    "message": "The 'All Services' category cannot be deleted.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         category.delete()
         return Response(
             {

@@ -4,6 +4,11 @@ from cloudinary.models import CloudinaryField
 
 
 class ItServiceCategory(models.Model):
+    # ── System category constants ──
+    ALL_SERVICES_ID = 0
+    ALL_SERVICES_NAME = "All Services"
+
+    id = models.AutoField(primary_key=True)
     name = models.CharField(
         max_length=255,
         unique=True,
@@ -11,8 +16,8 @@ class ItServiceCategory(models.Model):
     image = CloudinaryField(
         "image",
         folder="suwidhaa/it_service/category",
-        blank=False,
-        null=False,
+        blank=True,
+        null=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -26,6 +31,21 @@ class ItServiceCategory(models.Model):
                 name="unique_it_service_category_name_ci",
             ),
         ]
+
+    @property
+    def is_default(self) -> bool:
+        return self.id == self.ALL_SERVICES_ID
+
+    def save(self, *args, **kwargs):
+        # Force name on the default category so it can never drift
+        if self.id == self.ALL_SERVICES_ID:
+            self.name = self.ALL_SERVICES_NAME
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.is_default:
+            raise ValueError("The 'All Services' category cannot be deleted.")
+        return super().delete(*args, **kwargs)
 
     def __str__(self):
         return f"IT Service Category {self.id} - {self.name}"
