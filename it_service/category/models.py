@@ -4,6 +4,7 @@ from cloudinary.models import CloudinaryField
 
 
 class ItServiceCategory(models.Model):
+    # System Category Constants
     ALL_SERVICES_ID = 0
     ALL_SERVICES_NAME = "All Services"
 
@@ -33,16 +34,16 @@ class ItServiceCategory(models.Model):
         return self.pk == self.ALL_SERVICES_ID
 
     def save(self, *args, **kwargs):
+        # Protect default category name
         if self.pk == self.ALL_SERVICES_ID:
-            # Force correct name
             self.name = self.ALL_SERVICES_NAME
-
-            # Force INSERT only if row does not exist (avoids IntegrityError on update)
+            # Agar record exist nahi karta to insert force karo
             if not type(self).objects.filter(pk=self.ALL_SERVICES_ID).exists():
                 kwargs["force_insert"] = True
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
+        # Default category delete nahi ho sakti
         if self.is_default:
             raise ValueError("The 'All Services' category cannot be deleted.")
         return super().delete(*args, **kwargs)

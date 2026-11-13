@@ -21,6 +21,7 @@ class ItServiceCategorySerializer(serializers.ModelSerializer):
         qs = ItServiceCategory.objects.filter(name__iexact=value)
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
+            
         if qs.exists():
             raise serializers.ValidationError(
                 "A category with this name already exists."
@@ -32,19 +33,19 @@ class ItServiceCategorySerializer(serializers.ModelSerializer):
         is_default = self.instance.is_default if self.instance else False
 
         if is_creating:
-            # 1. Block creating another "All Services"
+            # 1. 'All Services' naam se nayi category nahi ban sakti
             name = attrs.get("name", "").strip()
             if name.lower() == ItServiceCategory.ALL_SERVICES_NAME.lower():
                 raise serializers.ValidationError(
                     {"name": "This name is reserved for the default category."}
                 )
-            # 2. Image required for user categories
+            # 2. Nayi category ke liye image zaroori hai
             if not attrs.get("image"):
                 raise serializers.ValidationError(
                     {"image": "Image is required for a new category."}
                 )
         else:
-            # 3. Default category name cannot change
+            # 3. Default category ka naam change nahi ho sakta
             if is_default and "name" in attrs:
                 if attrs["name"].strip() != self.instance.name:
                     raise serializers.ValidationError(

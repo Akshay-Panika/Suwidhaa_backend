@@ -18,7 +18,7 @@ class ItServiceCategoryCreateView(APIView):
             return Response(
                 {
                     "success": True,
-                    "message": "IT service category created successfully",
+                    "message": "Category created successfully",
                     "data": ItServiceCategorySerializer(category).data,
                 },
                 status=status.HTTP_201_CREATED,
@@ -35,7 +35,7 @@ class ItServiceCategoryCreateView(APIView):
 
 class ItServiceCategoryListView(APIView):
     def get(self, request):
-        # id=0 ("All Services") ko hamesha sabse pehle
+        # id=0 ("All Services") ko hamesha sabse pehle dikhane ke liye
         categories = (
             ItServiceCategory.objects.annotate(
                 priority=Case(
@@ -70,7 +70,7 @@ class ItServiceCategoryDetailView(APIView):
         category = self.get_object(pk)
         if not category:
             return Response(
-                {"success": False, "message": "IT service category not found"},
+                {"success": False, "message": "Category not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(
@@ -82,7 +82,7 @@ class ItServiceCategoryDetailView(APIView):
         category = self.get_object(pk)
         if not category:
             return Response(
-                {"success": False, "message": "IT service category not found"},
+                {"success": False, "message": "Category not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         serializer = ItServiceCategorySerializer(category, data=request.data)
@@ -91,7 +91,7 @@ class ItServiceCategoryDetailView(APIView):
             return Response(
                 {
                     "success": True,
-                    "message": "IT service category updated successfully",
+                    "message": "Category updated successfully",
                     "data": ItServiceCategorySerializer(category).data,
                 },
                 status=status.HTTP_200_OK,
@@ -109,7 +109,7 @@ class ItServiceCategoryDetailView(APIView):
         category = self.get_object(pk)
         if not category:
             return Response(
-                {"success": False, "message": "IT service category not found"},
+                {"success": False, "message": "Category not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         serializer = ItServiceCategorySerializer(
@@ -120,7 +120,7 @@ class ItServiceCategoryDetailView(APIView):
             return Response(
                 {
                     "success": True,
-                    "message": "IT service category updated successfully",
+                    "message": "Category updated successfully",
                     "data": ItServiceCategorySerializer(category).data,
                 },
                 status=status.HTTP_200_OK,
@@ -138,10 +138,10 @@ class ItServiceCategoryDetailView(APIView):
         category = self.get_object(pk)
         if not category:
             return Response(
-                {"success": False, "message": "IT service category not found"},
+                {"success": False, "message": "Category not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        # ── Block deletion of "All Services" ──
+        # Block deletion of "All Services"
         if category.is_default:
             return Response(
                 {
@@ -154,7 +154,7 @@ class ItServiceCategoryDetailView(APIView):
         return Response(
             {
                 "success": True,
-                "message": "IT service category deleted successfully",
+                "message": "Category deleted successfully",
             },
             status=status.HTTP_200_OK,
         )
