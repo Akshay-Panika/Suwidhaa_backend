@@ -48,27 +48,29 @@ class ItServiceCategorySerializer(serializers.ModelSerializer):
         return attrs
 
     # ------------------------------------------------------------------
-    # image -> only file name (e.g. "cb1sg3ljdxnwwwibui6l.png")
+    # image -> FULL Cloudinary URL (string)
     # ------------------------------------------------------------------
     @staticmethod
-    def _image_name(instance):
+    def _image_url(instance):
         img = getattr(instance, "image", None)
         if not img:
             return None
-
-        # Try Cloudinary public_id first (no extension)
-        public_id = getattr(img, "public_id", None)
-        # Fallback: url / str
-        url = getattr(img, "url", None) or str(img) or (public_id or "")
-
-        if not url:
+        try:
+            url = getattr(img, "url", None)
+            if url:
+                return url
+            # CloudinaryField sometimes needs str() to build the URL
+            s = str(img)
+            return s or None
+        except Exception:
             return None
-
-        # Strip query string, take last path segment
-        return os.path.basename(url.split("?", 1)[0]) or None
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        data["image"] = self._image_name(instance)
-        data["is_default"] = instance.is_default
+
+        # Full Cloudinary URL instead of the default FileField string
+        data["image"] = self._image_url(instance)
+
+        # is_default is no longer exposed
+        data.pop("is_default", None)
         return data

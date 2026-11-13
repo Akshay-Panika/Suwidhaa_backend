@@ -48,7 +48,8 @@ class ItServiceCategoryListView(APIView):
         )
         data = ItServiceCategorySerializer(categories, many=True).data
 
-        # Safety net — always prepend "All" if the DB row is missing
+        # Safety net — always prepend "All" if the DB row is missing.
+        # NOTE: is_default is NOT included anymore.
         if not any(item.get("id") == ItServiceCategory.ALL_SERVICES_ID for item in data):
             data.insert(
                 0,
@@ -56,7 +57,6 @@ class ItServiceCategoryListView(APIView):
                     "id": ItServiceCategory.ALL_SERVICES_ID,
                     "name": ItServiceCategory.ALL_SERVICES_NAME,
                     "image": None,
-                    "is_default": True,
                     "created_at": None,
                     "updated_at": None,
                 },
