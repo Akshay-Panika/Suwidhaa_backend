@@ -20,30 +20,20 @@ def get_booked_service_ids(user_id):
         .values_list("service_id", flat=True)
     )
 
+
 class BookedServiceListView(APIView):
     """
     GET /service/booked/list/?user_id=<id>
-
-    Returns all services booked by the given user,
-    each with service detail + booking info + is_booked=True.
-
-    Optional:
-        ?status=pending|confirmed|completed|cancelled
     """
-
     def get(self, request):
         user_id = request.query_params.get("user_id")
 
         if not user_id:
             return Response(
-                {
-                    "success": False,
-                    "message": "user_id is required",
-                },
+                {"success": False, "message": "user_id is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Lazy import to avoid circular imports
         from it_service.booking.models import Booking
 
         bookings = (
@@ -53,7 +43,6 @@ class BookedServiceListView(APIView):
             .order_by("-id")
         )
 
-        # Optional status filter
         status_filter = request.query_params.get("status")
         if status_filter:
             bookings = bookings.filter(status=status_filter)
@@ -65,8 +54,6 @@ class BookedServiceListView(APIView):
                 continue
 
             item = ItServiceServiceSerializer(service).data
-
-            # 🎯 Attach booking info
             item["is_booked"] = True
             item["booking"] = {
                 "id": booking.id,
@@ -75,7 +62,6 @@ class BookedServiceListView(APIView):
                 "created_at": booking.created_at,
                 "updated_at": booking.updated_at,
             }
-
             data.append(item)
 
         return Response(
@@ -87,6 +73,7 @@ class BookedServiceListView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
 
 class ItServiceServiceCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -119,14 +106,14 @@ class ItServiceServiceListView(APIView):
     """
     GET /service/list/
     Optional: ?category=<id>
-    Optional: ?user_id=<id>   → adds is_booked flag per service
+    Optional: ?user_id=<id>
     """
-
     def get(self, request):
         services = ItServiceService.objects.all().order_by("-id")
 
+        # 🔥 FIX: Agar category=0 aata hai (All Services), to filter mat karo
         category_id = request.query_params.get("category")
-        if category_id:
+        if category_id and str(category_id) != "0":
             services = services.filter(category_id=category_id)
 
         user_id = request.query_params.get("user_id")
@@ -135,7 +122,7 @@ class ItServiceServiceListView(APIView):
         serializer = ItServiceServiceSerializer(services, many=True)
         data = serializer.data
 
-        # 🎯 Attach is_booked flag per service
+        # Add is_booked flag per service
         for item in data:
             item["is_booked"] = item["id"] in booked_ids
 
@@ -250,9 +237,6 @@ class ItServiceServiceDetailView(APIView):
 
         service.delete()
         return Response(
-            {
-                "success": True,
-                "message": "IT service deleted successfully",
-            },
+            {"success": True, "message": "IT service deleted successfully"},
             status=status.HTTP_200_OK,
         )

@@ -1,8 +1,6 @@
 from rest_framework import serializers
-
 from .models import ItServiceService
 from it_service.category.serializers import ItServiceCategorySerializer
-
 
 class ItServiceServiceSerializer(serializers.ModelSerializer):
     image = serializers.FileField(
@@ -12,7 +10,6 @@ class ItServiceServiceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ItServiceService
-        # ✅ Explicitly list fields — exclude `category` and `category_name`
         fields = (
             "id",
             "image",
@@ -23,26 +20,23 @@ class ItServiceServiceSerializer(serializers.ModelSerializer):
             "tech_stack",
             "created_at",
             "updated_at",
-            "category",           # keep this so POST can still assign category
+            "category",           # write-only (POST/PUT/PATCH ke liye)
         )
         read_only_fields = ("id", "created_at", "updated_at")
         extra_kwargs = {
-            # ✅ Make `category` write-only → accepted on POST/PUT/PATCH,
-            # but NOT shown in GET response
             "category": {"write_only": True},
         }
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
 
-        # ✅ Only `image` — full Cloudinary URL
-        data["image"] = (
-            instance.image.url
-            if instance.image
-            else None
-        )
+        # Full Cloudinary URL
+        try:
+            data["image"] = instance.image.url if instance.image else None
+        except Exception:
+            data["image"] = None
 
-        # ✅ Nested category — replaces both `category` & `category_name`
+        # Nested category detail
         data["category_detail"] = (
             ItServiceCategorySerializer(instance.category).data
             if instance.category

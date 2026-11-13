@@ -1,11 +1,10 @@
 from django.urls import path
-
 from .views import (
     ItServiceServiceCreateView,
     ItServiceServiceListView,
     ItServiceServiceDetailView,
     BookedServiceListView,
-    )
+)
 
 urlpatterns = [
     path("service/create/", ItServiceServiceCreateView.as_view()),
