@@ -4,15 +4,11 @@ from cloudinary.models import CloudinaryField
 
 
 class ItServiceCategory(models.Model):
-    # ── System category constants ──
     ALL_SERVICES_ID = 0
     ALL_SERVICES_NAME = "All Services"
 
     id = models.AutoField(primary_key=True)
-    name = models.CharField(
-        max_length=255,
-        unique=True,
-    )
+    name = models.CharField(max_length=255, unique=True)
     image = CloudinaryField(
         "image",
         folder="suwidhaa/it_service/category",
@@ -34,12 +30,16 @@ class ItServiceCategory(models.Model):
 
     @property
     def is_default(self) -> bool:
-        return self.id == self.ALL_SERVICES_ID
+        return self.pk == self.ALL_SERVICES_ID
 
     def save(self, *args, **kwargs):
-        # Force name on the default category so it can never drift
-        if self.id == self.ALL_SERVICES_ID:
+        if self.pk == self.ALL_SERVICES_ID:
+            # Force correct name
             self.name = self.ALL_SERVICES_NAME
+
+            # Force INSERT only if row does not exist (avoids IntegrityError on update)
+            if not type(self).objects.filter(pk=self.ALL_SERVICES_ID).exists():
+                kwargs["force_insert"] = True
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
