@@ -20,7 +20,7 @@ class ItServiceServiceSerializer(serializers.ModelSerializer):
             "tech_stack",
             "created_at",
             "updated_at",
-            "category",           # write-only (POST/PUT/PATCH ke liye)
+            "category",           
         )
         read_only_fields = ("id", "created_at", "updated_at")
         extra_kwargs = {
