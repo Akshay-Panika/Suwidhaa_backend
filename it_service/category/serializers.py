@@ -1,12 +1,11 @@
+import os
+
 from rest_framework import serializers
 from .models import ItServiceCategory
 
 
 class ItServiceCategorySerializer(serializers.ModelSerializer):
-    image = serializers.FileField(
-        required=False,
-        allow_null=True,
-    )
+    image = serializers.FileField(required=False, allow_null=True)
 
     class Meta:
         model = ItServiceCategory
@@ -17,11 +16,9 @@ class ItServiceCategorySerializer(serializers.ModelSerializer):
         value = value.strip()
         if not value:
             raise serializers.ValidationError("Category name cannot be empty.")
-
         qs = ItServiceCategory.objects.filter(name__iexact=value)
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
-
         if qs.exists():
             raise serializers.ValidationError(
                 "A category with this name already exists."
@@ -50,24 +47,28 @@ class ItServiceCategorySerializer(serializers.ModelSerializer):
                     )
         return attrs
 
+    # ------------------------------------------------------------------
+    # image -> only file name (e.g. "cb1sg3ljdxnwwwibui6l.png")
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _image_name(instance):
+        img = getattr(instance, "image", None)
+        if not img:
+            return None
+
+        # Try Cloudinary public_id first (no extension)
+        public_id = getattr(img, "public_id", None)
+        # Fallback: url / str
+        url = getattr(img, "url", None) or str(img) or (public_id or "")
+
+        if not url:
+            return None
+
+        # Strip query string, take last path segment
+        return os.path.basename(url.split("?", 1)[0]) or None
+
     def to_representation(self, instance):
         data = super().to_representation(instance)
-
-        # ---- IMAGE: return NAME ONLY (string), not URL / object ----
-        image = getattr(instance, "image", None)
-        if not image:
-            data["image"] = None
-        else:
-            # CloudinaryField:
-            #   image.name      -> public_id, e.g. "suwidhaa/it_service/category/abc123"
-            #   str(image)      -> same as image.name
-            #   image.url       -> full https:// URL
-            #   basename(name)  -> only the file name without folder
-            #
-            # Change the next line if you want a different "name" style:
-            data["image"] = image.name          # public_id / name
-            # data["image"] = os.path.basename(image.name)   # filename only
-            # data["image"] = image.url                      # full URL
-
+        data["image"] = self._image_name(instance)
         data["is_default"] = instance.is_default
         return data

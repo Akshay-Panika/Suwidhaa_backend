@@ -35,10 +35,8 @@ class ItServiceCategoryCreateView(APIView):
 
 class ItServiceCategoryListView(APIView):
     def get(self, request):
-        # 1) Make sure the built-in "All" row exists (and is named correctly)
         ItServiceCategory.ensure_default()
 
-        # 2) id=0 ("All") ko hamesha sabse pehle dikhane ke liye
         categories = (
             ItServiceCategory.objects.annotate(
                 priority=Case(
@@ -50,13 +48,13 @@ class ItServiceCategoryListView(APIView):
         )
         data = ItServiceCategorySerializer(categories, many=True).data
 
-        # 3) Safety net: ALWAYS prepend "All" if somehow missing
+        # Safety net — always prepend "All" if the DB row is missing
         if not any(item.get("id") == ItServiceCategory.ALL_SERVICES_ID for item in data):
             data.insert(
                 0,
                 {
                     "id": ItServiceCategory.ALL_SERVICES_ID,
-                    "name": ItServiceCategory.ALL_SERVICES_NAME,   # "All"
+                    "name": ItServiceCategory.ALL_SERVICES_NAME,
                     "image": None,
                     "is_default": True,
                     "created_at": None,

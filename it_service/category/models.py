@@ -1,12 +1,15 @@
+import logging
+
 from django.db import models, IntegrityError
 from django.db.models.functions import Lower
 from cloudinary.models import CloudinaryField
 
+logger = logging.getLogger(__name__)
+
 
 class ItServiceCategory(models.Model):
-    # System Category Constants
     ALL_SERVICES_ID = 0
-    ALL_SERVICES_NAME = "All"            # <-- CHANGED: was "All Services"
+    ALL_SERVICES_NAME = "All"
 
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255, unique=True)
@@ -34,34 +37,55 @@ class ItServiceCategory(models.Model):
         return self.pk == self.ALL_SERVICES_ID
 
     # ------------------------------------------------------------------
-    # Ensure the built-in "All" row exists (and its name is correct).
+    # Robust: guarantees the pk=0 "All" row exists
     # ------------------------------------------------------------------
     @classmethod
     def ensure_default(cls):
-        # 1) If pk=0 exists but name is stale ("All Services"), rename it.
-        cls.objects.filter(pk=cls.ALL_SERVICES_ID).exclude(
-            name=cls.ALL_SERVICES_NAME
-        ).update(name=cls.ALL_SERVICES_NAME)
+        default_id = cls.ALL_SERVICES_ID
+        default_name = cls.ALL_SERVICES_NAME
 
-        obj = cls.objects.filter(pk=cls.ALL_SERVICES_ID).first()
+        # 1) Fix a stale name ("All Services" → "All") on the pk=0 row
+        try:
+            cls.objects.filter(pk=default_id).exclude(name=default_name).update(
+                name=default_name
+            )
+        except Exception:
+            logger.exception("ensure_default: rename step failed")
+
+        # 2) Return if it already exists
+        obj = cls.objects.filter(pk=default_id).first()
         if obj:
             return obj
 
-        # 2) Create the row with pk=0.
+        # 3) Create with bulk_create — bypasses save() and forces id=0
+        try:
+            cls.objects.bulk_create(
+                [cls(id=default_id, name=default_name)],
+                ignore_conflicts=True,
+            )
+        except Exception:
+            logger.exception("ensure_default: bulk_create failed")
+
+        # 4) Verify
+        obj = cls.objects.filter(pk=default_id).first()
+        if obj:
+            return obj
+
+        # 5) Last resort
         try:
             obj, _ = cls.objects.get_or_create(
-                pk=cls.ALL_SERVICES_ID,
-                defaults={"name": cls.ALL_SERVICES_NAME},
+                pk=default_id, defaults={"name": default_name}
             )
             return obj
         except IntegrityError:
-            # Row named "All" already exists at some other pk — use it.
-            return cls.objects.filter(
-                name__iexact=cls.ALL_SERVICES_NAME
-            ).first()
+            # A row named "All" exists at some other pk — use it
+            return cls.objects.filter(name__iexact=default_name).first()
+        except Exception:
+            logger.exception("ensure_default: get_or_create failed")
+            return None
 
     def save(self, *args, **kwargs):
-        # Protect default category name
+        # Protect the default row's name
         if self.pk == self.ALL_SERVICES_ID:
             self.name = self.ALL_SERVICES_NAME
             if not type(self).objects.filter(pk=self.ALL_SERVICES_ID).exists():
