@@ -35,7 +35,10 @@ class ItServiceCategoryCreateView(APIView):
 
 class ItServiceCategoryListView(APIView):
     def get(self, request):
-        # id=0 ("All Services") ko hamesha sabse pehle dikhane ke liye
+        # 1) Make sure the built-in "All" row exists (and is named correctly)
+        ItServiceCategory.ensure_default()
+
+        # 2) id=0 ("All") ko hamesha sabse pehle dikhane ke liye
         categories = (
             ItServiceCategory.objects.annotate(
                 priority=Case(
@@ -43,15 +46,29 @@ class ItServiceCategoryListView(APIView):
                     default=Value(1),
                     output_field=IntegerField(),
                 )
-            )
-            .order_by("priority", "-id")
+            ).order_by("priority", "-id")
         )
-        serializer = ItServiceCategorySerializer(categories, many=True)
+        data = ItServiceCategorySerializer(categories, many=True).data
+
+        # 3) Safety net: ALWAYS prepend "All" if somehow missing
+        if not any(item.get("id") == ItServiceCategory.ALL_SERVICES_ID for item in data):
+            data.insert(
+                0,
+                {
+                    "id": ItServiceCategory.ALL_SERVICES_ID,
+                    "name": ItServiceCategory.ALL_SERVICES_NAME,   # "All"
+                    "image": None,
+                    "is_default": True,
+                    "created_at": None,
+                    "updated_at": None,
+                },
+            )
+
         return Response(
             {
                 "success": True,
-                "count": categories.count(),
-                "data": serializer.data,
+                "count": len(data),
+                "data": data,
             },
             status=status.HTTP_200_OK,
         )
@@ -141,20 +158,16 @@ class ItServiceCategoryDetailView(APIView):
                 {"success": False, "message": "Category not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        # Block deletion of "All Services"
         if category.is_default:
             return Response(
                 {
                     "success": False,
-                    "message": "The 'All Services' category cannot be deleted.",
+                    "message": "The 'All' category cannot be deleted.",
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         category.delete()
         return Response(
-            {
-                "success": True,
-                "message": "Category deleted successfully",
-            },
+            {"success": True, "message": "Category deleted successfully"},
             status=status.HTTP_200_OK,
         )
