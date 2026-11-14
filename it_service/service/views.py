@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-
+from django.db.models import Q 
 from .models import ItServiceService
 from .serializers import ItServiceServiceSerializer
 

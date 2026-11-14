@@ -12,5 +12,5 @@ urlpatterns = [
     path("service/list/", ItServiceServiceListView.as_view()),
     path("service/booked/list/", BookedServiceListView.as_view()),
     path("service/<int:pk>/", ItServiceServiceDetailView.as_view()),
-     path("service/search/", ItServiceServiceSearchView.as_view()), 
+    path("service/search/", ItServiceServiceSearchView.as_view()), 
 ]
