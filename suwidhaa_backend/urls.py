@@ -71,7 +71,7 @@ urlpatterns = [
     path("api/v1/it_service/", include("it_service.category.urls")),
     path("api/v1/it_service/", include("it_service.service.urls")),
     path("api/v1/it_service/", include("it_service.booking.urls")),
-    path("api/ads/", include("it_service.ads.urls")),
+    path("api/v1/it_service/", include("it_service.ads.urls")),
 
     # ---------- ecommerce ----------
     path("api/v1/ecommerce/", include("ecommerce.banner.urls")),
