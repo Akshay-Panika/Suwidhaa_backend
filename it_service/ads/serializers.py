@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from .models import ItServiceAd
 
-
 class ItServiceAdSerializer(serializers.ModelSerializer):
     ad_image = serializers.FileField(
         required=True,
@@ -13,12 +12,9 @@ class ItServiceAdSerializer(serializers.ModelSerializer):
         allow_blank=True,
         max_length=500,
     )
-    redirect_url = serializers.URLField(
-        required=False,
-        allow_null=True,
-        allow_blank=True,
-        max_length=500,
-    )
+    # is_home ko explicitly define karne ki zaroorat nahi hai kyunki fields="__all__" hai,
+    # par aap chahein toh required=False set kar sakte hain.
+    is_home = serializers.BooleanField(required=False, default=False)
 
     class Meta:
         model = ItServiceAd
