@@ -310,3 +310,62 @@ class ItServiceServiceDetailView(APIView):
             {"success": True, "message": "IT service deleted successfully"},
             status=status.HTTP_200_OK,
         )
+
+
+class ItServiceServiceSearchView(APIView):
+    """
+    GET /service/search/
+
+    Query params:
+        ?q=<term>         (required) — search by title or description
+        ?user_id=<id>     (optional) — adds is_booked + booking detail
+        ?category=<id>    (optional) — 0 or missing = all categories
+    """
+
+    def get(self, request):
+        q = (request.query_params.get("q") or "").strip()
+
+        if not q:
+            return Response(
+                {"success": False, "message": "q (search query) is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        services = ItServiceService.objects.all().order_by("-id")
+
+        # 🔍 Text match — title OR description
+        services = services.filter(
+            Q(title__icontains=q) | Q(description__icontains=q)
+        )
+
+        # Optional category filter (0 or missing = all)
+        category_id = request.query_params.get("category")
+        if category_id and str(category_id) != "0":
+            services = services.filter(category_id=category_id)
+
+        # 🔥 User-wise is_booked + booking
+        user_id = request.query_params.get("user_id")
+        bookings_map = get_user_bookings_map(user_id)
+
+        serializer = ItServiceServiceSerializer(services, many=True)
+        data = serializer.data
+
+        for item in data:
+            booking = bookings_map.get(item["id"])
+            item["is_booked"] = booking is not None
+            item["booking"] = booking
+
+        return Response(
+            {
+                "success": True,
+                "count": len(data),
+                "query": q,
+                "user_id": (
+                    int(user_id)
+                    if user_id and str(user_id).isdigit()
+                    else None
+                ),
+                "data": data,
+            },
+            status=status.HTTP_200_OK,
+        )    
