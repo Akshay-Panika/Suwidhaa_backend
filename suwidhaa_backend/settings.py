@@ -104,6 +104,7 @@ INSTALLED_APPS = [
     "it_service.category",
     "it_service.service",
     "it_service.booking",
+    "it_service.ads",
 
     # ---------- ecommerce ----------
     "ecommerce.banner",

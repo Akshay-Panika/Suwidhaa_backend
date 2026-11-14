@@ -9,6 +9,12 @@ class ItServiceBanner(models.Model):
         blank=False,
         null=False,
     )
+    video_url = models.URLField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text="Optional video URL (YouTube, Vimeo, Cloudinary, etc.)",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

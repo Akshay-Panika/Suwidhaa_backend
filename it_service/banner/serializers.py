@@ -7,6 +7,12 @@ class ItServiceBannerSerializer(serializers.ModelSerializer):
         required=True,
         allow_null=False,
     )
+    video_url = serializers.URLField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        max_length=500,
+    )
 
     class Meta:
         model = ItServiceBanner
