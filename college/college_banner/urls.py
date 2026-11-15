@@ -6,18 +6,8 @@ from .views import (
     CollegeBannerDetailView,
 )
 
-
 urlpatterns = [
-    path(
-        "college-banner/create/",
-        CollegeBannerCreateView.as_view()
-    ),
-    path(
-        "college-banner/list/",
-        CollegeBannerListView.as_view()
-    ),
-    path(
-        "college-banner/<int:pk>/",
-        CollegeBannerDetailView.as_view()
-    ),
+    path("college-banner/create/", CollegeBannerCreateView.as_view()),
+    path("college-banner/list/", CollegeBannerListView.as_view()),
+    path("college-banner/<int:pk>/", CollegeBannerDetailView.as_view()),
 ]

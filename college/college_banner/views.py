@@ -20,7 +20,7 @@ class CollegeBannerCreateView(APIView):
                 {
                     "success": True,
                     "message": "College banner created successfully",
-                    "data": CollegeBannerSerializer(banner).data,
+                    "data": serializer.data,
                 },
                 status=status.HTTP_201_CREATED,
             )
@@ -62,49 +62,34 @@ class CollegeBannerDetailView(APIView):
 
     def get(self, request, pk):
         banner = self.get_object(pk)
-
         if not banner:
             return Response(
-                {
-                    "success": False,
-                    "message": "College banner not found",
-                },
+                {"success": False, "message": "College banner not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
         return Response(
-            {
-                "success": True,
-                "data": CollegeBannerSerializer(banner).data,
-            },
+            {"success": True, "data": CollegeBannerSerializer(banner).data},
             status=status.HTTP_200_OK,
         )
 
     def put(self, request, pk):
         banner = self.get_object(pk)
-
         if not banner:
             return Response(
-                {
-                    "success": False,
-                    "message": "College banner not found",
-                },
+                {"success": False, "message": "College banner not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        serializer = CollegeBannerSerializer(
-            banner,
-            data=request.data
-        )
+        serializer = CollegeBannerSerializer(banner, data=request.data)
 
         if serializer.is_valid():
             banner = serializer.save()
-
             return Response(
                 {
                     "success": True,
                     "message": "College banner updated successfully",
-                    "data": CollegeBannerSerializer(banner).data,
+                    "data": serializer.data,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -120,30 +105,23 @@ class CollegeBannerDetailView(APIView):
 
     def patch(self, request, pk):
         banner = self.get_object(pk)
-
         if not banner:
             return Response(
-                {
-                    "success": False,
-                    "message": "College banner not found",
-                },
+                {"success": False, "message": "College banner not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
         serializer = CollegeBannerSerializer(
-            banner,
-            data=request.data,
-            partial=True,
+            banner, data=request.data, partial=True
         )
 
         if serializer.is_valid():
             banner = serializer.save()
-
             return Response(
                 {
                     "success": True,
                     "message": "College banner updated successfully",
-                    "data": CollegeBannerSerializer(banner).data,
+                    "data": serializer.data,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -159,22 +137,14 @@ class CollegeBannerDetailView(APIView):
 
     def delete(self, request, pk):
         banner = self.get_object(pk)
-
         if not banner:
             return Response(
-                {
-                    "success": False,
-                    "message": "College banner not found",
-                },
+                {"success": False, "message": "College banner not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
         banner.delete()
-
         return Response(
-            {
-                "success": True,
-                "message": "College banner deleted successfully",
-            },
+            {"success": True, "message": "College banner deleted successfully"},
             status=status.HTTP_200_OK,
         )
