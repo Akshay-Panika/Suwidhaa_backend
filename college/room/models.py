@@ -1,48 +1,90 @@
 from django.db import models
 from cloudinary.models import CloudinaryField
-from college.colleges.models import College
+
 
 class Room(models.Model):
-    college = models.ForeignKey(
-        College,
-        on_delete=models.CASCADE,
-        related_name="rooms",
-    )
-    room_number = models.CharField(max_length=50, default="")
-    room_type = models.CharField(
-        max_length=100,
+    # User
+    user_id = models.CharField(max_length=255)
+
+    # Basic Information
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    address = models.TextField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    is_booking = models.BooleanField(default=False)
+
+    # Location Coordinates
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
         blank=True,
-        default="",
-        help_text="e.g., Single, Double, AC, Non-AC, Lab",
+        null=True,
+        help_text="Longitude coordinate of the room location"
     )
-    capacity = models.PositiveIntegerField(default=1)
-    rent_or_fee = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        blank=True,
+        null=True,
+        help_text="Latitude coordinate of the room location"
+    )
+
+    # Room Type
+    room_type = models.CharField(
+        max_length=255,
         blank=True,
         null=True,
     )
-    is_available = models.BooleanField(default=True)
-    description = models.TextField(blank=True, default="")
+
+    # Contact Number
+    contact_number = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="Contact number for room inquiries"
+    )
+
+    # Amenities
+    wifi = models.BooleanField(default=False)
+    ac = models.BooleanField(default=False)
+    parking = models.BooleanField(default=False)
+    security = models.BooleanField(default=False)
+    laundry = models.BooleanField(default=False)
+    water = models.BooleanField(default=False)
+
+    # Near College
+    near_college = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+
+    # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.college.name} - Room {self.room_number}"
-    
+        return f"{self.title} - ₹{self.price}"
+
+    class Meta:
+        ordering = ['-created_at']
+
+
 class RoomImage(models.Model):
     room = models.ForeignKey(
         Room,
         on_delete=models.CASCADE,
-        related_name="images",
+        related_name='room_images'
     )
+
     image = CloudinaryField(
-        "image",
-        folder="suwidhaa/college/rooms",
+        'image',
+        folder='suwidhaa/room/images',
         blank=True,
-        null=True,
+        null=True
     )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Image for Room {self.room.room_number} ({self.room.college.name})"
+        return f"Image for {self.room.title}"
