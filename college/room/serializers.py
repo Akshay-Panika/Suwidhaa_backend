@@ -1,10 +1,10 @@
-# college/rooms/serializers.py
 
 from rest_framework import serializers
 from .models import Room, RoomImage
 
 
 class RoomImageSerializer(serializers.ModelSerializer):
+
     url = serializers.SerializerMethodField()
 
     class Meta:
@@ -12,16 +12,23 @@ class RoomImageSerializer(serializers.ModelSerializer):
         fields = ['id', 'url', 'created_at']
 
     def get_url(self, obj):
-        if obj.image:
-            return obj.image.url
-        return None
+        return obj.image.url if obj.image else None
 
 
 class RoomSerializer(serializers.ModelSerializer):
-    room_images = RoomImageSerializer(many=True, read_only=True)
 
-    # ✅ user-wise booking field
+    room_images = RoomImageSerializer(many=True, read_only=True)
     booking = serializers.SerializerMethodField()
+
+    college_id = serializers.IntegerField(
+        source='college.id',
+        read_only=True
+    )
+
+    college_name = serializers.CharField(
+        source='college.name',
+        read_only=True
+    )
 
     class Meta:
         model = Room
@@ -33,7 +40,7 @@ class RoomSerializer(serializers.ModelSerializer):
             'address',
             'price',
             'is_booking',
-            'booking',          # ✅ user-wise flag
+            'booking',
             'longitude',
             'latitude',
             'room_type',
@@ -45,14 +52,18 @@ class RoomSerializer(serializers.ModelSerializer):
             'laundry',
             'water',
             'near_college',
+            'college',
+            'college_id',
+            'college_name',
             'room_images',
             'created_at',
             'updated_at'
         ]
 
     def get_booking(self, obj):
-        """Check if THIS user has booked THIS room."""
+
         user_id = self.context.get('user_id')
+
         if not user_id:
             return False
 
@@ -60,6 +71,6 @@ class RoomSerializer(serializers.ModelSerializer):
 
         return CollegeBooking.objects.filter(
             user_id=str(user_id),
-            room_id=obj.id,         # ✅ match room_id
+            room_id=obj.id,
             booking=True
         ).exists()

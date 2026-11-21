@@ -1,179 +1,201 @@
-# college/rooms/views.py
+
+from django.db import models
+from django.shortcuts import get_object_or_404
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
-from django.db.models import Q
+
 from .models import Room, RoomImage
 from .serializers import RoomSerializer
 
+from college.colleges.models import College
+
 
 # ============================================================
-# RoomCreateView (NO CHANGE)
+# HELPER FUNCTIONS
 # ============================================================
+
+def convert_bool(value, default=False):
+    if value is None:
+        return default
+
+    if isinstance(value, bool):
+        return value
+
+    return str(value).lower() in ['true', '1', 'yes']
+
+
+def get_room_queryset():
+    return (
+        Room.objects
+        .select_related('college')
+        .prefetch_related('room_images')
+        .order_by('-created_at')
+    )
+
+
+def serialize_room(room, user_id=None):
+    return RoomSerializer(
+        room,
+        context={'user_id': user_id}
+    ).data
+
+
+# ============================================================
+# ROOM CREATE
+# POST /rooms/create/
+# ============================================================
+
 class RoomCreateView(APIView):
+
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request):
 
-        # Get data
-        user_id = request.data.get('user_id')
-        title = request.data.get('title')
-        description = request.data.get('description')
-        address = request.data.get('address')
-        price = request.data.get('price')
-        longitude = request.data.get('longitude')
-        latitude = request.data.get('latitude')
-        room_type = request.data.get('room_type', '')
-        is_booking = request.data.get('is_booking', False)
-        contact_number = request.data.get('contact_number', '')
-        wifi = request.data.get('wifi', False)
-        ac = request.data.get('ac', False)
-        parking = request.data.get('parking', False)
-        security = request.data.get('security', False)
-        laundry = request.data.get('laundry', False)
-        water = request.data.get('water', False)
-        near_college = request.data.get('near_college', '')
+        data = request.data
 
-        # Convert boolean strings to actual booleans
-        if isinstance(is_booking, str):
-            is_booking = is_booking.lower() == 'true'
-        if isinstance(wifi, str):
-            wifi = wifi.lower() == 'true'
-        if isinstance(ac, str):
-            ac = ac.lower() == 'true'
-        if isinstance(parking, str):
-            parking = parking.lower() == 'true'
-        if isinstance(security, str):
-            security = security.lower() == 'true'
-        if isinstance(laundry, str):
-            laundry = laundry.lower() == 'true'
-        if isinstance(water, str):
-            water = water.lower() == 'true'
+        user_id = data.get('user_id')
+        title = data.get('title')
+        description = data.get('description')
+        address = data.get('address')
+        price = data.get('price')
+        college_id = data.get('college_id')
 
-        # Validate required fields
         if not user_id:
-            return Response({"success": False, "message": "User ID is required"},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                "success": False,
+                "message": "User ID is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         if not title:
-            return Response({"success": False, "message": "Title is required"},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                "success": False,
+                "message": "Title is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         if not description:
-            return Response({"success": False, "message": "Description is required"},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                "success": False,
+                "message": "Description is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         if not address:
-            return Response({"success": False, "message": "Address is required"},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                "success": False,
+                "message": "Address is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         if not price:
-            return Response({"success": False, "message": "Price is required"},
-                            status=status.HTTP_400_BAD_REQUEST)
-        if longitude is None or longitude == '':
-            return Response({"success": False, "message": "Longitude is required"},
-                            status=status.HTTP_400_BAD_REQUEST)
-        if latitude is None or latitude == '':
-            return Response({"success": False, "message": "Latitude is required"},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                "success": False,
+                "message": "Price is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Create room
-        room = Room.objects.create(
-            user_id=user_id,
-            title=title,
-            description=description,
-            address=address,
-            price=price,
-            longitude=longitude,
-            latitude=latitude,
-            room_type=room_type,
-            is_booking=is_booking,
-            contact_number=contact_number,
-            wifi=wifi,
-            ac=ac,
-            parking=parking,
-            security=security,
-            laundry=laundry,
-            water=water,
-            near_college=near_college
-        )
+        if not college_id:
+            return Response({
+                "success": False,
+                "message": "College ID is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Handle images
+        try:
+            college = College.objects.get(pk=college_id)
+        except (College.DoesNotExist, ValueError, TypeError):
+            return Response({
+                "success": False,
+                "message": "Invalid College ID"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        longitude = data.get('longitude') or None
+        latitude = data.get('latitude') or None
+
+        if longitude is None:
+            return Response({
+                "success": False,
+                "message": "Longitude is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if latitude is None:
+            return Response({
+                "success": False,
+                "message": "Latitude is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            room = Room.objects.create(
+                user_id=user_id,
+                title=title,
+                description=description,
+                address=address,
+                price=price,
+                longitude=longitude,
+                latitude=latitude,
+                room_type=data.get('room_type', ''),
+                contact_number=data.get('contact_number', ''),
+
+                is_booking=convert_bool(
+                    data.get('is_booking'), False
+                ),
+
+                wifi=convert_bool(data.get('wifi'), False),
+                ac=convert_bool(data.get('ac'), False),
+                parking=convert_bool(data.get('parking'), False),
+                security=convert_bool(data.get('security'), False),
+                laundry=convert_bool(data.get('laundry'), False),
+                water=convert_bool(data.get('water'), False),
+
+                college=college,
+
+                # Old text field maintained for compatibility
+                near_college=college.name
+            )
+
+        except Exception as e:
+            return Response({
+                "success": False,
+                "message": "Room creation failed",
+                "errors": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         images = request.FILES.getlist('images')
-        for image in images:
-            RoomImage.objects.create(room=room, image=image)
 
-        serializer = RoomSerializer(room)
+        for image in images:
+            RoomImage.objects.create(
+                room=room,
+                image=image
+            )
 
         return Response({
             "success": True,
             "message": "Room created successfully",
-            "data": serializer.data
+            "data": serialize_room(room)
         }, status=status.HTTP_201_CREATED)
 
 
 # ============================================================
-# RoomListView (EXISTING — Owner ke rooms ke liye)
-# URL: /rooms/list/?user_id=1
+# ROOM LIST - OWNER WISE
+# GET /rooms/list/?user_id=10
 # ============================================================
+
 class RoomListView(APIView):
 
     def get(self, request):
 
-        # Get filters from query params
         user_id = request.query_params.get('user_id')
-        room_type = request.query_params.get('room_type')
-        is_booking = request.query_params.get('is_booking')
-        near_college = request.query_params.get('near_college')
-        search = request.query_params.get('search')
-        min_price = request.query_params.get('min_price')
-        max_price = request.query_params.get('max_price')
-        wifi = request.query_params.get('wifi')
-        ac = request.query_params.get('ac')
-        parking = request.query_params.get('parking')
 
-        # Start with all rooms
-        rooms = Room.objects.all()
+        if not user_id:
+            return Response({
+                "success": False,
+                "message": "User ID is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-        # ✅ Owner filter — jisne room create kiya
-        if user_id:
-            rooms = rooms.filter(user_id=user_id)
+        rooms = get_room_queryset().filter(
+            user_id=user_id
+        )
 
-        # Apply filters
-        if is_booking is not None:
-            is_booking_bool = is_booking.lower() == 'true'
-            rooms = rooms.filter(is_booking=is_booking_bool)
+        rooms = self.apply_filters(rooms, request)
 
-        if near_college:
-            rooms = rooms.filter(near_college__icontains=near_college)
-
-        if room_type:
-            rooms = rooms.filter(room_type__icontains=room_type)
-
-        if search:
-            rooms = rooms.filter(
-                Q(title__icontains=search) |
-                Q(description__icontains=search) |
-                Q(address__icontains=search)
-            )
-
-        if min_price:
-            rooms = rooms.filter(price__gte=min_price)
-
-        if max_price:
-            rooms = rooms.filter(price__lte=max_price)
-
-        if wifi is not None:
-            wifi_bool = wifi.lower() == 'true'
-            rooms = rooms.filter(wifi=wifi_bool)
-
-        if ac is not None:
-            ac_bool = ac.lower() == 'true'
-            rooms = rooms.filter(ac=ac_bool)
-
-        if parking is not None:
-            parking_bool = parking.lower() == 'true'
-            rooms = rooms.filter(parking=parking_bool)
-
-        # ✅ Pass user_id in context for booking flag
         serializer = RoomSerializer(
             rooms,
             many=True,
@@ -186,75 +208,26 @@ class RoomListView(APIView):
             "data": serializer.data
         }, status=status.HTTP_200_OK)
 
+    def apply_filters(self, rooms, request):
+
+        return apply_room_filters(rooms, request)
+
 
 # ============================================================
-# ✅ NAYA — RoomAllListView (Sab rooms + user-wise booking)
-# URL: /rooms/?user_id=9
+# ROOM ALL LIST - ALL USERS
+# GET /rooms/?user_id=10
 # ============================================================
+
 class RoomAllListView(APIView):
-    """
-    GET /api/v1/college/rooms/?user_id=9
-
-    - Sab rooms fetch honge (koi user_id filter nahi)
-    - Har room me `booking: true/false` aayega
-      (kya user 9 ne ye room book kiya hai)
-    - near_college optional filter hai
-    """
 
     def get(self, request):
 
-        # Query params
-        user_id = request.query_params.get('user_id')   # ✅ Sirf context ke liye
-        room_type = request.query_params.get('room_type')
-        is_booking = request.query_params.get('is_booking')
-        near_college = request.query_params.get('near_college')
-        search = request.query_params.get('search')
-        min_price = request.query_params.get('min_price')
-        max_price = request.query_params.get('max_price')
-        wifi = request.query_params.get('wifi')
-        ac = request.query_params.get('ac')
-        parking = request.query_params.get('parking')
+        user_id = request.query_params.get('user_id')
 
-        # ✅ Sab rooms — user_id se filter NAHI
-        rooms = Room.objects.all()
+        rooms = get_room_queryset()
 
-        # ✅ Optional filters
-        if near_college:
-            rooms = rooms.filter(near_college__icontains=near_college)
+        rooms = apply_room_filters(rooms, request)
 
-        if room_type:
-            rooms = rooms.filter(room_type__icontains=room_type)
-
-        if is_booking is not None:
-            is_booking_bool = is_booking.lower() == 'true'
-            rooms = rooms.filter(is_booking=is_booking_bool)
-
-        if search:
-            rooms = rooms.filter(
-                Q(title__icontains=search) |
-                Q(description__icontains=search) |
-                Q(address__icontains=search)
-            )
-
-        if min_price:
-            rooms = rooms.filter(price__gte=min_price)
-
-        if max_price:
-            rooms = rooms.filter(price__lte=max_price)
-
-        if wifi is not None:
-            wifi_bool = wifi.lower() == 'true'
-            rooms = rooms.filter(wifi=wifi_bool)
-
-        if ac is not None:
-            ac_bool = ac.lower() == 'true'
-            rooms = rooms.filter(ac=ac_bool)
-
-        if parking is not None:
-            parking_bool = parking.lower() == 'true'
-            rooms = rooms.filter(parking=parking_bool)
-
-        # ✅ user_id context me pass karo (booking flag ke liye)
         serializer = RoomSerializer(
             rooms,
             many=True,
@@ -269,130 +242,246 @@ class RoomAllListView(APIView):
 
 
 # ============================================================
-# RoomDetailView (NO CHANGE)
+# ROOM LIST BY COLLEGE ID
+# GET /rooms/college/5/?user_id=10
 # ============================================================
-class RoomDetailView(APIView):
-    parser_classes = [MultiPartParser, FormParser]
 
-    def get_object(self, pk):
-        try:
-            return Room.objects.get(pk=pk)
-        except Room.DoesNotExist:
-            return None
+class RoomListByCollegeView(APIView):
 
-    def get(self, request, pk):
+    def get(self, request, college_id):
 
-        room = self.get_object(pk)
-
-        if not room:
-            return Response({"success": False, "message": "Room not found"},
-                            status=status.HTTP_404_NOT_FOUND)
-
-        # ✅ user_id context me pass karo
         user_id = request.query_params.get('user_id')
 
-        serializer = RoomSerializer(room, context={'user_id': user_id})
+        try:
+            college = College.objects.get(pk=college_id)
+        except College.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "College not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        rooms = get_room_queryset().filter(
+            college_id=college_id
+        )
+
+        rooms = apply_room_filters(rooms, request)
+
+        serializer = RoomSerializer(
+            rooms,
+            many=True,
+            context={'user_id': user_id}
+        )
 
         return Response({
             "success": True,
+            "message": "College rooms fetched successfully",
+            "college_id": college.id,
+            "college_name": college.name,
+            "count": rooms.count(),
             "data": serializer.data
         }, status=status.HTTP_200_OK)
 
-    def put(self, request, pk):
 
-        room = self.get_object(pk)
+# ============================================================
+# COMMON FILTER FUNCTION
+# ============================================================
 
-        if not room:
-            return Response({"success": False, "message": "Room not found"},
-                            status=status.HTTP_404_NOT_FOUND)
+def apply_room_filters(rooms, request):
 
-        # Update user_id
-        room.user_id = request.data.get('user_id', room.user_id)
+    params = request.query_params
 
-        # Update fields
-        room.title = request.data.get('title', room.title)
-        room.description = request.data.get('description', room.description)
-        room.address = request.data.get('address', room.address)
-        room.price = request.data.get('price', room.price)
+    room_type = params.get('room_type')
+    is_booking = params.get('is_booking')
+    near_college = params.get('near_college')
+    search = params.get('search')
 
-        # Update longitude and latitude
-        longitude = request.data.get('longitude', room.longitude)
-        if longitude is not None and longitude != '':
-            room.longitude = longitude
+    min_price = params.get('min_price')
+    max_price = params.get('max_price')
 
-        latitude = request.data.get('latitude', room.latitude)
-        if latitude is not None and latitude != '':
-            room.latitude = latitude
+    wifi = params.get('wifi')
+    ac = params.get('ac')
+    parking = params.get('parking')
 
-        room.room_type = request.data.get('room_type', room.room_type)
-        room.contact_number = request.data.get('contact_number', room.contact_number)
+    if room_type:
+        rooms = rooms.filter(
+            room_type__icontains=room_type
+        )
 
-        # Update boolean fields
-        is_booking = request.data.get('is_booking', room.is_booking)
-        if isinstance(is_booking, str):
-            is_booking = is_booking.lower() == 'true'
-        room.is_booking = is_booking
+    if is_booking is not None:
+        rooms = rooms.filter(
+            is_booking=convert_bool(is_booking)
+        )
 
-        wifi = request.data.get('wifi', room.wifi)
-        if isinstance(wifi, str):
-            wifi = wifi.lower() == 'true'
-        room.wifi = wifi
+    if near_college:
+        rooms = rooms.filter(
+            models.Q(college__name__icontains=near_college) |
+            models.Q(near_college__icontains=near_college)
+        )
 
-        ac = request.data.get('ac', room.ac)
-        if isinstance(ac, str):
-            ac = ac.lower() == 'true'
-        room.ac = ac
+    if search:
+        rooms = rooms.filter(
+            models.Q(title__icontains=search) |
+            models.Q(description__icontains=search) |
+            models.Q(address__icontains=search)
+        )
 
-        parking = request.data.get('parking', room.parking)
-        if isinstance(parking, str):
-            parking = parking.lower() == 'true'
-        room.parking = parking
+    if min_price:
+        rooms = rooms.filter(price__gte=min_price)
 
-        security = request.data.get('security', room.security)
-        if isinstance(security, str):
-            security = security.lower() == 'true'
-        room.security = security
+    if max_price:
+        rooms = rooms.filter(price__lte=max_price)
 
-        laundry = request.data.get('laundry', room.laundry)
-        if isinstance(laundry, str):
-            laundry = laundry.lower() == 'true'
-        room.laundry = laundry
+    if wifi is not None:
+        rooms = rooms.filter(wifi=convert_bool(wifi))
 
-        water = request.data.get('water', room.water)
-        if isinstance(water, str):
-            water = water.lower() == 'true'
-        room.water = water
+    if ac is not None:
+        rooms = rooms.filter(ac=convert_bool(ac))
 
-        room.near_college = request.data.get('near_college', room.near_college)
+    if parking is not None:
+        rooms = rooms.filter(parking=convert_bool(parking))
 
-        # Save room
-        room.save()
+    return rooms
 
-        # Handle images (new images replace old ones)
-        images = request.FILES.getlist('images')
-        if images:
-            room.room_images.all().delete()
-            for image in images:
-                RoomImage.objects.create(room=room, image=image)
 
-        # ✅ user_id context me pass karo
+# ============================================================
+# ROOM DETAIL / UPDATE / DELETE
+# ============================================================
+
+class RoomDetailView(APIView):
+
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_object(self, pk):
+
+        return get_object_or_404(
+            get_room_queryset(),
+            pk=pk
+        )
+
+    # GET DETAIL
+    def get(self, request, pk):
+
+        try:
+            room = self.get_object(pk)
+        except Room.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Room not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+
         user_id = request.query_params.get('user_id')
 
-        serializer = RoomSerializer(room, context={'user_id': user_id})
+        return Response({
+            "success": True,
+            "data": serialize_room(room, user_id)
+        }, status=status.HTTP_200_OK)
+
+    # UPDATE
+    def put(self, request, pk):
+
+        try:
+            room = self.get_object(pk)
+        except Room.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Room not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data
+
+        scalar_fields = [
+            'user_id',
+            'title',
+            'description',
+            'address',
+            'price',
+            'room_type',
+            'contact_number'
+        ]
+
+        for field in scalar_fields:
+            if field in data:
+                setattr(room, field, data.get(field))
+
+        # College update
+        if 'college_id' in data:
+
+            college_id = data.get('college_id')
+
+            if college_id == '':
+                room.college = None
+                room.near_college = ''
+
+            else:
+                try:
+                    college = College.objects.get(pk=college_id)
+                    room.college = college
+                    room.near_college = college.name
+
+                except (College.DoesNotExist, ValueError, TypeError):
+                    return Response({
+                        "success": False,
+                        "message": "Invalid College ID"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Coordinates
+        if 'longitude' in data and data.get('longitude') != '':
+            room.longitude = data.get('longitude')
+
+        if 'latitude' in data and data.get('latitude') != '':
+            room.latitude = data.get('latitude')
+
+        # Boolean fields
+        boolean_fields = [
+            'is_booking',
+            'wifi',
+            'ac',
+            'parking',
+            'security',
+            'laundry',
+            'water'
+        ]
+
+        for field in boolean_fields:
+            if field in data:
+                setattr(
+                    room,
+                    field,
+                    convert_bool(data.get(field))
+                )
+
+        room.save()
+
+        # Replace old images if new images are uploaded
+        images = request.FILES.getlist('images')
+
+        if images:
+            room.room_images.all().delete()
+
+            for image in images:
+                RoomImage.objects.create(
+                    room=room,
+                    image=image
+                )
+
+        user_id = request.query_params.get('user_id')
 
         return Response({
             "success": True,
             "message": "Room updated successfully",
-            "data": serializer.data
+            "data": serialize_room(room, user_id)
         }, status=status.HTTP_200_OK)
 
+    # DELETE
     def delete(self, request, pk):
 
-        room = self.get_object(pk)
-
-        if not room:
-            return Response({"success": False, "message": "Room not found"},
-                            status=status.HTTP_404_NOT_FOUND)
+        try:
+            room = self.get_object(pk)
+        except Room.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Room not found"
+            }, status=status.HTTP_404_NOT_FOUND)
 
         room.delete()
 
