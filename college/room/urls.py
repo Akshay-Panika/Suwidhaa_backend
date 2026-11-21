@@ -9,35 +9,36 @@ from .views import (
     RoomDetailView,
 )
 
+
 urlpatterns = [
 
     path(
-        'rooms/create/',
+        "rooms/create/",
         RoomCreateView.as_view(),
-        name='room-create'
+        name="room-create"
     ),
 
     path(
-        'rooms/list/',
+        "rooms/list/",
         RoomListView.as_view(),
-        name='room-list'
+        name="room-list"
     ),
 
     path(
-        'rooms/',
+        "rooms/",
         RoomAllListView.as_view(),
-        name='room-all-list'
+        name="room-all-list"
     ),
 
     path(
-        'rooms/college/<int:college_id>/',
+        "rooms/college/<int:college_id>/",
         RoomListByCollegeView.as_view(),
-        name='room-list-by-college'
+        name="room-list-by-college"
     ),
 
     path(
-        'rooms/<int:pk>/',
+        "rooms/<int:pk>/",
         RoomDetailView.as_view(),
-        name='room-detail'
+        name="room-detail"
     ),
 ]

@@ -1,3 +1,4 @@
+
 from rest_framework import serializers
 
 from .models import Room, RoomImage
@@ -5,24 +6,34 @@ from college.colleges.serializers import CollegeSerializer
 
 
 class RoomImageSerializer(serializers.ModelSerializer):
+
     url = serializers.SerializerMethodField()
 
     class Meta:
         model = RoomImage
-        fields = ["id", "url", "created_at"]
+        fields = [
+            "id",
+            "url",
+            "created_at"
+        ]
 
     def get_url(self, obj):
         return obj.image.url if obj.image else None
 
 
 class RoomSerializer(serializers.ModelSerializer):
-    room_images = RoomImageSerializer(many=True, read_only=True)
+
+    room_images = RoomImageSerializer(
+        many=True,
+        read_only=True
+    )
+
     booking = serializers.SerializerMethodField()
 
-    # Complete College object
+    # Complete nested College object
     college = CollegeSerializer(read_only=True)
 
-    # College ID separately in response
+    # College ID separately
     college_id = serializers.IntegerField(
         source="college.id",
         read_only=True
@@ -30,6 +41,7 @@ class RoomSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Room
+
         fields = [
             "id",
             "user_id",
@@ -53,6 +65,7 @@ class RoomSerializer(serializers.ModelSerializer):
         ]
 
     def get_booking(self, obj):
+
         user_id = self.context.get("user_id")
 
         if not user_id:

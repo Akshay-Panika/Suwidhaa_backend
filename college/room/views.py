@@ -1,5 +1,7 @@
 
-from django.db import models
+import json
+
+from django.db import models, transaction
 from django.shortcuts import get_object_or_404
 
 from rest_framework.views import APIView
@@ -18,29 +20,137 @@ from college.colleges.models import College
 # ============================================================
 
 def convert_bool(value, default=False):
+
     if value is None:
         return default
 
     if isinstance(value, bool):
         return value
 
-    return str(value).lower() in ['true', '1', 'yes']
+    return str(value).lower() in ["true", "1", "yes"]
+
+
+def parse_facilities(value):
+
+    if not value:
+        return []
+
+    if isinstance(value, list):
+        facilities = value
+    else:
+        try:
+            facilities = json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            raise ValueError(
+                "Facilities must be a valid JSON list"
+            )
+
+    if not isinstance(facilities, list):
+        raise ValueError("Facilities must be a list")
+
+    if not all(
+        isinstance(item, str) and item.strip()
+        for item in facilities
+    ):
+        raise ValueError(
+            "Each facility must be a non-empty string"
+        )
+
+    return list(
+        dict.fromkeys(
+            item.strip() for item in facilities
+        )
+    )
 
 
 def get_room_queryset():
+
     return (
         Room.objects
-        .select_related('college')
-        .prefetch_related('room_images')
-        .order_by('-created_at')
+        .select_related("college")
+        .prefetch_related("room_images")
+        .order_by("-created_at")
     )
 
 
 def serialize_room(room, user_id=None):
+
     return RoomSerializer(
         room,
-        context={'user_id': user_id}
+        context={
+            "user_id": user_id
+        }
     ).data
+
+
+def get_images(request):
+
+    images = request.FILES.getlist("images")
+
+    # Also support a single image field
+    if not images and request.FILES.get("image"):
+        images = [request.FILES.get("image")]
+
+    return images
+
+
+def apply_room_filters(rooms, request):
+
+    params = request.query_params
+
+    room_type = params.get("room_type")
+    is_booking = params.get("is_booking")
+    near_college = params.get("near_college")
+    search = params.get("search")
+
+    min_price = params.get("min_price")
+    max_price = params.get("max_price")
+
+    facility = params.get("facility")
+
+    if room_type:
+        rooms = rooms.filter(
+            room_type__icontains=room_type
+        )
+
+    if is_booking is not None:
+        rooms = rooms.filter(
+            is_booking=convert_bool(is_booking)
+        )
+
+    if near_college:
+        rooms = rooms.filter(
+            models.Q(
+                college__name__icontains=near_college
+            ) |
+            models.Q(
+                near_college__icontains=near_college
+            )
+        )
+
+    if search:
+        rooms = rooms.filter(
+            models.Q(title__icontains=search) |
+            models.Q(description__icontains=search) |
+            models.Q(address__icontains=search)
+        )
+
+    if min_price:
+        rooms = rooms.filter(
+            price__gte=min_price
+        )
+
+    if max_price:
+        rooms = rooms.filter(
+            price__lte=max_price
+        )
+
+    if facility:
+        rooms = rooms.filter(
+            facilities__contains=[facility]
+        )
+
+    return rooms
 
 
 # ============================================================
@@ -50,65 +160,54 @@ def serialize_room(room, user_id=None):
 
 class RoomCreateView(APIView):
 
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [
+        MultiPartParser,
+        FormParser
+    ]
 
     def post(self, request):
 
         data = request.data
 
-        user_id = data.get('user_id')
-        title = data.get('title')
-        description = data.get('description')
-        address = data.get('address')
-        price = data.get('price')
-        college_id = data.get('college_id')
+        user_id = data.get("user_id")
+        title = data.get("title")
+        description = data.get("description")
+        address = data.get("address")
+        price = data.get("price")
+        college_id = data.get("college_id")
 
-        if not user_id:
-            return Response({
-                "success": False,
-                "message": "User ID is required"
-            }, status=status.HTTP_400_BAD_REQUEST)
+        # Required field validation
+        required_fields = {
+            "user_id": user_id,
+            "title": title,
+            "description": description,
+            "address": address,
+            "price": price,
+            "college_id": college_id
+        }
 
-        if not title:
-            return Response({
-                "success": False,
-                "message": "Title is required"
-            }, status=status.HTTP_400_BAD_REQUEST)
+        for field, value in required_fields.items():
 
-        if not description:
-            return Response({
-                "success": False,
-                "message": "Description is required"
-            }, status=status.HTTP_400_BAD_REQUEST)
+            if value is None or str(value).strip() == "":
+                return Response({
+                    "success": False,
+                    "message": f"{field} is required"
+                }, status=status.HTTP_400_BAD_REQUEST)
 
-        if not address:
-            return Response({
-                "success": False,
-                "message": "Address is required"
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        if not price:
-            return Response({
-                "success": False,
-                "message": "Price is required"
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        if not college_id:
-            return Response({
-                "success": False,
-                "message": "College ID is required"
-            }, status=status.HTTP_400_BAD_REQUEST)
-
+        # College validation
         try:
-            college = College.objects.get(pk=college_id)
+            college = College.objects.get(
+                pk=college_id
+            )
+
         except (College.DoesNotExist, ValueError, TypeError):
             return Response({
                 "success": False,
                 "message": "Invalid College ID"
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        longitude = data.get('longitude') or None
-        latitude = data.get('latitude') or None
+        longitude = data.get("longitude") or None
+        latitude = data.get("latitude") or None
 
         if longitude is None:
             return Response({
@@ -122,54 +221,70 @@ class RoomCreateView(APIView):
                 "message": "Latitude is required"
             }, status=status.HTTP_400_BAD_REQUEST)
 
+        # Facilities validation
         try:
-            room = Room.objects.create(
-                user_id=user_id,
-                title=title,
-                description=description,
-                address=address,
-                price=price,
-                longitude=longitude,
-                latitude=latitude,
-                room_type=data.get('room_type', ''),
-                contact_number=data.get('contact_number', ''),
-
-                is_booking=convert_bool(
-                    data.get('is_booking'), False
-                ),
-
-                wifi=convert_bool(data.get('wifi'), False),
-                ac=convert_bool(data.get('ac'), False),
-                parking=convert_bool(data.get('parking'), False),
-                security=convert_bool(data.get('security'), False),
-                laundry=convert_bool(data.get('laundry'), False),
-                water=convert_bool(data.get('water'), False),
-
-                college=college,
-
-                # Old text field maintained for compatibility
-                near_college=college.name
+            facilities = parse_facilities(
+                data.get("facilities")
             )
 
+        except ValueError as e:
+            return Response({
+                "success": False,
+                "message": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+
+            with transaction.atomic():
+
+                room = Room.objects.create(
+                    user_id=user_id,
+                    title=title,
+                    description=description,
+                    address=address,
+                    price=price,
+                    longitude=longitude,
+                    latitude=latitude,
+
+                    room_type=data.get("room_type", ""),
+                    contact_number=data.get("contact_number", ""),
+
+                    is_booking=convert_bool(
+                        data.get("is_booking"),
+                        False
+                    ),
+
+                    facilities=facilities,
+
+                    college=college,
+                    near_college=college.name
+                )
+
+                images = get_images(request)
+
+                for image in images:
+                    RoomImage.objects.create(
+                        room=room,
+                        image=image
+                    )
+
         except Exception as e:
+
             return Response({
                 "success": False,
                 "message": "Room creation failed",
                 "errors": str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        images = request.FILES.getlist('images')
-
-        for image in images:
-            RoomImage.objects.create(
-                room=room,
-                image=image
-            )
+        room = get_room_queryset().get(pk=room.pk)
 
         return Response({
             "success": True,
             "message": "Room created successfully",
-            "data": serialize_room(room)
+            "data": serialize_room(
+                room,
+                request.query_params.get("user_id")
+            )
         }, status=status.HTTP_201_CREATED)
 
 
@@ -182,7 +297,7 @@ class RoomListView(APIView):
 
     def get(self, request):
 
-        user_id = request.query_params.get('user_id')
+        user_id = request.query_params.get("user_id")
 
         if not user_id:
             return Response({
@@ -194,12 +309,17 @@ class RoomListView(APIView):
             user_id=user_id
         )
 
-        rooms = self.apply_filters(rooms, request)
+        rooms = apply_room_filters(
+            rooms,
+            request
+        )
 
         serializer = RoomSerializer(
             rooms,
             many=True,
-            context={'user_id': user_id}
+            context={
+                "user_id": user_id
+            }
         )
 
         return Response({
@@ -208,13 +328,9 @@ class RoomListView(APIView):
             "data": serializer.data
         }, status=status.HTTP_200_OK)
 
-    def apply_filters(self, rooms, request):
-
-        return apply_room_filters(rooms, request)
-
 
 # ============================================================
-# ROOM ALL LIST - ALL USERS
+# ROOM ALL LIST
 # GET /rooms/?user_id=10
 # ============================================================
 
@@ -222,16 +338,21 @@ class RoomAllListView(APIView):
 
     def get(self, request):
 
-        user_id = request.query_params.get('user_id')
+        user_id = request.query_params.get("user_id")
 
         rooms = get_room_queryset()
 
-        rooms = apply_room_filters(rooms, request)
+        rooms = apply_room_filters(
+            rooms,
+            request
+        )
 
         serializer = RoomSerializer(
             rooms,
             many=True,
-            context={'user_id': user_id}
+            context={
+                "user_id": user_id
+            }
         )
 
         return Response({
@@ -250,10 +371,13 @@ class RoomListByCollegeView(APIView):
 
     def get(self, request, college_id):
 
-        user_id = request.query_params.get('user_id')
+        user_id = request.query_params.get("user_id")
 
         try:
-            college = College.objects.get(pk=college_id)
+            college = College.objects.get(
+                pk=college_id
+            )
+
         except College.DoesNotExist:
             return Response({
                 "success": False,
@@ -264,12 +388,17 @@ class RoomListByCollegeView(APIView):
             college_id=college_id
         )
 
-        rooms = apply_room_filters(rooms, request)
+        rooms = apply_room_filters(
+            rooms,
+            request
+        )
 
         serializer = RoomSerializer(
             rooms,
             many=True,
-            context={'user_id': user_id}
+            context={
+                "user_id": user_id
+            }
         )
 
         return Response({
@@ -283,205 +412,166 @@ class RoomListByCollegeView(APIView):
 
 
 # ============================================================
-# COMMON FILTER FUNCTION
-# ============================================================
-
-def apply_room_filters(rooms, request):
-
-    params = request.query_params
-
-    room_type = params.get('room_type')
-    is_booking = params.get('is_booking')
-    near_college = params.get('near_college')
-    search = params.get('search')
-
-    min_price = params.get('min_price')
-    max_price = params.get('max_price')
-
-    wifi = params.get('wifi')
-    ac = params.get('ac')
-    parking = params.get('parking')
-
-    if room_type:
-        rooms = rooms.filter(
-            room_type__icontains=room_type
-        )
-
-    if is_booking is not None:
-        rooms = rooms.filter(
-            is_booking=convert_bool(is_booking)
-        )
-
-    if near_college:
-        rooms = rooms.filter(
-            models.Q(college__name__icontains=near_college) |
-            models.Q(near_college__icontains=near_college)
-        )
-
-    if search:
-        rooms = rooms.filter(
-            models.Q(title__icontains=search) |
-            models.Q(description__icontains=search) |
-            models.Q(address__icontains=search)
-        )
-
-    if min_price:
-        rooms = rooms.filter(price__gte=min_price)
-
-    if max_price:
-        rooms = rooms.filter(price__lte=max_price)
-
-    if wifi is not None:
-        rooms = rooms.filter(wifi=convert_bool(wifi))
-
-    if ac is not None:
-        rooms = rooms.filter(ac=convert_bool(ac))
-
-    if parking is not None:
-        rooms = rooms.filter(parking=convert_bool(parking))
-
-    return rooms
-
-
-# ============================================================
 # ROOM DETAIL / UPDATE / DELETE
 # ============================================================
 
 class RoomDetailView(APIView):
 
-    parser_classes = [MultiPartParser, FormParser]
-
-    def get_object(self, pk):
-
-        return get_object_or_404(
-            get_room_queryset(),
-            pk=pk
-        )
+    parser_classes = [
+        MultiPartParser,
+        FormParser
+    ]
 
     # GET DETAIL
     def get(self, request, pk):
 
-        try:
-            room = self.get_object(pk)
-        except Room.DoesNotExist:
-            return Response({
-                "success": False,
-                "message": "Room not found"
-            }, status=status.HTTP_404_NOT_FOUND)
+        room = get_object_or_404(
+            get_room_queryset(),
+            pk=pk
+        )
 
-        user_id = request.query_params.get('user_id')
+        user_id = request.query_params.get("user_id")
 
         return Response({
             "success": True,
-            "data": serialize_room(room, user_id)
+            "data": serialize_room(
+                room,
+                user_id
+            )
         }, status=status.HTTP_200_OK)
 
     # UPDATE
     def put(self, request, pk):
 
-        try:
-            room = self.get_object(pk)
-        except Room.DoesNotExist:
-            return Response({
-                "success": False,
-                "message": "Room not found"
-            }, status=status.HTTP_404_NOT_FOUND)
+        room = get_object_or_404(
+            Room.objects.select_related("college"),
+            pk=pk
+        )
 
         data = request.data
 
         scalar_fields = [
-            'user_id',
-            'title',
-            'description',
-            'address',
-            'price',
-            'room_type',
-            'contact_number'
+            "user_id",
+            "title",
+            "description",
+            "address",
+            "price",
+            "room_type",
+            "contact_number"
         ]
 
         for field in scalar_fields:
+
             if field in data:
-                setattr(room, field, data.get(field))
+                setattr(
+                    room,
+                    field,
+                    data.get(field)
+                )
 
         # College update
-        if 'college_id' in data:
+        if "college_id" in data:
 
-            college_id = data.get('college_id')
+            college_id = data.get("college_id")
 
-            if college_id == '':
+            if college_id == "":
                 room.college = None
-                room.near_college = ''
+                room.near_college = ""
 
             else:
+
                 try:
-                    college = College.objects.get(pk=college_id)
+                    college = College.objects.get(
+                        pk=college_id
+                    )
+
                     room.college = college
                     room.near_college = college.name
 
-                except (College.DoesNotExist, ValueError, TypeError):
+                except (
+                    College.DoesNotExist,
+                    ValueError,
+                    TypeError
+                ):
                     return Response({
                         "success": False,
                         "message": "Invalid College ID"
                     }, status=status.HTTP_400_BAD_REQUEST)
 
         # Coordinates
-        if 'longitude' in data and data.get('longitude') != '':
-            room.longitude = data.get('longitude')
+        if "longitude" in data:
+            room.longitude = data.get("longitude") or None
 
-        if 'latitude' in data and data.get('latitude') != '':
-            room.latitude = data.get('latitude')
+        if "latitude" in data:
+            room.latitude = data.get("latitude") or None
 
-        # Boolean fields
-        boolean_fields = [
-            'is_booking',
-            'wifi',
-            'ac',
-            'parking',
-            'security',
-            'laundry',
-            'water'
-        ]
+        # Booking status
+        if "is_booking" in data:
+            room.is_booking = convert_bool(
+                data.get("is_booking")
+            )
 
-        for field in boolean_fields:
-            if field in data:
-                setattr(
-                    room,
-                    field,
-                    convert_bool(data.get(field))
+        # Facilities update
+        if "facilities" in data:
+
+            try:
+                room.facilities = parse_facilities(
+                    data.get("facilities")
                 )
 
-        room.save()
+            except ValueError as e:
+                return Response({
+                    "success": False,
+                    "message": str(e)
+                }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Replace old images if new images are uploaded
-        images = request.FILES.getlist('images')
+        try:
 
-        if images:
-            room.room_images.all().delete()
+            with transaction.atomic():
 
-            for image in images:
-                RoomImage.objects.create(
-                    room=room,
-                    image=image
-                )
+                room.save()
 
-        user_id = request.query_params.get('user_id')
+                # Replace old images if new images are uploaded
+                images = get_images(request)
+
+                if images:
+
+                    room.room_images.all().delete()
+
+                    for image in images:
+                        RoomImage.objects.create(
+                            room=room,
+                            image=image
+                        )
+
+        except Exception as e:
+
+            return Response({
+                "success": False,
+                "message": "Room update failed",
+                "errors": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        room = get_room_queryset().get(pk=room.pk)
+
+        user_id = request.query_params.get("user_id")
 
         return Response({
             "success": True,
             "message": "Room updated successfully",
-            "data": serialize_room(room, user_id)
+            "data": serialize_room(
+                room,
+                user_id
+            )
         }, status=status.HTTP_200_OK)
 
     # DELETE
     def delete(self, request, pk):
 
-        try:
-            room = self.get_object(pk)
-        except Room.DoesNotExist:
-            return Response({
-                "success": False,
-                "message": "Room not found"
-            }, status=status.HTTP_404_NOT_FOUND)
+        room = get_object_or_404(
+            Room,
+            pk=pk
+        )
 
         room.delete()
 
