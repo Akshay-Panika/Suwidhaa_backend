@@ -1,68 +1,59 @@
-
 from rest_framework import serializers
+
 from .models import Room, RoomImage
+from college.colleges.serializers import CollegeSerializer
 
 
 class RoomImageSerializer(serializers.ModelSerializer):
-
     url = serializers.SerializerMethodField()
 
     class Meta:
         model = RoomImage
-        fields = ['id', 'url', 'created_at']
+        fields = ["id", "url", "created_at"]
 
     def get_url(self, obj):
         return obj.image.url if obj.image else None
 
 
 class RoomSerializer(serializers.ModelSerializer):
-
     room_images = RoomImageSerializer(many=True, read_only=True)
     booking = serializers.SerializerMethodField()
 
-    college_id = serializers.IntegerField(
-        source='college.id',
-        read_only=True
-    )
+    # Complete College object
+    college = CollegeSerializer(read_only=True)
 
-    college_name = serializers.CharField(
-        source='college.name',
+    # College ID separately in response
+    college_id = serializers.IntegerField(
+        source="college.id",
         read_only=True
     )
 
     class Meta:
         model = Room
         fields = [
-            'id',
-            'user_id',
-            'title',
-            'description',
-            'address',
-            'price',
-            'is_booking',
-            'booking',
-            'longitude',
-            'latitude',
-            'room_type',
-            'contact_number',
-            'wifi',
-            'ac',
-            'parking',
-            'security',
-            'laundry',
-            'water',
-            'near_college',
-            'college',
-            'college_id',
-            'college_name',
-            'room_images',
-            'created_at',
-            'updated_at'
+            "id",
+            "user_id",
+            "title",
+            "description",
+            "address",
+            "price",
+            "is_booking",
+            "booking",
+            "longitude",
+            "latitude",
+            "room_type",
+            "contact_number",
+            "facilities",
+            "near_college",
+            "college",
+            "college_id",
+            "room_images",
+            "created_at",
+            "updated_at"
         ]
 
     def get_booking(self, obj):
-
-        user_id = self.context.get('user_id')
+        user_id = self.context.get("user_id")
 
         if not user_id:
             return False

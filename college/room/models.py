@@ -1,11 +1,9 @@
-
 from django.db import models
 from cloudinary.models import CloudinaryField
 from college.colleges.models import College
 
 
 class Room(models.Model):
-
     user_id = models.CharField(max_length=255)
 
     title = models.CharField(max_length=255)
@@ -26,26 +24,19 @@ class Room(models.Model):
     room_type = models.CharField(
         max_length=255, blank=True, null=True
     )
-
     contact_number = models.CharField(
         max_length=20, blank=True, null=True
     )
 
-    wifi = models.BooleanField(default=False)
-    ac = models.BooleanField(default=False)
-    parking = models.BooleanField(default=False)
-    security = models.BooleanField(default=False)
-    laundry = models.BooleanField(default=False)
-    water = models.BooleanField(default=False)
+    # Facilities will be stored as a JSON list
+    # Example: ["Ac", "WiFi", "Parking"]
+    facilities = models.JSONField(default=list, blank=True)
 
-    # Old field - backward compatibility
+    # Old field retained for backward compatibility
     near_college = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True
+        max_length=255, blank=True, null=True
     )
 
-    # New College ForeignKey
     college = models.ForeignKey(
         College,
         on_delete=models.SET_NULL,
@@ -61,20 +52,19 @@ class Room(models.Model):
         return f"{self.title} - ₹{self.price}"
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
 
 
 class RoomImage(models.Model):
-
     room = models.ForeignKey(
         Room,
         on_delete=models.CASCADE,
-        related_name='room_images'
+        related_name="room_images"
     )
 
     image = CloudinaryField(
-        'image',
-        folder='suwidhaa/room/images',
+        "image",
+        folder="suwidhaa/room/images",
         blank=True,
         null=True
     )
