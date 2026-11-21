@@ -40,6 +40,7 @@ urlpatterns = [
 
     # ---------- college ----------
     path("api/v1/college/", include("college.college_banner.urls")),
+    path("api/v1/college/", include("college.category.urls")),
     path("api/v1/college/", include("college.colleges.urls")),
     path("api/v1/college/", include("college.college_booking.urls")),
     path("api/v1/college/", include("college.room.urls")),

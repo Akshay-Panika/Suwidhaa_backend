@@ -71,6 +71,7 @@ INSTALLED_APPS = [
 
     # ---------- college ----------
     "college.college_banner",
+    "college.category",
     "college.colleges",
     "college.college_booking",
     "college.room",
