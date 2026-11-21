@@ -1,7 +1,6 @@
-# college/colleges/models.py
-
 from django.db import models
 from cloudinary.models import CloudinaryField
+from college.category.models import CollegeCategory
 
 
 class College(models.Model):
@@ -12,62 +11,67 @@ class College(models.Model):
         max_length=20,
         blank=True,
         null=True,
-        help_text="Contact number of the college"
+        help_text="Contact number of the college",
     )
-    category = models.CharField(
-        max_length=255,
-        blank=True,
+
+    # ✅ NEW: FK to CollegeCategory
+    category = models.ForeignKey(
+        CollegeCategory,
+        on_delete=models.SET_NULL,
         null=True,
-        help_text="User can enter any category (e.g., Engineering, Medical, Arts, etc.)"
+        blank=True,
+        related_name="colleges",
+        help_text="Category this college belongs to",
     )
+
     logo = CloudinaryField(
-        'logo',
-        folder='suwidhaa/college/logos',
+        "logo",
+        folder="suwidhaa/college/logos",
         blank=True,
         null=True,
-        help_text="College logo image"
+        help_text="College logo image",
     )
     is_recommended = models.BooleanField(
         default=False,
-        help_text="Mark college as recommended (manual)"
+        help_text="Mark college as recommended (manual)",
     )
     longitude = models.DecimalField(
         max_digits=9,
         decimal_places=6,
         blank=True,
         null=True,
-        help_text="Longitude coordinate of the college"
+        help_text="Longitude coordinate of the college",
     )
     latitude = models.DecimalField(
         max_digits=9,
         decimal_places=6,
         blank=True,
         null=True,
-        help_text="Latitude coordinate of the college"
+        help_text="Latitude coordinate of the college",
     )
-    # ✅ RENAMED: purana `booking` hatao, naya `is_booked` rakho
     is_booked = models.BooleanField(
         default=False,
-        help_text="True if any user has booked this college"
+        help_text="True if any user has booked this college",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.name} ({self.category or 'No Category'})"
+        cat_title = self.category.title if self.category else "No Category"
+        return f"{self.name} ({cat_title})"
 
 
 class CollegeImage(models.Model):
     college = models.ForeignKey(
         College,
         on_delete=models.CASCADE,
-        related_name='images'
+        related_name="images",
     )
     image = CloudinaryField(
-        'image',
-        folder='suwidhaa/college/images',
+        "image",
+        folder="suwidhaa/college/images",
         blank=True,
-        null=True
+        null=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
